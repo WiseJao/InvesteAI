@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { globalStyles } from '../../../styles/global';
 
 export default function BalanceDivider() {
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>Saldo</Text>
+            <Text style={globalStyles.text}>Saldo</Text>
             <View style={styles.divider} />
-            <Text style={styles.text}>Saldo</Text>
+            <Text style={globalStyles.text}>Saldo</Text>
         </View>
     );
 }
@@ -20,11 +21,5 @@ const styles = StyleSheet.create({
         borderLeftWidth: 1,
         borderLeftColor: '#ffffff',
         height: 100,
-    },
-    text: {
-        color: '#ffffff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textAlign: 'center',
     },
 });

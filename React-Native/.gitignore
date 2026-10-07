@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# arquivo do meu trabalho
+.npmrc
+
 # generated native folders
 /ios
 /android

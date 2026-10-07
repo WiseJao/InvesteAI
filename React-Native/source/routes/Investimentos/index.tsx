@@ -1,9 +1,10 @@
-import { View, Text } from 'react-native';
+import { ScrollView, Text,StyleSheet } from 'react-native';
+import { globalStyles } from '../../styles/global';
 
 export default function Investimentos() {
     return (
-        <View>
-            <Text>Investimentos</Text>
-        </View>
+        <ScrollView style={globalStyles.container}>
+            <Text style={globalStyles.text}>Investimentos</Text>
+        </ScrollView>
     );
 }

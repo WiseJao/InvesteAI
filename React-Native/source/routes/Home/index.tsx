@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Header from '../../shared/header';
 import BalanceDivider from './components/balanceDivider';
+import { globalStyles } from '../../styles/global';
 
 export default function Home() {
     return (
-        <View style={styles.container}>
+        <View style={globalStyles.container}>
             <Header/>
             <BalanceDivider/>
             <Text>Home</Text>
@@ -12,9 +13,3 @@ export default function Home() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
-    }
-});

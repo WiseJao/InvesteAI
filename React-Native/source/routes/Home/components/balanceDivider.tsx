@@ -4,9 +4,9 @@ import { globalStyles } from '../../../styles/global';
 export default function BalanceDivider() {
     return (
         <View style={styles.container}>
-            <Text style={globalStyles.text}>Saldo</Text>
+            <Text style={globalStyles.title}>Saldo</Text>
             <View style={styles.divider} />
-            <Text style={globalStyles.text}>Saldo</Text>
+            <Text style={globalStyles.title}>Saldo</Text>
         </View>
     );
 }

@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from 'react-native';
 import { globalStyles } from '../../styles/global';
 import CardAtivo  from './components/CardAtivo';
+import Botao from './components/Botao';
 
 const ativos = [
   {
@@ -32,24 +33,42 @@ const ativos = [
 export default function Investimentos() {
     return (
         <ScrollView style={globalStyles.container}>
+          <View style={globalStyles.container_elementos}>
             <Text style={globalStyles.subtitle}>Saldo Investido: </Text>
             <Text style={globalStyles.title}>1000 </Text>
+          </View>
+
 
             <View style={{
                 flexDirection: 'row',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                padding: 15
             }}>
-                <text style={globalStyles.subtitle}>Adicionar Investimento </text>
-                <text style={globalStyles.subtitle}>Renda Variável </text>
-                <text style={globalStyles.subtitle}>Renda Fixa </text>
-                <text style={globalStyles.subtitle}>Acessoria foda </text>
-                <text style={globalStyles.subtitle}>Acessoria foda 2 </text>
-                <text style={globalStyles.subtitle}>Acessoria foda 3</text>
+                <Botao 
+                titulo={'Adicionar\nInvestimentos'}
+                onPress={() => console.log('Add invest')}
+                icone = "add"/> 
+                <Botao
+                titulo={'Renda\nvariável'}
+                onPress={() => console.log('renda var')}
+                icone = "trending-up"/> 
+                <Botao
+                titulo={'Renda\nfixa'}
+                onPress={() => console.log('renda fixa')} // mudar esse icone depois, n achei nenhum bom
+                icone = "home"/> 
+                <Botao
+                titulo={'Acessoria'}
+                onPress={() => console.log('Acess')}
+                icone = "chatbubbles"/> 
+                <Botao
+                titulo={'Meus\ninvestimentos'}
+                onPress={() => console.log('meus invests')}
+                icone = "wallet"/> 
             </View>
 
-            <View> 
+            <View style={globalStyles.container_elementos}> 
                 <Text style={globalStyles.title}>Renda Variável</Text>
-            </View>
+            
 
             {ativos.map((ativo) => (
                 <CardAtivo
@@ -59,6 +78,9 @@ export default function Investimentos() {
                     preco={ativo.preco}
                     variacao={ativo.variacao}/>
             ))}
+            </View>
         </ScrollView>
     );
 }
+
+

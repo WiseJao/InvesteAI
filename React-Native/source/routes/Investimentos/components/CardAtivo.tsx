@@ -103,5 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 3,
     overflow: 'hidden',
+    alignContent :'center',
+    justifyContent : 'center'
   },
 });

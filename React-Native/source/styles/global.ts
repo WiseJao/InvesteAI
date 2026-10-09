@@ -20,7 +20,11 @@ export const globalStyles = StyleSheet.create({
     subtitle: {
         color: cores.subtitle,
         fontSize: 14,
-        marginTop: 5,
-        marginBottom: 20,
+    },
+    container_elementos: {
+        alignSelf :'auto',
+        padding :10, 
+        backgroundColor: '#9c9c9c',
+        borderRadius: 10,
     }
 });

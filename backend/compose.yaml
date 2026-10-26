@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: investeai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - investeai_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U investeai -d investeai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  investeai_data:

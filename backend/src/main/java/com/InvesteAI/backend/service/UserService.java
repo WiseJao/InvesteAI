@@ -31,8 +31,8 @@ public class UserService {
     }
 
     public void imprimirUser(User u){
-        System.err.println(u.getNome());
-        System.err.println(u.getEmail());
-        System.err.println(u.getId());
+        System.out.println(u.getNome());
+        System.out.println(u.getEmail());
+        System.out.println(u.getId());
     }
 }

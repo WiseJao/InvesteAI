@@ -7,7 +7,7 @@ WORKDIR /backend
 
 COPY pom.xml .
 
-RUN mvn dependency:go-offline
+#RUN mvn dependency:go-offline
 
 COPY src ./src
 

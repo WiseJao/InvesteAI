@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.service.UserService;
 
+import java.util.UUID;
+
 @RestController 
-@RequestMapping("/users")
+@RequestMapping("/auth")
 public class UserController {
 
     private final UserService userservice;
@@ -23,23 +25,28 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public User buscarUsuario(@PathVariable Long id){
+    public User buscarUsuario(@PathVariable UUID id){
         return userservice.buscarUsuario(id);
     }
-    
-    @PostMapping
+
+    @GetMapping("/all")
+    public Iterable<User> buscarTodosUsuarios(){
+        return userservice.buscarTodosUsuarios();
+    }
+
+    @PostMapping("/register")
     public void inserirUsuario(@RequestBody User user){
         userservice.criarUsuario(user);
     }
 
     @PutMapping("/{id}")
-    public void atualizarUsuario(@RequestBody User user, @PathVariable Long id){
+    public void atualizarUsuario(@RequestBody User user, @PathVariable UUID id){
         user.setId(id);
         userservice.atualizarUsuario(user);
     }
 
     @DeleteMapping 
-    public void deletarUsuario(@RequestBody Long id){
+    public void deletarUsuario(@RequestBody UUID id){
         userservice.deletarUsuario(id);
     }
 }

@@ -12,8 +12,11 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
 
+      JWT_SECRET: ${JWT_SECRET}
+
+
   db:
-    image: postgres:17
+    image: postgres:18
 #    container_name: investeai-postgres
     restart: unless-stopped
     environment:
@@ -23,7 +26,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - investeai_data:/var/lib/postgresql/data
+      - investeai_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U investeai -d investeai"]
       interval: 5s

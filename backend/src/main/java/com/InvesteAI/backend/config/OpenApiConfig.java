@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * OpenAPI 3.0 metadata and JWT Bearer security scheme.
- * Enables testing authenticated endpoints directly from Swagger UI — RNF-06.
  */
 @Configuration
 @OpenAPIDefinition(

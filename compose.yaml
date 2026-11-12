@@ -13,11 +13,19 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
 
       JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:-900000}
+      JWT_REFRESH_TOKEN_EXPIRATION_MS: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:-604800000}
 
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8081,http://localhost:19006,http://localhost:3000,http://localhost:5173}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
+      RATE_LIMIT_AUTH_RPM: ${RATE_LIMIT_AUTH_RPM:-10}
+
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:18
-#    container_name: investeai-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -28,7 +36,7 @@ services:
     volumes:
       - investeai_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U investeai -d investeai"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10

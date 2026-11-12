@@ -15,7 +15,7 @@ import com.InvesteAI.backend.service.UserService;
 import java.util.UUID;
 
 @RestController 
-@RequestMapping("/auth")
+@RequestMapping("/user")
 public class UserController {
 
     private final UserService userservice;

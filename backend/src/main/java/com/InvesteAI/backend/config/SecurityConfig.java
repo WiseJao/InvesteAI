@@ -57,10 +57,11 @@ public class SecurityConfig {
                             // ── Public auth endpoints ─────────────────────────────────
                             .requestMatchers(HttpMethod.POST,
                                     "/auth/register", "/auth/login", "/auth/google", "/auth/refresh", "/auth/logout").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/user/**").permitAll() //Temporariamente
                             // ── Pictures — public read (img tags cannot send the token; ids are random UUIDs)
                             // ── OpenAPI / Swagger — RNF-06 ────────────────────────────
                             .requestMatchers(
-                                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/auth/all").permitAll()
+                                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health", "/actuator/info", "/auth/all").permitAll()
                             // ── All other requests require authentication ─────────────
                             .anyRequest().authenticated();
                 })

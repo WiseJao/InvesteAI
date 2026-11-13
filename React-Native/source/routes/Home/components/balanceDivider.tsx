@@ -22,9 +22,9 @@ function Coluna({ titulo, valor, destaque }: ColunaProps) {
 export default function BalanceDivider() {
     return (
         <View style={styles.container}>
-            <Coluna titulo="Saldo geral" valor="R$ 12.345.678,90" destaque="+123.456,78 (1%)" />
+            <Text style={styles.titulo}>Saldo</Text>
             <View style={styles.divider} />
-            <Coluna titulo="Objetivo principal" valor="R$ 12.345.678,90" destaque="1% alcançado" />
+            <Text style={styles.titulo}>Saldo</Text>
         </View>
     );
 }

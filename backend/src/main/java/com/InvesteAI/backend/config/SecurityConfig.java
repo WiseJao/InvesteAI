@@ -62,6 +62,7 @@ public class SecurityConfig {
                             // ── OpenAPI / Swagger — RNF-06 ────────────────────────────
                             .requestMatchers(
                                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health", "/actuator/info", "/auth/all").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/investments/quotes").permitAll() //Temporariamente
                             // ── All other requests require authentication ─────────────
                             .anyRequest().authenticated();
                 })

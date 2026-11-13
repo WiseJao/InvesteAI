@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors } from '../../../styles/colors';
 
 type BotaoProps = {
     titulo: string;
@@ -21,7 +22,7 @@ export default function Botao({
                 <Ionicons
                     size={25}
                     name={icone}
-                    color="#555555"
+                    color={colors.primary}
                 />
             </View>
 
@@ -43,7 +44,9 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#D9D9D9',
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -51,6 +54,6 @@ const styles = StyleSheet.create({
     titulo: {
         fontSize: 10,
         textAlign: 'center',
-        color: '#ffffff',
+        color: colors.text,
     },
 });

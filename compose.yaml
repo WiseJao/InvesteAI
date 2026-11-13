@@ -20,6 +20,8 @@ services:
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-60}
       RATE_LIMIT_AUTH_RPM: ${RATE_LIMIT_AUTH_RPM:-10}
 
+      BRAPI_API_KEY: ${BRAPI_API_KEY}
+
     depends_on:
       db:
         condition: service_healthy

@@ -32,7 +32,6 @@ export default function Header({name = 'Usuario'}: HeaderProps) {
 
 const styles = StyleSheet.create({
 	header: {
-		flex: 0,
 		backgroundColor: '#000',
 		borderBottomWidth: 2,
 		borderBottomColor: '#50d6ca',

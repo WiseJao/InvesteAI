@@ -76,3 +76,6 @@ info:
     name: InvesteAI Backend
     version: 0.1.0
     description: InvesteAI backend API
+
+brapi:
+  api-key: ${BRAPI_API_KEY:}

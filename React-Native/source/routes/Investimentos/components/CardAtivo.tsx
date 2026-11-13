@@ -1,11 +1,13 @@
 
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { colors } from '../../../styles/colors';
 
 type CardAtivoProps = {
   ticker: string;
   empresa: string;
   preco: string;
   variacao: string;
+  logo: string
 };
 
 export default function CardAtivo({
@@ -13,10 +15,20 @@ export default function CardAtivo({
   empresa,
   preco,
   variacao,
+  logo,
 }: CardAtivoProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.logo} />
+      <View style={styles.logo} >
+        {logo ? (
+          <Image
+            source={{ uri: logo }}
+            style={styles.imagemLogo}
+            resizeMode="contain"
+          />
+        ) : null}
+      </View>
+
 
       <View style={styles.identificacao}>
         <Text style={styles.ticker}>{ticker}</Text>
@@ -26,8 +38,8 @@ export default function CardAtivo({
       <View style={styles.financeiro}>
         <Text style={styles.preco}>{preco}</Text>
 
-        <View style={styles.variacao}>
-          <Text style={styles.variacaoTexto}>
+        <View style={[styles.variacao, variacao.startsWith('-') && styles.variacaoNegativa]}>
+          <Text style={[styles.variacaoTexto, variacao.startsWith('-') && styles.variacaoTextoNegativa]}>
             {variacao}
           </Text>
         </View>
@@ -52,7 +64,10 @@ const styles = StyleSheet.create({
   logo: {
     width: 43,
     height: 43,
-    backgroundColor: '#777777',
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 
   identificacao: {
@@ -64,12 +79,12 @@ const styles = StyleSheet.create({
   ticker: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: colors.text,
   },
 
   empresa: {
     fontSize: 10,
-    color: '#ffffff',
+    color: colors.textMuted,
   },
 
   financeiro: {
@@ -79,31 +94,46 @@ const styles = StyleSheet.create({
 
   preco: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.text,
   },
 
   variacao: {
-    backgroundColor: '#00B900',
+    backgroundColor: colors.positive,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 6,
     alignSelf: 'flex-start',
   },
 
+  variacaoNegativa: {
+    backgroundColor: colors.negative,
+  },
+
   variacaoTexto: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 9,
     fontWeight: 'bold',
+  },
+
+  variacaoTextoNegativa: {
+    color: colors.text,
   },
 
   grafico: {
     width: 76,
     height: 43,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 3,
     overflow: 'hidden',
-    alignContent :'center',
-    justifyContent : 'center'
+    alignContent: 'center',
+    justifyContent: 'center',
+  },
+
+  imagemLogo: {
+    width: 43,
+    height: 43,
+    borderRadius: 10,
   },
 });
+

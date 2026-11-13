@@ -3,16 +3,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'
 import Investimentos from './Investimentos';
-import Home from './Home';
-import Gastos from './Gastos';
-import AI from './AI';
+import HomeStack from './Home/stack';
+import GastosStack from './Gastos/stack';
+import AIStack from './AI/stack';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 export default function TabRouter() {
     return (
-        <Tab.Navigator initialRouteName="Home">
+        <Tab.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
             <Tab.Screen name="Home" component={HomeStack} options={{
                 tabBarIcon: () =>(
                     <Ionicons
@@ -49,13 +49,6 @@ export default function TabRouter() {
     );
 }
 
-function HomeStack() {
-    return(
-        <Stack.Navigator>
-            <Stack.Screen name="Home" component={Home} options={{ headerShown: false }} />
-        </Stack.Navigator>
-    );
-}
 
 function InvestimentoStack() {
     return(
@@ -65,18 +58,3 @@ function InvestimentoStack() {
     );
 }
 
-function GastosStack() {
-    return(
-        <Stack.Navigator>
-            <Stack.Screen name="Gastos" component={Gastos} options={{ headerShown: false }} />
-        </Stack.Navigator>
-    );
-}
-
-function AIStack() {
-    return(
-        <Stack.Navigator>
-            <Stack.Screen name="AI" component={AI} options={{ headerShown: false }} />
-        </Stack.Navigator>
-    );
-}

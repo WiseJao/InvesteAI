@@ -1,9 +1,9 @@
 package com.InvesteAI.backend.service;
 
-import com.InvesteAI.backend.dto.auth.AuthResponse;
-import com.InvesteAI.backend.dto.auth.LoginRequest;
-import com.InvesteAI.backend.dto.auth.RefreshTokenRequest;
-import com.InvesteAI.backend.dto.auth.RegisterRequest;
+import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.request.LoginRequest;
+import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
+import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
 import com.InvesteAI.backend.interfaces.UserInterface;
 import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.security.JwtService;

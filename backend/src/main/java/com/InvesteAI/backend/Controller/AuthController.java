@@ -1,9 +1,9 @@
 package com.InvesteAI.backend.Controller;
 
-import com.InvesteAI.backend.dto.auth.AuthResponse;
-import com.InvesteAI.backend.dto.auth.LoginRequest;
-import com.InvesteAI.backend.dto.auth.RefreshTokenRequest;
-import com.InvesteAI.backend.dto.auth.RegisterRequest;
+import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.request.LoginRequest;
+import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
+import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
 import com.InvesteAI.backend.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

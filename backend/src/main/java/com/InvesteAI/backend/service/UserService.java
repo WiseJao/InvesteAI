@@ -27,17 +27,4 @@ public class UserService {
         ur.deleteById(id);
     }
 
-    public void criarUsuario(User user){
-        ur.save(user);
-    }
-
-    public void atualizarUsuario(User user){
-        ur.save(user);
-    }
-
-    public void imprimirUser(User u){
-        System.out.println(u.getName());
-        System.out.println(u.getEmail());
-        System.out.println(u.getId());
-    }
 }

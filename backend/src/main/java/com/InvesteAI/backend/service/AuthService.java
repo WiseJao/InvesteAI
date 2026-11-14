@@ -5,13 +5,21 @@ import com.InvesteAI.backend.dto.auth.request.LoginRequest;
 import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
 import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
 import com.InvesteAI.backend.interfaces.UserInterface;
+import com.InvesteAI.backend.model.Profile;
 import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.security.JwtService;
+import com.InvesteAI.backend.validation.AuthIdentifiers;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -24,40 +32,71 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("E-mail já cadastrado");
+        String email = AuthIdentifiers.normalizeEmail(request.email());
+        String cpf = AuthIdentifiers.normalizeCpf(request.cpf());
+        if (email.isBlank()) {
+            throw new IllegalArgumentException("E-mail inválido");
+        }
+        if (userRepository.existsByEmail(email) || userRepository.existsByCpf(cpf)) {
+            throw duplicateIdentifier();
         }
 
-        User user = User.builder()
-                .name(request.name())
-                .email(request.email())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .build();
+        User user = new User();
+        user.setEmail(email);
+        user.setCpf(cpf);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
 
-        userRepository.save(user);
+        Profile profile = new Profile();
+        profile.setName(request.name().trim());
+        user.setProfile(profile);
 
-        String accessToken = jwtService.generateAccessToken(user.getId());
-        String refreshToken = jwtService.generateRefreshToken(user.getId());
+        User savedUser;
+        try {
+            savedUser = userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw duplicateIdentifier();
+        }
+
+        String accessToken = jwtService.generateAccessToken(savedUser.getId());
+        String refreshToken = jwtService.generateRefreshToken(savedUser.getId());
 
         return new AuthResponse(accessToken, refreshToken);
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
-        );
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.identifier(), request.password()));
+        } catch (AuthenticationException exception) {
+            throw invalidCredentials();
+        }
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+        if (!(authentication.getPrincipal() instanceof UserDetails principal)) {
+            throw invalidCredentials();
+        }
 
-        String accessToken = jwtService.generateAccessToken(user.getId());
-        String refreshToken = jwtService.generateRefreshToken(user.getId());
+        UUID userId;
+        try {
+            userId = UUID.fromString(principal.getUsername());
+        } catch (IllegalArgumentException exception) {
+            throw invalidCredentials();
+        }
+
+        String accessToken = jwtService.generateAccessToken(userId);
+        String refreshToken = jwtService.generateRefreshToken(userId);
 
         return new AuthResponse(accessToken, refreshToken);
+    }
+
+    private static IllegalArgumentException duplicateIdentifier() {
+        return new IllegalArgumentException("E-mail ou CPF já cadastrado");
+    }
+
+    private static BadCredentialsException invalidCredentials() {
+        return new BadCredentialsException("Invalid credentials");
     }
 
     public AuthResponse refresh(RefreshTokenRequest request) {

@@ -25,6 +25,26 @@ class UserProfilePersistenceTest {
     @Autowired
     private TestEntityManager entityManager;
 
+    @Test
+    void persistsAndReplacesProfileImageBytes() {
+        User user = userWithProfile();
+        entityManager.persistAndFlush(user);
+        ProfileImage image = new ProfileImage();
+        image.setProfileId(user.getProfile().getProfileId());
+        image.setImageData(new byte[]{1, 2, 3});
+        image.setContentType("image/png");
+        entityManager.persistAndFlush(image);
+        entityManager.clear();
+
+        ProfileImage loaded = entityManager.find(ProfileImage.class, image.getProfileId());
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{1, 2, 3}, loaded.getImageData());
+        loaded.setImageData(new byte[]{4, 5});
+        entityManager.flush();
+        entityManager.clear();
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{4, 5},
+                entityManager.find(ProfileImage.class, image.getProfileId()).getImageData());
+    }
+
     /**
      * Intent: registration must be able to persist a profile through its user and
      * the two records must not share an identifier.

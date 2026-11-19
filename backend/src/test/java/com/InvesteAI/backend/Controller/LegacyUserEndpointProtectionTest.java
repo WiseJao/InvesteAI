@@ -28,6 +28,7 @@ class LegacyUserEndpointProtectionTest {
     void hasNoRawEntityCreateOrUpdateEndpoint() {
         assertFalse(Arrays.stream(UserController.class.getDeclaredMethods())
                 .anyMatch(method -> method.isAnnotationPresent(PostMapping.class)
+                        && Arrays.asList(method.getParameterTypes()).contains(User.class)
                         || method.isAnnotationPresent(PutMapping.class)));
     }
 

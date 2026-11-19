@@ -7,9 +7,23 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+/**
+ * Service managing AI-driven risk profiling, investor questionnaire evaluation,
+ * and portfolio asset recommendations.
+ * <p>
+ * Classifies investor risk tolerance into Conservative, Moderate, or Aggressive categories,
+ * computes ideal asset class allocation distributions, and generates targeted product recommendations.
+ * </p>
+ */
 @Service
 public class AIAdvisoryService {
 
+    /**
+     * Retrieves the baseline investor profile and recommended allocation for a user.
+     *
+     * @param userId the UUID of the authenticated user
+     * @return {@link RiskProfileResponse} with profile classification and percentage allocations
+     */
     public RiskProfileResponse getProfile(UUID userId) {
         Map<String, Double> allocation = new LinkedHashMap<>();
         allocation.put("Renda Fixa", 45.0);
@@ -26,6 +40,13 @@ public class AIAdvisoryService {
         );
     }
 
+    /**
+     * Evaluates questionnaire responses and computes an updated risk profile classification.
+     *
+     * @param userId  the UUID of the authenticated user
+     * @param request the questionnaire answers, experience years, and drop reactions
+     * @return evaluated {@link RiskProfileResponse}
+     */
     public RiskProfileResponse evaluateProfile(UUID userId, EvaluateRiskProfileRequest request) {
         int score = 50; // Base score
         if (request.investmentExperienceYears() != null) {
@@ -80,6 +101,12 @@ public class AIAdvisoryService {
         );
     }
 
+    /**
+     * Generates a curated list of asset recommendations tailored to the investor profile.
+     *
+     * @param userId the UUID of the user
+     * @return list of {@link RecommendationResponse} items
+     */
     public List<RecommendationResponse> getRecommendations(UUID userId) {
         return List.of(
                 new RecommendationResponse(

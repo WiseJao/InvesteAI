@@ -31,6 +31,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Service managing user authentication, registration pipelines, JWT issuance, and password recovery.
+ * <p>
+ * Handles atomic registration across {@link User}, {@link Profile}, and {@link Form} entities,
+ * credential validation via Spring Security's {@link AuthenticationManager}, token refresh validation,
+ * and time-bounded password reset verification codes.
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -47,6 +55,13 @@ public class AuthService {
         }
     }
 
+    /**
+     * Atomically registers a new user, profile, and onboarding questionnaire responses.
+     *
+     * @param request the registration request containing credentials, personal information, and onboarding questions
+     * @return {@link AuthResponse} containing access and refresh tokens
+     * @throws IllegalArgumentException if the email is blank or an account with the given email/CPF already exists
+     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String email = AuthIdentifiers.normalizeEmail(request.email());
@@ -102,6 +117,13 @@ public class AuthService {
         return new AuthResponse(accessToken, refreshToken);
     }
 
+    /**
+     * Authenticates a user using their email or CPF identifier and password.
+     *
+     * @param request the login request payload containing user identifier and password
+     * @return {@link AuthResponse} containing access and refresh tokens
+     * @throws BadCredentialsException if authentication fails due to incorrect credentials
+     */
     public AuthResponse login(LoginRequest request) {
         Authentication authentication;
         try {
@@ -136,6 +158,13 @@ public class AuthService {
         return new BadCredentialsException("Invalid credentials");
     }
 
+    /**
+     * Issues a new access token and refresh token pair using an unexpired refresh token.
+     *
+     * @param request the refresh request containing the current refresh token
+     * @return {@link AuthResponse} containing new access and refresh tokens
+     * @throws IllegalArgumentException if the provided refresh token is expired, corrupted, or invalid
+     */
     public AuthResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.refreshToken();
 
@@ -151,11 +180,21 @@ public class AuthService {
         return new AuthResponse(newAccessToken, newRefreshToken);
     }
 
+    /**
+     * Invalidates the current user session (stateless JWT client cleanup hook).
+     */
     public void logout() {
         // Em JWT stateless simples, o logout é feito no cliente apagando os tokens.
         // Se quiser invalidar tokens no backend, implemente blacklist/revocation list.
     }
 
+    /**
+     * Generates a 6-digit verification code and initiates the password recovery workflow for a user.
+     *
+     * @param request the password recovery payload with the user's email or CPF
+     * @return {@link ForgotPasswordResponse} containing feedback message and generated verification code
+     * @throws IllegalArgumentException if no identifier is provided
+     */
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String identifier = request.resolvedIdentifier();
         if (identifier.isBlank()) {
@@ -198,6 +237,13 @@ public class AuthService {
         return new ForgotPasswordResponse("Código de recuperação enviado com sucesso", UUID.randomUUID().toString(), code);
     }
 
+    /**
+     * Validates a password reset verification code and updates the user's password.
+     *
+     * @param request the reset payload containing identifier, verification code, and new password
+     * @return map with success confirmation message
+     * @throws IllegalArgumentException if the password is too short or the verification code is invalid/expired
+     */
     @Transactional
     public Map<String, String> resetPassword(ResetPasswordRequest request) {
         String identifier = request.identifier();

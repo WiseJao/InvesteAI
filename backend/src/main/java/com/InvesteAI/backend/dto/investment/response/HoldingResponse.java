@@ -7,6 +7,23 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Response payload representing an investment holding position with computed valuation and profit/loss.
+ *
+ * @param id                standard entity identifier
+ * @param investmentId      database primary key UUID
+ * @param symbol            ticker symbol
+ * @param name              asset name
+ * @param originalQuantity  original lot size
+ * @param remainingQuantity current quantity held
+ * @param purchaseUnitPrice unit acquisition price
+ * @param currentPrice      current market price
+ * @param totalInvested     total cost basis (purchaseUnitPrice * quantity)
+ * @param currentTotalValue current market valuation (currentPrice * quantity)
+ * @param profit            nominal profit or loss amount
+ * @param profitPercentage  profit percentage relative to total invested
+ * @param purchaseDate      acquisition date
+ */
 public record HoldingResponse(
         UUID id,
         UUID investmentId,
@@ -22,6 +39,12 @@ public record HoldingResponse(
         Double profitPercentage,
         LocalDate purchaseDate
 ) {
+    /**
+     * Converts an {@link Investment} entity to a {@link HoldingResponse} calculating valuations and profit.
+     *
+     * @param entity the source entity
+     * @return initialized {@link HoldingResponse}
+     */
     public static HoldingResponse from(Investment entity) {
         BigDecimal qty = entity.getRemainingQuantity() != null ? entity.getRemainingQuantity() : entity.getOriginalQuantity();
         BigDecimal buyPrice = entity.getPurchaseUnitPrice();

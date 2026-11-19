@@ -7,6 +7,18 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/**
+ * Request payload for registering a new asset holding in the user's portfolio.
+ *
+ * @param symbol            ticker symbol (e.g. PETR4, VALE3)
+ * @param name              optional asset or company name
+ * @param quantity          number of shares or units acquired
+ * @param originalQuantity  alias field for quantity
+ * @param purchaseUnitPrice unit acquisition price
+ * @param price             alias field for purchaseUnitPrice
+ * @param purchaseDate      trade execution date
+ * @param currentPrice      optional current price override
+ */
 public record CreateHoldingRequest(
         @NotBlank(message = "O ticker/símbolo é obrigatório")
         String symbol,
@@ -22,21 +34,41 @@ public record CreateHoldingRequest(
         LocalDate purchaseDate,
         BigDecimal currentPrice
 ) {
+    /**
+     * Resolves the quantity purchased.
+     *
+     * @return non-null {@link BigDecimal} quantity
+     */
     public BigDecimal resolvedQuantity() {
         if (quantity != null) return quantity;
         return originalQuantity;
     }
 
+    /**
+     * Resolves the purchase unit price.
+     *
+     * @return non-null {@link BigDecimal} price
+     */
     public BigDecimal resolvedPurchasePrice() {
         if (purchaseUnitPrice != null) return purchaseUnitPrice;
         return price;
     }
 
+    /**
+     * Resolves asset name, defaulting to uppercase symbol.
+     *
+     * @return non-null asset name string
+     */
     public String resolvedName() {
         if (name != null && !name.isBlank()) return name.trim();
         return symbol.trim().toUpperCase();
     }
 
+    /**
+     * Resolves purchase date, falling back to current date.
+     *
+     * @return non-null {@link LocalDate} purchase date
+     */
     public LocalDate resolvedPurchaseDate() {
         return purchaseDate != null ? purchaseDate : LocalDate.now();
     }

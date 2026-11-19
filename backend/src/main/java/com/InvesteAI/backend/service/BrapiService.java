@@ -12,6 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Service for communicating with the external BRAPI market data API with in-memory caching.
+ * <p>
+ * Proxies stock quote lookups and asset search queries while applying a time-to-live (TTL) cache
+ * to preserve upstream rate limits and improve frontend response latencies.
+ * </p>
+ */
 @Service
 public class BrapiService {
 
@@ -27,6 +34,11 @@ public class BrapiService {
         }
     }
 
+    /**
+     * Constructs the {@link BrapiService} configuring base API URL and optional API token.
+     *
+     * @param apiKey the BRAPI authorization token configured in application properties
+     */
     public BrapiService(@Value("${brapi.api-key:}") String apiKey) {
         this.client = RestClient.builder()
                 .baseUrl("https://brapi.dev")
@@ -34,6 +46,12 @@ public class BrapiService {
         this.apiKey = apiKey;
     }
 
+    /**
+     * Fetches market quote JSON nodes for the specified ticker symbols with automatic caching.
+     *
+     * @param symbols list of ticker symbol strings (e.g. {@code ["PETR4", "VALE3"]})
+     * @return list of quote {@link JsonNode} items exactly matching BRAPI output
+     */
     public List<JsonNode> getQuotes(List<String> symbols) {
         if (symbols == null || symbols.isEmpty()) {
             return Collections.emptyList();
@@ -98,6 +116,12 @@ public class BrapiService {
         return quotes;
     }
 
+    /**
+     * Searches tickers and names matching the query string from BRAPI with automatic caching.
+     *
+     * @param query substring search query
+     * @return list of matching ticker {@link JsonNode} objects
+     */
     public List<JsonNode> search(String query) {
         if (query == null || query.trim().isBlank()) {
             return Collections.emptyList();

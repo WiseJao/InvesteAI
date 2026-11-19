@@ -14,12 +14,26 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 
+/**
+ * Service managing user portfolio holdings, equity valuations, and asset class distributions.
+ * <p>
+ * Handles asset CRUD operations, computes total invested capital, current valuations based on
+ * live prices, aggregate profit/loss metrics, and categorizes assets into high-level asset classes.
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 public class InvestmentService {
 
     private final InvestmentInterface investmentRepository;
 
+    /**
+     * Adds a new investment holding to a user's portfolio.
+     *
+     * @param userId  the UUID of the authenticated user
+     * @param request the holding creation payload
+     * @return {@link HoldingResponse} representing the registered holding
+     */
     @Transactional
     public HoldingResponse addHolding(UUID userId, CreateHoldingRequest request) {
         Investment investment = new Investment();
@@ -36,6 +50,12 @@ public class InvestmentService {
         return HoldingResponse.from(saved);
     }
 
+    /**
+     * Lists all registered investment holdings belonging to a user, ordered by purchase date descending.
+     *
+     * @param userId the UUID of the user
+     * @return list of {@link HoldingResponse} items
+     */
     @Transactional(readOnly = true)
     public List<HoldingResponse> listHoldings(UUID userId) {
         return investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId)
@@ -44,6 +64,14 @@ public class InvestmentService {
                 .toList();
     }
 
+    /**
+     * Retrieves a single investment holding by ID, ensuring user ownership.
+     *
+     * @param userId the UUID of the user
+     * @param id     the UUID of the investment holding
+     * @return the {@link HoldingResponse}
+     * @throws NoSuchElementException if the holding is not found or not owned by user
+     */
     @Transactional(readOnly = true)
     public HoldingResponse getHolding(UUID userId, UUID id) {
         Investment investment = investmentRepository.findByInvestmentIdAndUserId(id, userId)
@@ -51,6 +79,15 @@ public class InvestmentService {
         return HoldingResponse.from(investment);
     }
 
+    /**
+     * Updates an existing investment holding in the user's portfolio.
+     *
+     * @param userId  the UUID of the user
+     * @param id      the UUID of the holding to update
+     * @param request the update payload
+     * @return the updated {@link HoldingResponse}
+     * @throws NoSuchElementException if the holding is not found or not owned by user
+     */
     @Transactional
     public HoldingResponse updateHolding(UUID userId, UUID id, UpdateHoldingRequest request) {
         Investment investment = investmentRepository.findByInvestmentIdAndUserId(id, userId)
@@ -79,6 +116,13 @@ public class InvestmentService {
         return HoldingResponse.from(saved);
     }
 
+    /**
+     * Deletes an investment holding from the user's portfolio.
+     *
+     * @param userId the UUID of the user
+     * @param id     the UUID of the holding to delete
+     * @throws NoSuchElementException if the holding is not found or not owned by user
+     */
     @Transactional
     public void deleteHolding(UUID userId, UUID id) {
         Investment investment = investmentRepository.findByInvestmentIdAndUserId(id, userId)
@@ -86,6 +130,13 @@ public class InvestmentService {
         investmentRepository.delete(investment);
     }
 
+    /**
+     * Computes the aggregated portfolio summary for a user, including total invested capital,
+     * total market value, net profit/loss, profit percentage, and asset allocation percentages.
+     *
+     * @param userId the UUID of the user
+     * @return {@link PortfolioSummaryResponse} containing overall portfolio KPIs and asset allocation
+     */
     @Transactional(readOnly = true)
     public PortfolioSummaryResponse getPortfolioSummary(UUID userId) {
         List<Investment> holdings = investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId);
@@ -138,6 +189,12 @@ public class InvestmentService {
         );
     }
 
+    /**
+     * Classifies an asset symbol into an asset category (Ações, Fundos Imobiliários, Renda Fixa, etc.).
+     *
+     * @param symbol the ticker or identifier string
+     * @return category description string
+     */
     private String classifyAsset(String symbol) {
         if (symbol == null) return "Outros";
         String s = symbol.trim().toUpperCase();

@@ -7,6 +7,24 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/**
+ * Response payload representing a financial goal with computed progress and backwards-compatible aliases.
+ *
+ * @param id                 standard entity identifier
+ * @param goalId             database primary key UUID
+ * @param name               goal name
+ * @param title              alias field for name
+ * @param description        goal description
+ * @param category           alias field for description
+ * @param currentValue       accumulated progress amount
+ * @param currentAmount      alias field for currentValue
+ * @param targetValue        target monetary amount
+ * @param targetAmount       alias field for targetValue
+ * @param progressPercentage computed completion percentage (0.0 - 100.0)
+ * @param startDate          goal initiation date
+ * @param endDate            goal target deadline
+ * @param deadline           alias field for endDate
+ */
 public record GoalResponse(
         UUID id,
         UUID goalId,
@@ -23,6 +41,12 @@ public record GoalResponse(
         LocalDate endDate,
         LocalDate deadline
 ) {
+    /**
+     * Converts a {@link Goal} entity into a {@link GoalResponse} with computed progress percentage.
+     *
+     * @param entity the goal entity
+     * @return initialized {@link GoalResponse}
+     */
     public static GoalResponse from(Goal entity) {
         Double progress = null;
         if (entity.getTargetValue() != null && entity.getTargetValue().compareTo(BigDecimal.ZERO) > 0) {

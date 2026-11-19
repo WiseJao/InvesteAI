@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
@@ -7,6 +7,7 @@ import Field from '../../shared/field';
 import PasswordStrength from '../../shared/passwordStrength';
 import { formatCPF } from '../../shared/format';
 import { colors } from '../../styles/colors';
+import { registerUnified } from '../../services/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Cadastro'>;
 
@@ -51,6 +52,8 @@ const initialData: FormData = {
 export default function Cadastro({ navigation }: Props) {
     const [step, setStep] = useState<Step>(1);
     const [data, setData] = useState<FormData>(initialData);
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     function update<K extends keyof FormData>(key: K, value: FormData[K]) {
         setData((atual) => ({ ...atual, [key]: value }));
@@ -58,13 +61,22 @@ export default function Cadastro({ navigation }: Props) {
 
     const senhasDiferentes = data.repetirSenha.length > 0 && data.senha !== data.repetirSenha;
 
-    function handleProsseguir() {
+    async function handleProsseguir() {
         if (step === 1) return setStep(2);
         if (step === 2) return setStep(3);
 
-        if (senhasDiferentes) return;
-        // TODO: enviar o cadastro para a API e confirmar o e-mail
-        navigation.replace('Main');
+        if (senhasDiferentes || loading) return;
+
+        try {
+            setLoading(true);
+            setErrorMsg(null);
+            await registerUnified(data);
+            navigation.replace('Main');
+        } catch (err: any) {
+            setErrorMsg(err.message || 'Erro ao realizar cadastro');
+        } finally {
+            setLoading(false);
+        }
     }
 
     function handleVoltar() {
@@ -185,14 +197,20 @@ export default function Cadastro({ navigation }: Props) {
                         />
                         <PasswordStrength password={data.senha} />
                         {senhasDiferentes && <Text style={styles.error}>As senhas não coincidem.</Text>}
+                        {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
                     </>
                 )}
 
                 <TouchableOpacity
-                    style={[styles.button, step === 3 && senhasDiferentes && styles.buttonDisabled]}
+                    style={[styles.button, (step === 3 && (senhasDiferentes || loading)) && styles.buttonDisabled]}
                     onPress={handleProsseguir}
+                    disabled={loading}
                 >
-                    <Text style={styles.buttonText}>{step === 3 ? 'Confirmar e-mail' : 'Prosseguir'}</Text>
+                    {loading ? (
+                        <ActivityIndicator color={colors.onPrimary} />
+                    ) : (
+                        <Text style={styles.buttonText}>{step === 3 ? 'Confirmar e-mail' : 'Prosseguir'}</Text>
+                    )}
                 </TouchableOpacity>
 
                 <Text style={styles.stepIndicator}>{step}/3</Text>

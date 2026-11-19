@@ -1,15 +1,15 @@
 package com.InvesteAI.backend.Controller;
 
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import com.InvesteAI.backend.dto.auth.response.UserResponse;
+import com.InvesteAI.backend.security.CurrentUser;
+import org.springframework.security.core.Authentication;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.service.UserService;
 
+import java.net.Authenticator;
 import java.util.UUID;
 
 @RestController 
@@ -21,6 +21,26 @@ public class UserController {
     public UserController(UserService userservice){
         this.userservice = userservice;
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getMe(@CurrentUser UUID userID) {
+
+        User user = userservice.buscarUsuario(userID);
+
+        return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    @PatchMapping
+    public ResponseEntity<UserResponse> patchMe(@CurrentUser UUID userID, @RequestBody User user) {
+
+        User updatedUser = userservice.atualizarUsuario(userID, user);
+
+        return ResponseEntity.ok(UserResponse.from(updatedUser));
+    }
+
+
+
+
 
     @GetMapping("/{id}")
     public User buscarUsuario(@PathVariable UUID id){

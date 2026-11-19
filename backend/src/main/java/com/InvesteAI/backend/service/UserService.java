@@ -15,6 +15,7 @@ public class UserService {
         this.ur = ur;
     }
 
+
     public Iterable<User> buscarTodosUsuarios(){
         return ur.findAll();
     }
@@ -27,4 +28,7 @@ public class UserService {
         ur.deleteById(id);
     }
 
+    public User atualizarUsuario(UUID userID, User user) {
+        return ur.save(user);
+    }
 }

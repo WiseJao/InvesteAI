@@ -25,7 +25,7 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
     const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
     const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(options.headers as Record<string, string>),
     };
 
@@ -40,11 +40,11 @@ export async function apiRequest<T = any>(
 
     if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
+        const errorText = await response.text();
         try {
-            const errorBody = await response.json();
+            const errorBody = JSON.parse(errorText);
             errorMessage = errorBody.message ?? errorBody.error ?? JSON.stringify(errorBody);
         } catch {
-            const errorText = await response.text();
             if (errorText) errorMessage = errorText;
         }
         throw new Error(errorMessage);
@@ -55,6 +55,31 @@ export async function apiRequest<T = any>(
     }
 
     return response.json();
+}
+
+export async function uploadAvatar(file: { uri: string; name: string; type: string; webFile?: File }) {
+    const form = new FormData();
+    if (file.webFile) {
+        form.append('file', file.webFile, file.name);
+    } else {
+        form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+    }
+    await apiRequest('/user/me/avatar', { method: 'POST', body: form });
+}
+
+export async function getAvatar(): Promise<string | null> {
+    const response = await fetch(`${API_BASE_URL}/user/me/avatar`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Não foi possível carregar a foto.'));
+        reader.readAsDataURL(blob);
+    });
 }
 
 export type UnifiedRegisterData = {

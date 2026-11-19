@@ -1,9 +1,12 @@
 package com.InvesteAI.backend.Controller;
 
-import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.request.ForgotPasswordRequest;
 import com.InvesteAI.backend.dto.auth.request.LoginRequest;
 import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
 import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
+import com.InvesteAI.backend.dto.auth.request.ResetPasswordRequest;
+import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.response.ForgotPasswordResponse;
 import com.InvesteAI.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,16 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
     }
 
     @ExceptionHandler(BadCredentialsException.class)

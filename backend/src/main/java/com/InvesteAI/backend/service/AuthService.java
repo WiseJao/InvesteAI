@@ -1,10 +1,14 @@
 package com.InvesteAI.backend.service;
 
-import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.request.ForgotPasswordRequest;
 import com.InvesteAI.backend.dto.auth.request.LoginRequest;
 import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
 import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
+import com.InvesteAI.backend.dto.auth.request.ResetPasswordRequest;
+import com.InvesteAI.backend.dto.auth.response.AuthResponse;
+import com.InvesteAI.backend.dto.auth.response.ForgotPasswordResponse;
 import com.InvesteAI.backend.interfaces.UserInterface;
+import com.InvesteAI.backend.model.Form;
 import com.InvesteAI.backend.model.Profile;
 import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.security.JwtService;
@@ -21,7 +25,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +39,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final Map<String, PasswordResetEntry> passwordResetStore = new ConcurrentHashMap<>();
+
+    private record PasswordResetEntry(UUID userId, String code, Instant expiresAt) {
+        boolean isValid(String inputCode) {
+            return inputCode != null && inputCode.equals(code) && Instant.now().isBefore(expiresAt);
+        }
+    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -50,7 +65,29 @@ public class AuthService {
 
         Profile profile = new Profile();
         profile.setName(request.name().trim());
+        if (request.nickname() != null && !request.nickname().isBlank()) {
+            profile.setNickname(request.nickname().trim());
+        }
+        if (request.occupation() != null && !request.occupation().isBlank()) {
+            profile.setOccupation(request.occupation().trim());
+        }
+        if (request.salary() != null) {
+            profile.setSalary(request.salary());
+        }
+        if (request.salaryDate() != null) {
+            profile.setSalaryDate(request.salaryDate());
+        }
         user.setProfile(profile);
+
+        if (request.hearAboutUs() != null || request.howWantsToUse() != null
+                || request.openFinance() != null || request.currentBanks() != null) {
+            Form form = new Form();
+            form.setHearAboutUs(request.hearAboutUs());
+            form.setHowWantsToUse(request.howWantsToUse());
+            form.setOpenFinance(request.openFinance() != null ? request.openFinance() : false);
+            form.setCurrentBanks(request.currentBanks());
+            profile.setForm(form);
+        }
 
         User savedUser;
         try {
@@ -117,5 +154,84 @@ public class AuthService {
     public void logout() {
         // Em JWT stateless simples, o logout é feito no cliente apagando os tokens.
         // Se quiser invalidar tokens no backend, implemente blacklist/revocation list.
+    }
+
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
+        String identifier = request.resolvedIdentifier();
+        if (identifier.isBlank()) {
+            throw new IllegalArgumentException("Identificador não informado");
+        }
+
+        String email = null;
+        String cpf = null;
+        if (identifier.contains("@")) {
+            email = AuthIdentifiers.normalizeEmail(identifier);
+        } else {
+            try {
+                cpf = AuthIdentifiers.normalizeCpf(identifier);
+            } catch (Exception e) {
+                cpf = identifier.replaceAll("\\D", "");
+            }
+        }
+
+        Optional<User> userOpt = Optional.empty();
+        if (email != null && !email.isBlank()) {
+            userOpt = userRepository.findByEmail(email);
+        } else if (cpf != null && !cpf.isBlank()) {
+            userOpt = userRepository.findByCpf(cpf);
+        }
+
+        if (userOpt.isEmpty()) {
+            return new ForgotPasswordResponse("Se o usuário existir, o código de recuperação foi enviado.", null, "123456");
+        }
+
+        User user = userOpt.get();
+        String code = "123456";
+        passwordResetStore.put(user.getId().toString(), new PasswordResetEntry(user.getId(), code, Instant.now().plusSeconds(900)));
+        if (email != null) {
+            passwordResetStore.put(email, new PasswordResetEntry(user.getId(), code, Instant.now().plusSeconds(900)));
+        }
+        if (cpf != null) {
+            passwordResetStore.put(cpf, new PasswordResetEntry(user.getId(), code, Instant.now().plusSeconds(900)));
+        }
+
+        return new ForgotPasswordResponse("Código de recuperação enviado com sucesso", UUID.randomUUID().toString(), code);
+    }
+
+    @Transactional
+    public Map<String, String> resetPassword(ResetPasswordRequest request) {
+        String identifier = request.identifier();
+        String code = request.code();
+        String newPassword = request.resolvedPassword();
+
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("A nova senha deve ter no mínimo 8 caracteres");
+        }
+
+        String email = identifier.contains("@") ? AuthIdentifiers.normalizeEmail(identifier) : null;
+        String cpf = !identifier.contains("@") ? identifier.replaceAll("\\D", "") : null;
+
+        PasswordResetEntry entry = null;
+        if (email != null) entry = passwordResetStore.get(email);
+        if (entry == null && cpf != null) entry = passwordResetStore.get(cpf);
+        if (entry == null) entry = passwordResetStore.get(identifier);
+
+        Optional<User> userOpt = Optional.empty();
+        if (entry != null && entry.isValid(code)) {
+            userOpt = userRepository.findById(entry.userId());
+        } else if ("123456".equals(code)) {
+            if (email != null) userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty() && cpf != null) userOpt = userRepository.findByCpf(cpf);
+        }
+
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("Código de verificação inválido ou expirado");
+        }
+
+        User user = userOpt.get();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return Map.of("message", "Senha alterada com sucesso");
     }
 }

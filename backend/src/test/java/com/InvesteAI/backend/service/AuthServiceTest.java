@@ -23,6 +23,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,6 +111,58 @@ class AuthServiceTest {
         verify(jwtService).generateAccessToken(user.getId());
     }
 
+    @Test
+    void registersUnifiedUserWithProfileAndForm() {
+        when(userRepository.existsByEmail("jane.doe@example.com")).thenReturn(false);
+        when(userRepository.existsByCpf("52998224725")).thenReturn(false);
+        when(passwordEncoder.encode("SecurePassword123!")).thenReturn("encoded-password");
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.prePersist();
+            user.getProfile().prePersist();
+            if (user.getProfile().getForm() != null) {
+                user.getProfile().getForm().prePersist();
+            }
+            return user;
+        });
+        when(jwtService.generateAccessToken(any(UUID.class))).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(any(UUID.class))).thenReturn("refresh-token");
+
+        RegisterRequest request = new RegisterRequest(
+                "Jane Doe",
+                "jane.doe@example.com",
+                "SecurePassword123!",
+                "529.982.247-25",
+                "Jane",
+                "Desenvolvedora",
+                new java.math.BigDecimal("8500.00"),
+                java.time.LocalDate.of(2025, 1, 5),
+                "Instagram",
+                "Investimentos",
+                true,
+                "Nubank, Itaú",
+                "#5856D6"
+        );
+
+        AuthResponse response = authService.register(request);
+
+        ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).saveAndFlush(savedUser.capture());
+        User user = savedUser.getValue();
+        assertEquals("jane.doe@example.com", user.getEmail());
+        assertEquals("52998224725", user.getCpf());
+        assertEquals("Jane Doe", user.getProfile().getName());
+        assertEquals("Jane", user.getProfile().getNickname());
+        assertEquals("Desenvolvedora", user.getProfile().getOccupation());
+        assertEquals(new java.math.BigDecimal("8500.00"), user.getProfile().getSalary());
+        assertEquals(java.time.LocalDate.of(2025, 1, 5), user.getProfile().getSalaryDate());
+        assertEquals("Instagram", user.getProfile().getForm().getHearAboutUs());
+        assertEquals("Investimentos", user.getProfile().getForm().getHowWantsToUse());
+        assertEquals(true, user.getProfile().getForm().getOpenFinance());
+        assertEquals("Nubank, Itaú", user.getProfile().getForm().getCurrentBanks());
+        assertEquals(new AuthResponse("access-token", "refresh-token"), response);
+    }
+
     /**
      * Intent: a unique-index race after the pre-check must produce the same generic
      * duplicate-identifier response as an ordinary duplicate.
@@ -175,5 +228,28 @@ class AuthServiceTest {
                 () -> authService.login(new LoginRequest("person@example.com", "wrong-password")));
 
         assertEquals("Invalid credentials", exception.getMessage());
+    }
+
+    @Test
+    void handlesForgotPasswordAndResetPasswordFlow() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setEmail("user@example.com");
+        user.setPasswordHash("old-hash");
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("NewSecurePassword123!")).thenReturn("new-hash");
+
+        var forgotResponse = authService.forgotPassword(
+                new com.InvesteAI.backend.dto.auth.request.ForgotPasswordRequest("user@example.com", null, null));
+        assertEquals("Código de recuperação enviado com sucesso", forgotResponse.message());
+        assertEquals("123456", forgotResponse.code());
+
+        var resetResponse = authService.resetPassword(
+                new com.InvesteAI.backend.dto.auth.request.ResetPasswordRequest("user@example.com", "123456", "NewSecurePassword123!", null));
+        assertEquals("Senha alterada com sucesso", resetResponse.get("message"));
+        assertEquals("new-hash", user.getPasswordHash());
     }
 }

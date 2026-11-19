@@ -96,6 +96,7 @@ POSTGRES_DB=investeai
 POSTGRES_USER=investeai
 POSTGRES_PASSWORD=defina-uma-senha-local
 JWT_SECRET=defina-um-segredo-aleatorio-forte
+BRAPI_API_KEY=sua-chave-da-brapi
 ```
 
 Use valores próprios para seu ambiente e **não versione nem compartilhe esse arquivo**. A configuração do backend também aceita variáveis opcionais para expiração de tokens e origens CORS:
@@ -158,6 +159,18 @@ npm run web
 
 A execução para iOS normalmente requer macOS e as ferramentas de desenvolvimento da Apple. A disponibilidade de cada destino depende do ambiente instalado.
 
+### Configurar a URL da API no Expo
+
+Crie `React-Native/.env.local` com o endereço do backend:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://localhost:8080
+```
+
+Esse endereço serve para Expo Web no mesmo computador. Para o emulador Android,
+use `http://10.0.2.2:8080`. Em um celular físico, use o endereço IP local do
+computador na rede Wi-Fi. Reinicie o Expo depois de criar ou alterar o arquivo.
+
 ## API
 
 O backend contém endpoints de usuário sob o prefixo `/auth`, implementados em `UserController`:
@@ -171,6 +184,19 @@ O backend contém endpoints de usuário sob o prefixo `/auth`, implementados em 
 | `DELETE` | `/auth` | Excluir usuário a partir do identificador enviado no corpo da requisição |
 
 A entidade `User` e a migração Flyway inicial definem a persistência de usuários no PostgreSQL. A dependência Springdoc OpenAPI está presente no backend. Antes de disponibilizar endpoints, revise autenticação e autorização, validação, tratamento de erros e os dados retornados pela API.
+
+### Cotações da brapi
+
+O endpoint `GET /investments/quotes?symbols=PETR4,VALE3,ITUB4` consulta as cotações
+pela API backend. A chave é lida pelo backend da variável `BRAPI_API_KEY`; ela
+não deve ser incluída no aplicativo React Native. A rota GET está liberada para
+consulta sem JWT, enquanto as demais rotas continuam sujeitas às regras do
+Spring Security.
+
+No aplicativo, a tela `React-Native/source/routes/Investimentos/index.tsx`
+consulta `EXPO_PUBLIC_API_URL` e renderiza preço e variação retornados pelo backend.
+Para testar a API diretamente, inicie o Compose e faça uma requisição GET para
+`http://localhost:8080/investments/quotes?symbols=PETR4,VALE3,ITUB4`.
 
 ## Segurança e uso responsável
 

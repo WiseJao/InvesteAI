@@ -1,11 +1,14 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../styles/colors';
+
 
 type HeaderProps = {
 	name?: string;
 };
 
-export default function Header({name = 'Usuario'}: HeaderProps) {
+export default function Header({ name = 'Usuario' }: HeaderProps) {
 	return (
 		<View style={styles.header}>
 			<View style={styles.topRow}>
@@ -15,10 +18,18 @@ export default function Header({name = 'Usuario'}: HeaderProps) {
 
 				<View style={styles.actions}>
 					<Text accessibilityLabel="Ocultar saldo" style={styles.eye}>
-						Eye
+						<Ionicons
+							size={25}
+							name='eye-outline'
+							color={colors.primary}
+						/>
 					</Text>
 					<Text accessibilityLabel="Configurações" style={styles.settings}>
-                        Settings
+						<Ionicons
+							size={25}
+							name='settings-outline'
+							color={colors.primary}
+						/>
 					</Text>
 				</View>
 			</View>
@@ -37,7 +48,7 @@ const styles = StyleSheet.create({
 		borderBottomColor: '#50d6ca',
 		paddingHorizontal: 24,
 		paddingTop: 24,
-        paddingBottom: 12,
+		paddingBottom: 12,
 	},
 	topRow: {
 		flexDirection: 'row',

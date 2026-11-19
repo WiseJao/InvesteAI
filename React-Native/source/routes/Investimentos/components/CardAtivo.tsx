@@ -1,5 +1,6 @@
 
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -11,32 +12,88 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../styles/colors';
 import { LineChart } from "react-native-chart-kit/v2";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-const data = [
-  { month: "Jan", revenue: 52 },
-  { month: "Feb", revenue: 86 },
-  { month: "Mar", revenue: 58 },
-  { month: "Apr", revenue: 134 },
-  { month: "May", revenue: 95 },
-  { month: "Jun", revenue: 176 }
-];
+const API_URL = (
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080'
+).replace(/\/$/, '');
 
-type RevenueChartProps = {
+const PERIODOS = [
+  { range: '1d', label: '1 dia' },
+  { range: '5d', label: '1 semana' },
+  { range: '1mo', label: '1 mês' },
+  { range: '3mo', label: '3 meses' },
+] as const;
+
+type PeriodoHistorico = (typeof PERIODOS)[number]['range'];
+type PontoGrafico = { label: string; preco: number };
+
+type HistoricalChartProps = {
+  data: PontoGrafico[];
   width?: number;
   height?: number;
 };
 
-export function RevenueChart({ width = 80, height = 80 }: RevenueChartProps) {
+function HistoricalChart({ data, width = 80, height = 80 }: HistoricalChartProps) {
   return (
     <LineChart
       data={data}
-      xKey="month"
-      yKey="revenue"
+      xKey="label"
+      yKey="preco"
       width={width}
       height={height}
+      labelStrategy="auto"
+      showDots={false}
     />
   );
+}
+
+function formatarPontosHistoricos(
+  pontos: unknown,
+  periodo: PeriodoHistorico,
+): PontoGrafico[] {
+  if (!Array.isArray(pontos)) {
+    throw new Error('A resposta da API não contém os pontos do histórico esperados.');
+  }
+
+  return pontos.flatMap((ponto: unknown) => {
+    if (typeof ponto !== 'object' || ponto === null) {
+      return [];
+    }
+
+    const data = 'date' in ponto ? ponto.date : undefined;
+    const precoAbertura = 'open' in ponto ? ponto.open : undefined;
+    const precoAjustado = 'adjustedClose' in ponto ? ponto.adjustedClose : undefined;
+    const precoFechamento = 'close' in ponto ? ponto.close : undefined;
+    const preco = typeof precoAjustado === 'number' && Number.isFinite(precoAjustado)
+      ? precoAjustado
+      : precoFechamento;
+
+    if (
+      typeof data !== 'number'
+      || !Number.isFinite(data)
+      || typeof preco !== 'number'
+      || !Number.isFinite(preco)
+    ) {
+      return [];
+    }
+
+    if (
+      periodo === '1d'
+      && typeof precoAbertura === 'number'
+      && Number.isFinite(precoAbertura)
+    ) {
+      return [
+        { label: 'Abertura', preco: precoAbertura },
+        { label: 'Fechamento', preco },
+      ];
+    }
+
+    const instante = new Date(data * 1000);
+    const label = instante.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+    return [{ label, preco }];
+  });
 }
 type CardAtivoProps = {
   ticker: string;
@@ -54,8 +111,64 @@ export default function CardAtivo({
   logo,
 }: CardAtivoProps) {
   const [modalDetalhesVisivel, setModalDetalhesVisivel] = useState(false);
+  const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
+  const [pontosHistoricos, setPontosHistoricos] = useState<PontoGrafico[]>([]);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [erroHistorico, setErroHistorico] = useState<string | null>(null);
   const { width: larguraTela } = useWindowDimensions();
   const larguraGrafico = Math.min(larguraTela - 76, 420);
+
+  useEffect(() => {
+    if (!modalDetalhesVisivel) {
+      return;
+    }
+
+    let ativo = true;
+
+    const carregarHistorico = async () => {
+      setCarregandoHistorico(true);
+      setErroHistorico(null);
+      setPontosHistoricos([]);
+
+      try {
+        const resposta = await fetch(
+          `${API_URL}/investments/history?symbol=${encodeURIComponent(ticker)}&range=${periodoSelecionado}`,
+          { headers: { Accept: 'application/json' } },
+        );
+
+        if (!resposta.ok) {
+          throw new Error(`Não foi possível carregar o histórico (HTTP ${resposta.status}).`);
+        }
+
+        const dados: unknown = await resposta.json();
+        if (typeof dados !== 'object' || dados === null || !('results' in dados)) {
+          throw new Error('A resposta da API não contém a lista de histórico esperada.');
+        }
+
+        const novosPontos = formatarPontosHistoricos(dados.results, periodoSelecionado);
+        if (ativo) {
+          setPontosHistoricos(novosPontos);
+        }
+      } catch (erroRequest) {
+        if (ativo) {
+          setErroHistorico(
+            erroRequest instanceof Error
+              ? erroRequest.message
+              : `Não foi possível conectar à API em ${API_URL}.`,
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoHistorico(false);
+        }
+      }
+    };
+
+    void carregarHistorico();
+    return () => {
+      ativo = false;
+    };
+  }, [modalDetalhesVisivel, periodoSelecionado, ticker]);
 
   return (
     <>
@@ -152,11 +265,50 @@ export default function CardAtivo({
               </View>
 
               <Text style={styles.modalGraficoTitulo}>Variação no período</Text>
+              <View style={styles.filtrosPeriodo}>
+                {PERIODOS.map((periodo) => (
+                  <Pressable
+                    key={periodo.range}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: periodoSelecionado === periodo.range }}
+                    onPress={() => setPeriodoSelecionado(periodo.range)}
+                    style={[
+                      styles.filtroPeriodo,
+                      periodoSelecionado === periodo.range && styles.filtroPeriodoAtivo,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filtroPeriodoTexto,
+                        periodoSelecionado === periodo.range && styles.filtroPeriodoTextoAtivo,
+                      ]}
+                    >
+                      {periodo.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               <View style={styles.modalGrafico}>
-                <RevenueChart width={larguraGrafico} height={220} />
+                {carregandoHistorico ? (
+                  <ActivityIndicator color={colors.primary} style={styles.estadoGrafico} />
+                ) : erroHistorico ? (
+                  <Text style={[styles.estadoGrafico, styles.erroGrafico]}>{erroHistorico}</Text>
+                ) : pontosHistoricos.length < 2 ? (
+                  <Text style={styles.estadoGrafico}>
+                    Não há dados suficientes para exibir esse período.
+                  </Text>
+                ) : (
+                  <HistoricalChart
+                    data={pontosHistoricos}
+                    width={larguraGrafico}
+                    height={220}
+                  />
+                )}
               </View>
               <Text style={styles.modalNota}>
-                Gráfico ilustrativo com dados genéricos.
+                {periodoSelecionado === '1d'
+                  ? 'Dados diários: abertura e fechamento (plano gratuito).'
+                  : 'Histórico de preços fornecido pela brapi.dev.'}
               </Text>
             </View>
           </SafeAreaView>
@@ -370,10 +522,52 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
 
+  filtrosPeriodo: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+
+  filtroPeriodo: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+
+  filtroPeriodoAtivo: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  filtroPeriodoTexto: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+
+  filtroPeriodoTextoAtivo: {
+    color: colors.onPrimary,
+    fontWeight: 'bold',
+  },
+
   modalGrafico: {
     alignItems: 'center',
     marginTop: 8,
+    minHeight: 220,
     overflow: 'hidden',
+  },
+
+  estadoGrafico: {
+    color: colors.textMuted,
+    paddingVertical: 90,
+    textAlign: 'center',
+  },
+
+  erroGrafico: {
+    color: colors.negative,
   },
 
   modalNota: {

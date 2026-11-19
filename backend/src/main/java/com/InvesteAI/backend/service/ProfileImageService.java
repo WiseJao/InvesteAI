@@ -14,19 +14,31 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 
-/** Stores and retrieves the authenticated user's profile image. */
+/** Stores one JPEG or PNG image per profile and retrieves it by user identity. */
 @Service
 public class ProfileImageService {
     private static final long MAX_BYTES = 2 * 1024 * 1024;
     private final UserInterface users;
     private final ProfileImageInterface images;
 
+    /**
+     * Creates the image service.
+     * @param users repository used to resolve the user's profile
+     * @param images repository used to store images
+     */
     public ProfileImageService(UserInterface users, ProfileImageInterface images) {
         this.users = users;
         this.images = images;
     }
 
-    /** Replaces the user's image with a nonempty JPEG or PNG of at most 2 MiB. */
+    /**
+     * Transactionally creates or replaces the user's image after checking its size,
+     * signature and declared media type.
+     * @param userId owner of the profile
+     * @param file nonempty JPEG or PNG of at most 2 MiB
+     * @throws IOException if the file cannot be read
+     * @throws ResponseStatusException if the size or format is invalid or the profile is absent
+     */
     @Transactional
     public void upload(UUID userId, MultipartFile file) throws IOException {
         if (file.isEmpty() || file.getSize() > MAX_BYTES) {
@@ -48,7 +60,12 @@ public class ProfileImageService {
         images.save(image);
     }
 
-    /** Returns the user's image, or HTTP 404 if the profile or image does not exist. */
+    /**
+     * Reads the image in a read-only transaction.
+     * @param userId owner of the profile
+     * @return the stored image and its media type
+     * @throws ResponseStatusException if the profile or image does not exist
+     */
     @Transactional(readOnly = true)
     public ProfileImage get(UUID userId) {
         return images.findById(profileId(userId))

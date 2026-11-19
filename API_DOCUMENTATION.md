@@ -1066,3 +1066,15 @@ apiClient.interceptors.response.use(
   }
 );
 ```
+
+### Profile avatar
+
+Both endpoints require `Authorization: Bearer <accessToken>` and operate only on the authenticated user's profile.
+
+- `POST /user/me/avatar`: send `multipart/form-data` with a `file` part containing a JPEG (`image/jpeg`) or PNG (`image/png`), at most 2 MiB. Replaces any existing image. Returns `204 No Content`; empty files return `400`, unsupported or mismatched formats return `415`, and oversized multipart requests may return `413`.
+- `GET /user/me/avatar`: returns `200` with the image bytes and corresponding `Content-Type`, or `404` if no image or profile exists. Responses are not cacheable.
+
+```bash
+curl -X POST "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -F 'file=@avatar.png;type=image/png'
+curl "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -o avatar.png
+```

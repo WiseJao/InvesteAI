@@ -19,6 +19,13 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Service managing user income and expense records, category aggregations, and monthly budget summaries.
+ * <p>
+ * Handles CRUD operations scoped strictly to the authenticated user ID and calculates financial
+ * metrics such as total spent, total income, remaining budget, and percentage breakdown per category.
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 public class CashFlowService {
@@ -26,6 +33,13 @@ public class CashFlowService {
     private final CashFlowInterface cashFlowRepository;
     private final UserInterface userRepository;
 
+    /**
+     * Creates a new cash flow transaction for a user.
+     *
+     * @param userId  the UUID of the authenticated user
+     * @param request the transaction payload
+     * @return the created {@link CashFlowResponse}
+     */
     @Transactional
     public CashFlowResponse create(UUID userId, CreateCashFlowRequest request) {
         CashFlow cashFlow = new CashFlow();
@@ -41,6 +55,15 @@ public class CashFlowService {
         return CashFlowResponse.from(saved);
     }
 
+    /**
+     * Lists cash flow records for a user with optional monthly range and type filtering.
+     *
+     * @param userId the UUID of the user
+     * @param month  optional calendar month (1-12)
+     * @param year   optional 4-digit calendar year
+     * @param type   optional filter string (FIXED, VARIABLE, INCOME, EXPENSE)
+     * @return list of {@link CashFlowResponse} entries
+     */
     @Transactional(readOnly = true)
     public List<CashFlowResponse> list(UUID userId, Integer month, Integer year, String type) {
         List<CashFlow> list;
@@ -73,6 +96,14 @@ public class CashFlowService {
         return list.stream().map(CashFlowResponse::from).toList();
     }
 
+    /**
+     * Retrieves a single cash flow entry by its ID, ensuring it belongs to the user.
+     *
+     * @param userId the UUID of the authenticated user
+     * @param id     the UUID of the cash flow record
+     * @return the {@link CashFlowResponse}
+     * @throws NoSuchElementException if the record does not exist or does not belong to the user
+     */
     @Transactional(readOnly = true)
     public CashFlowResponse getById(UUID userId, UUID id) {
         CashFlow cashFlow = cashFlowRepository.findByCashFlowIdAndUserId(id, userId)
@@ -80,6 +111,15 @@ public class CashFlowService {
         return CashFlowResponse.from(cashFlow);
     }
 
+    /**
+     * Updates an existing cash flow record belonging to the authenticated user.
+     *
+     * @param userId  the UUID of the authenticated user
+     * @param id      the UUID of the cash flow record to update
+     * @param request the update fields payload
+     * @return the updated {@link CashFlowResponse}
+     * @throws NoSuchElementException if the record does not exist or does not belong to the user
+     */
     @Transactional
     public CashFlowResponse update(UUID userId, UUID id, UpdateCashFlowRequest request) {
         CashFlow cashFlow = cashFlowRepository.findByCashFlowIdAndUserId(id, userId)
@@ -108,6 +148,13 @@ public class CashFlowService {
         return CashFlowResponse.from(saved);
     }
 
+    /**
+     * Deletes a cash flow record belonging to the authenticated user.
+     *
+     * @param userId the UUID of the authenticated user
+     * @param id     the UUID of the cash flow record to remove
+     * @throws NoSuchElementException if the record does not exist or does not belong to the user
+     */
     @Transactional
     public void delete(UUID userId, UUID id) {
         CashFlow cashFlow = cashFlowRepository.findByCashFlowIdAndUserId(id, userId)
@@ -115,6 +162,15 @@ public class CashFlowService {
         cashFlowRepository.delete(cashFlow);
     }
 
+    /**
+     * Calculates the monthly budget summary, total income, total spent, remaining balance,
+     * and category distribution percentages for a user in a given month.
+     *
+     * @param userId the UUID of the user
+     * @param month  optional month (defaults to current month)
+     * @param year   optional year (defaults to current year)
+     * @return {@link CashFlowSummaryResponse} containing financial KPIs and category breakdowns
+     */
     @Transactional(readOnly = true)
     public CashFlowSummaryResponse getSummary(UUID userId, Integer month, Integer year) {
         LocalDate now = LocalDate.now();

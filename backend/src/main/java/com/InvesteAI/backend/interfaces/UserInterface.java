@@ -9,11 +9,10 @@ import java.util.UUID;
 public interface UserInterface extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByCpf(String cpf);
+
     boolean existsByEmail(String email);
 
-    boolean existsByName(String name);
-
-    /** Used for name-change uniqueness check that excludes the current user. */
-    boolean existsByNameAndIdNot(String name, UUID id);
+    boolean existsByCpf(String cpf);
 
 }

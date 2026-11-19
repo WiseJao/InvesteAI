@@ -1,4 +1,4 @@
-package com.InvesteAI.backend.dto.auth;
+package com.InvesteAI.backend.dto.auth.request;
 
 public record RefreshTokenRequest(
         String refreshToken

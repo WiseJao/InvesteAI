@@ -171,4 +171,36 @@ public class BrapiService {
         searchCache.put(q, new CacheEntry<>(searchResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
         return searchResults;
     }
+
+    public synchronized List<JsonNode> getHistoricalData(String symbol, String range, String interval) {
+        JsonNode response = client.get()
+                .uri(uri -> uri
+                        .path("/api/v2/stocks/historical")
+                        .queryParam("symbols", symbol)
+                        .queryParam("range", range)
+                        .queryParam("interval", interval)
+                        .queryParam("sortOrder", "asc")
+                        .build())
+                .header("Authorization", "Bearer " + apiKey)
+                .retrieve()
+                .body(JsonNode.class);
+
+        if (response == null || !response.path("results").isArray()) {
+            throw new IllegalStateException("A resposta da brapi não contém a lista de histórico esperada.");
+        }
+
+        JsonNode results = response.path("results");
+        if (results.isEmpty()) {
+            return List.of();
+        }
+
+        JsonNode historicalData = results.get(0).path("data").path("historicalDataPrice");
+        if (!historicalData.isArray()) {
+            throw new IllegalStateException("A resposta da brapi não contém os pontos do histórico esperados.");
+        }
+
+        List<JsonNode> points = new ArrayList<>();
+        historicalData.forEach(points::add);
+        return points;
+    }
 }

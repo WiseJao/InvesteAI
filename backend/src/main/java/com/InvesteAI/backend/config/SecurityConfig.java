@@ -56,13 +56,14 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             // ── Public auth endpoints ─────────────────────────────────
                             .requestMatchers(HttpMethod.POST,
-                                    "/auth/register", "/auth/login", "/auth/google", "/auth/refresh", "/auth/logout").permitAll()
-                            .requestMatchers(HttpMethod.POST, "/user/**").permitAll() //Temporariamente
+                                    "/auth/register", "/auth/login", "/auth/google", "/auth/refresh", "/auth/logout",
+                                    "/auth/forgot-password", "/auth/reset-password").permitAll()
                             // ── Pictures — public read (img tags cannot send the token; ids are random UUIDs)
                             // ── OpenAPI / Swagger — RNF-06 ────────────────────────────
                             .requestMatchers(
                                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health", "/actuator/info", "/auth/all").permitAll()
                             .requestMatchers(HttpMethod.GET, "/investments/quotes", "/investments/history").permitAll() //Temporariamente
+                            .requestMatchers(HttpMethod.GET, "/investments/quotes", "/investments/market/search").permitAll()
                             // ── All other requests require authentication ─────────────
                             .anyRequest().authenticated();
                 })

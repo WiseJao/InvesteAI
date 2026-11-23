@@ -20,23 +20,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * IP-based rate limiter (RNF-03 / UC-01 RE-03).
- *
- * <ul>
- *   <li>General bucket: {@code rate-limit.requests-per-minute} per IP (default 60).
- *   <li>Stricter bucket for credential endpoints ({@code /auth/login|google|register|refresh} and the
- *       password/e-mail change under {@code /users/me}):
- *       {@code rate-limit.auth-requests-per-minute} per IP (default 10) — slows brute force.
- *   <li>The client IP is {@link HttpServletRequest#getRemoteAddr()}. Behind a proxy,
- *       {@code server.forward-headers-strategy: native} makes Tomcat resolve it from
- *       X-Forwarded-For <b>only for trusted proxies</b>. The raw header is never read here,
- *       so clients cannot spoof it to dodge the limit.
- *   <li>Idle buckets are evicted so the map cannot grow without bound.
- * </ul>
- *
- * <p>For horizontal scaling move the buckets to a shared store.
- */
+
 @Slf4j
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {

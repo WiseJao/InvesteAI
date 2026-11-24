@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
 import PasswordStrength from '../../shared/passwordStrength';
+import BotaoPrimario from '../../shared/botaoPrimario';
 import { maskEmail } from '../../shared/format';
+import { mensagemDeErro } from '../../services/api';
+import { redefinirSenha, solicitarCodigo } from '../../services/senha';
 import { colors } from '../../styles/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EsqueciSenha'>;
@@ -17,20 +21,56 @@ export default function EsqueciSenha({ navigation }: Props) {
     const [novaSenha, setNovaSenha] = useState('');
     const [repetirSenha, setRepetirSenha] = useState('');
 
+    const [codigoDemo, setCodigoDemo] = useState<string | null>(null);
+    const [carregando, setCarregando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+
     const senhasDiferentes = repetirSenha.length > 0 && novaSenha !== repetirSenha;
 
-    function handleProsseguir() {
+    function traduzirErro(e: unknown): string {
+        const texto = mensagemDeErro(e);
+        if (texto.includes('HTTP 400')) {
+            return step === 1
+                ? 'Confira o CPF ou e-mail informado e tente novamente.'
+                : 'Código incorreto ou expirado. Confira e tente novamente.';
+        }
+        return texto;
+    }
+
+    async function handleProsseguir() {
+        setErro(null);
+
         if (step === 1) {
-            // TODO: pedir à API o envio do código por e-mail
-            return setStep(2);
+            if (!identificador.trim()) return setErro('Informe o CPF ou o e-mail cadastrado.');
+            setCarregando(true);
+            try {
+                setCodigoDemo(await solicitarCodigo(identificador));
+                setStep(2);
+            } catch (e) {
+                setErro(traduzirErro(e));
+            } finally {
+                setCarregando(false);
+            }
+            return;
         }
 
-        if (senhasDiferentes) return;
-        // TODO: validar o código e salvar a nova senha na API
-        navigation.replace('Login');
+        if (!codigo.trim()) return setErro('Informe o código recebido.');
+        if (!novaSenha) return setErro('Informe a nova senha.');
+        if (senhasDiferentes || !repetirSenha) return setErro('As senhas não coincidem.');
+
+        setCarregando(true);
+        try {
+            await redefinirSenha(identificador, codigo, novaSenha);
+            navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+        } catch (e) {
+            setErro(traduzirErro(e));
+        } finally {
+            setCarregando(false);
+        }
     }
 
     function handleVoltar() {
+        setErro(null);
         if (step === 2) return setStep(1);
         navigation.goBack();
     }
@@ -59,10 +99,16 @@ export default function EsqueciSenha({ navigation }: Props) {
 
                 {step === 2 && (
                     <>
-                        <Text style={styles.title}>Enviamos um código</Text>
+                        <Text style={styles.title}>Informe o código</Text>
                         <Text style={styles.subtitle}>
-                            Enviamos um código para o e-mail {maskEmail(identificador)}. Informe o código abaixo.
+                            {identificador.includes('@')
+                                ? `Se existir uma conta para ${maskEmail(identificador)}, geramos um código.`
+                                : 'Se existir uma conta com esse CPF, geramos um código.'}{' '}
+                            Informe-o abaixo e escolha a nova senha.
                         </Text>
+                        {codigoDemo ? (
+                            <Text style={styles.dica}>Código para esta demonstração: {codigoDemo}</Text>
+                        ) : null}
                         <Field
                             label="Código"
                             keyboardType="numeric"
@@ -86,12 +132,9 @@ export default function EsqueciSenha({ navigation }: Props) {
                     </>
                 )}
 
-                <TouchableOpacity
-                    style={[styles.button, step === 2 && senhasDiferentes && styles.buttonDisabled]}
-                    onPress={handleProsseguir}
-                >
-                    <Text style={styles.buttonText}>Prosseguir</Text>
-                </TouchableOpacity>
+                {erro ? <Text style={styles.error}>{erro}</Text> : null}
+
+                <BotaoPrimario titulo="Prosseguir" onPress={handleProsseguir} carregando={carregando} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -127,19 +170,9 @@ const styles = StyleSheet.create({
         color: colors.negative,
         marginBottom: 12,
     },
-    button: {
-        backgroundColor: colors.primary,
-        borderRadius: 10,
-        paddingVertical: 14,
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    buttonDisabled: {
-        opacity: 0.4,
-    },
-    buttonText: {
-        color: colors.onPrimary,
-        fontSize: 16,
-        fontWeight: 'bold',
+    dica: {
+        fontSize: 13,
+        color: colors.primary,
+        marginBottom: 16,
     },
 });

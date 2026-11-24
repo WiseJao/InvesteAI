@@ -6,21 +6,30 @@ import type { Gasto } from '../dados';
 
 type ListaGastosProps = {
     itens: Gasto[];
+    vazio?: string;
 };
 
-export default function ListaGastos({ itens }: ListaGastosProps) {
+export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqui ainda.' }: ListaGastosProps) {
+    if (itens.length === 0) {
+        return (
+            <Card>
+                <Text style={styles.vazio}>{vazio}</Text>
+            </Card>
+        );
+    }
+
     return (
         <Card>
             {itens.map((item, indice) => (
-                <View
-                    key={`${item.nome}-${item.detalhe}`}
-                    style={[styles.linha, indice > 0 && styles.separador]}
-                >
+                <View key={item.id} style={[styles.linha, indice > 0 && styles.separador]}>
                     <View style={styles.textos}>
                         <Text style={styles.nome}>{item.nome}</Text>
                         <Text style={styles.detalhe}>{item.detalhe}</Text>
                     </View>
-                    <Text style={styles.valor}>{formatarReais(item.valor)}</Text>
+                    <Text style={[styles.valor, item.entrada && styles.entrada]}>
+                        {item.entrada ? '+ ' : ''}
+                        {formatarReais(item.valor)}
+                    </Text>
                 </View>
             ))}
         </Card>
@@ -56,5 +65,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         color: colors.text,
+    },
+    entrada: {
+        color: colors.positive,
+    },
+    vazio: {
+        fontSize: 13,
+        color: colors.textMuted,
+        textAlign: 'center',
+        paddingVertical: 8,
     },
 });

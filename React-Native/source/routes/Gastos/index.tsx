@@ -4,9 +4,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../../shared/layout';
 import Card from '../../shared/card';
+import Estado from '../../shared/estado';
 import { formatarReais } from '../../shared/currency';
+import { useCarregar } from '../../shared/useCarregar';
+import { obterResumoGastos } from '../../services/gastos';
 import { colors } from '../../styles/colors';
-import { categorias, orcamentoMensal, totalGasto } from './dados';
 import type { GastosStackParamList } from './types';
 
 type Atalho = {
@@ -15,6 +17,7 @@ type Atalho = {
 };
 
 const atalhos: Atalho[] = [
+    { label: 'Adicionar gasto ou receita', rota: 'NovoGasto' },
     { label: 'Gastos fixos', rota: 'GastosFixos' },
     { label: 'Gastos variáveis', rota: 'GastosVariaveis' },
     { label: 'Histórico de gastos', rota: 'HistoricoGastos' },
@@ -22,37 +25,57 @@ const atalhos: Atalho[] = [
 
 export default function Gastos() {
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
-    const percentual = Math.round((totalGasto / orcamentoMensal) * 100);
+    const { dados: resumo, carregando, erro, recarregar } = useCarregar(obterResumoGastos);
+
+    const orcamento = resumo?.orcamentoMensal ?? 0;
+    const gasto = resumo?.totalGasto ?? 0;
+    const percentual = orcamento > 0 ? Math.round((gasto / orcamento) * 100) : 0;
+    const categorias = resumo?.categorias ?? [];
 
     return (
         <Layout titulo="Gastos">
-            <Card rotulo="ORÇAMENTO MENSAL">
-                <View style={styles.valores}>
-                    <Text style={styles.total}>{formatarReais(totalGasto)} gastos</Text>
-                    <Text style={styles.orcamento}>de {formatarReais(orcamentoMensal)}</Text>
-                </View>
-                <View style={styles.trilho}>
-                    <View style={[styles.preenchimento, { width: `${percentual}%` }]} />
-                </View>
-                <Text style={styles.apoio}>{percentual}% do orçamento utilizado</Text>
-            </Card>
-
-            <Text style={styles.secao}>Gastos por categoria</Text>
-            <Card>
-                {categorias.map((categoria) => (
-                    <View key={categoria.nome} style={styles.categoria}>
-                        <View style={styles.categoriaTopo}>
-                            <Text style={styles.categoriaNome}>{categoria.nome}</Text>
-                            <Text style={styles.categoriaNome}>{categoria.percentual}%</Text>
-                        </View>
-                        <View style={styles.trilho}>
-                            <View
-                                style={[styles.preenchimento, { width: `${categoria.percentual}%` }]}
-                            />
-                        </View>
+            <Estado carregando={carregando} erro={erro} temDados={resumo !== null} onTentarNovamente={recarregar}>
+                <Card rotulo="ORÇAMENTO MENSAL">
+                    <View style={styles.valores}>
+                        <Text style={styles.total}>{formatarReais(gasto)} gastos</Text>
+                        <Text style={styles.orcamento}>de {formatarReais(orcamento)}</Text>
                     </View>
-                ))}
-            </Card>
+                    <View style={styles.trilho}>
+                        <View style={[styles.preenchimento, { width: `${Math.min(percentual, 100)}%` }]} />
+                    </View>
+                    <Text style={styles.apoio}>
+                        {orcamento > 0
+                            ? `${percentual}% do orçamento utilizado`
+                            : 'Informe sua renda no perfil para acompanhar o orçamento'}
+                    </Text>
+                </Card>
+
+                <Text style={styles.secao}>Gastos por categoria</Text>
+                <Card>
+                    {categorias.length === 0 ? (
+                        <Text style={styles.vazio}>Nenhum gasto registrado neste mês.</Text>
+                    ) : (
+                        categorias.map((categoria) => (
+                            <View key={categoria.nome} style={styles.categoria}>
+                                <View style={styles.categoriaTopo}>
+                                    <Text style={styles.categoriaNome}>{categoria.nome}</Text>
+                                    <Text style={styles.categoriaNome}>
+                                        {formatarReais(categoria.gasto)} · {Math.round(categoria.percentual)}%
+                                    </Text>
+                                </View>
+                                <View style={styles.trilho}>
+                                    <View
+                                        style={[
+                                            styles.preenchimento,
+                                            { width: `${Math.min(categoria.percentual, 100)}%` },
+                                        ]}
+                                    />
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </Card>
+            </Estado>
 
             {atalhos.map((atalho) => (
                 <Card key={atalho.rota} onPress={() => navigation.navigate(atalho.rota)}>
@@ -112,6 +135,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 6,
+    },
+    vazio: {
+        fontSize: 13,
+        color: colors.textMuted,
+        textAlign: 'center',
     },
     categoriaNome: {
         fontSize: 12,

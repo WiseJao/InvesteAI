@@ -6,12 +6,14 @@ import {
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
 import { formatCPF } from '../../shared/format';
+import { login } from '../../services/api';
 import { colors } from '../../styles/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -20,10 +22,36 @@ export default function Login({ navigation }: Props) {
     const [cpf, setCpf] = useState('');
     const [senha, setSenha] = useState('');
     const [biometria, setBiometria] = useState(false);
+    const [carregando, setCarregando] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
 
-    function handleEntrar() {
-        // TODO: autenticar com a API (CPF + senha)
-        navigation.replace('Main');
+    async function handleEntrar() {
+        const cpfNumeros = cpf.replace(/\D/g, '');
+
+        if (cpfNumeros.length !== 11 || !senha) {
+            setErro('Informe o CPF completo e a senha.');
+            return;
+        }
+
+        setCarregando(true);
+        setErro(null);
+
+        try {
+            await login(cpfNumeros, senha);
+            navigation.replace('Main');
+        } catch (erroLogin) {
+            const mensagem = erroLogin instanceof Error ? erroLogin.message : '';
+
+            if (/network|fetch|failed to connect/i.test(mensagem)) {
+                setErro('Não foi possível conectar ao servidor. Tente novamente.');
+            } else if (mensagem && !mensagem.startsWith('HTTP ')) {
+                setErro(mensagem);
+            } else {
+                setErro('CPF ou senha incorretos.');
+            }
+        } finally {
+            setCarregando(false);
+        }
     }
 
     return (
@@ -57,8 +85,18 @@ export default function Login({ navigation }: Props) {
                         <Text style={styles.link}>Esqueci minha senha</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.button} onPress={handleEntrar}>
-                        <Text style={styles.buttonText}>Entrar</Text>
+                    {erro && <Text style={styles.error}>{erro}</Text>}
+
+                    <TouchableOpacity
+                        style={[styles.button, carregando && styles.buttonDisabled]}
+                        onPress={handleEntrar}
+                        disabled={carregando}
+                    >
+                        {carregando ? (
+                            <ActivityIndicator color={colors.onPrimary} />
+                        ) : (
+                            <Text style={styles.buttonText}>Entrar</Text>
+                        )}
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={() => navigation.navigate('Cadastro')}>
@@ -114,6 +152,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         paddingVertical: 14,
         alignItems: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
+    error: {
+        color: colors.negative,
+        fontSize: 12,
+        marginBottom: 12,
     },
     buttonText: {
         color: colors.onPrimary,

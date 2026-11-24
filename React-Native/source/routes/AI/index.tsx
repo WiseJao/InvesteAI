@@ -4,11 +4,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Layout from '../../shared/layout';
 import Card from '../../shared/card';
 import { colors } from '../../styles/colors';
+import Estado from '../../shared/estado';
+import { useCarregar } from '../../shared/useCarregar';
+import { obterPerfilInvestidor } from '../../services/assessoria';
 import Botao from './components/botao';
 import type { AIStackParamList } from './types';
 
 export default function AI() {
     const navigation = useNavigation<NativeStackNavigationProp<AIStackParamList>>();
+    const { dados: perfil, carregando, erro, recarregar } = useCarregar(obterPerfilInvestidor);
 
     return (
         <Layout titulo="Acessoria">
@@ -17,22 +21,22 @@ export default function AI() {
                     Responda um questionário rápido e descubra qual perfil de investidor combina com
                     você.
                 </Text>
-                {/* TODO: abrir o questionário de perfil quando a tela existir */}
-                <Botao titulo="Iniciar análise" />
+                <Botao titulo="Iniciar análise" onPress={() => navigation.navigate('Questionario')} />
             </Card>
 
-            <Card rotulo="SEU PERFIL ATUAL" onPress={() => navigation.navigate('PerfilInvestidor')}>
-                <Text style={styles.destaque}>Moderado</Text>
-                <Text style={styles.apoio}>Toque para ver detalhes do seu perfil</Text>
-            </Card>
+            <Estado carregando={carregando} erro={erro} temDados={perfil !== null} onTentarNovamente={recarregar}>
+                <Card rotulo="SEU PERFIL ATUAL" onPress={() => navigation.navigate('PerfilInvestidor')}>
+                    <Text style={styles.destaque}>{perfil?.perfil}</Text>
+                    <Text style={styles.apoio}>Toque para ver detalhes do seu perfil</Text>
+                </Card>
+            </Estado>
 
             <Card rotulo="CHATBOT">
                 <Text style={styles.texto}>Converse com a IA sobre suas dúvidas de investimento.</Text>
                 <Text style={styles.exemplo}>
                     “Qual o melhor investimento para reserva de emergência?”
                 </Text>
-                {/* TODO: abrir o chat quando a tela existir */}
-                <Botao titulo="Abrir chat" />
+                <Text style={styles.emBreve}>Em breve</Text>
             </Card>
         </Layout>
     );
@@ -52,6 +56,12 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.textMuted,
         marginTop: 4,
+    },
+    emBreve: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: colors.primary,
+        marginTop: 12,
     },
     exemplo: {
         fontSize: 11,

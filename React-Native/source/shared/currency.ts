@@ -13,3 +13,13 @@ export function lerValor(texto: string): number | null {
     const numero = Number(normalizado);
     return Number.isFinite(numero) ? numero : null;
 }
+
+// Valor em reais para preencher um campo de edição ("1234.5" vira "1234,50").
+export function valorParaCampo(valor: number): string {
+    return valor.toFixed(2).replace('.', ',');
+}
+
+// Quantidade (pode ter casas decimais) para preencher um campo de edição.
+export function quantidadeParaCampo(quantidade: number): string {
+    return String(quantidade).replace('.', ',');
+}

@@ -5,12 +5,14 @@ export type Ativo = {
     simbolo: string;
     nome: string;
     quantidade: number;
+    quantidadeOriginal: number;
     precoCompra: number;
     precoAtual: number;
     investido: number;
     valorAtual: number;
     lucro: number;
     lucroPercentual: number;
+    dataCompra: string | null; // AAAA-MM-DD
 };
 
 export type Carteira = {
@@ -25,6 +27,7 @@ type AtivoApi = {
     id: string;
     symbol: string;
     name: string | null;
+    originalQuantity?: number | null;
     remainingQuantity: number;
     purchaseUnitPrice: number;
     currentPrice: number | null;
@@ -32,6 +35,7 @@ type AtivoApi = {
     currentTotalValue: number;
     profit: number | null;
     profitPercentage: number | null;
+    purchaseDate?: string | null;
 };
 
 type CarteiraApi = {
@@ -54,12 +58,14 @@ export async function obterCarteira(): Promise<Carteira> {
             simbolo: ativo.symbol,
             nome: ativo.name ?? ativo.symbol,
             quantidade: Number(ativo.remainingQuantity),
+            quantidadeOriginal: Number(ativo.originalQuantity ?? ativo.remainingQuantity),
             precoCompra: Number(ativo.purchaseUnitPrice),
             precoAtual: Number(ativo.currentPrice ?? ativo.purchaseUnitPrice),
             investido: Number(ativo.totalInvested),
             valorAtual: Number(ativo.currentTotalValue),
             lucro: Number(ativo.profit ?? 0),
             lucroPercentual: Number(ativo.profitPercentage ?? 0),
+            dataCompra: ativo.purchaseDate ?? null,
         })),
     };
 }
@@ -83,4 +89,21 @@ export async function adicionarAtivo(novo: NovoAtivo): Promise<void> {
             purchaseDate: novo.data,
         }),
     });
+}
+
+export async function atualizarAtivo(id: string, dados: NovoAtivo): Promise<void> {
+    await apiRequest(`/portfolio/holdings/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            symbol: dados.simbolo.toUpperCase(),
+            name: dados.nome,
+            quantity: dados.quantidade,
+            purchaseUnitPrice: dados.precoCompra,
+            purchaseDate: dados.data,
+        }),
+    });
+}
+
+export async function excluirAtivo(id: string): Promise<void> {
+    await apiRequest(`/portfolio/holdings/${id}`, { method: 'DELETE' });
 }

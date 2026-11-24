@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Card from '../../../shared/card';
 import { formatarReais } from '../../../shared/currency';
 import { colors } from '../../../styles/colors';
@@ -7,9 +7,10 @@ import type { Gasto } from '../dados';
 type ListaGastosProps = {
     itens: Gasto[];
     vazio?: string;
+    onSelecionar?: (id: string) => void;
 };
 
-export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqui ainda.' }: ListaGastosProps) {
+export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqui ainda.', onSelecionar }: ListaGastosProps) {
     if (itens.length === 0) {
         return (
             <Card>
@@ -21,7 +22,14 @@ export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqu
     return (
         <Card>
             {itens.map((item, indice) => (
-                <View key={item.id} style={[styles.linha, indice > 0 && styles.separador]}>
+                <TouchableOpacity
+                    key={item.id}
+                    style={[styles.linha, indice > 0 && styles.separador]}
+                    onPress={() => onSelecionar?.(item.id)}
+                    disabled={!onSelecionar}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Editar ${item.nome}`}
+                >
                     <View style={styles.textos}>
                         <Text style={styles.nome}>{item.nome}</Text>
                         <Text style={styles.detalhe}>{item.detalhe}</Text>
@@ -30,7 +38,7 @@ export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqu
                         {item.entrada ? '+ ' : ''}
                         {formatarReais(item.valor)}
                     </Text>
-                </View>
+                </TouchableOpacity>
             ))}
         </Card>
     );

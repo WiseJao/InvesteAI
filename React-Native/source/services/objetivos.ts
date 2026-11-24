@@ -62,3 +62,21 @@ export async function criarObjetivo(novo: NovoObjetivo): Promise<Objetivo> {
     });
     return converter(criado);
 }
+
+export async function atualizarObjetivo(id: string, dados: NovoObjetivo): Promise<Objetivo> {
+    const atualizado = await apiRequest<ObjetivoApi>(`/goals/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            name: dados.titulo,
+            category: dados.categoria,
+            targetAmount: dados.valorAlvo,
+            currentAmount: dados.valorAtual,
+            ...(dados.prazo ? { deadline: dados.prazo } : {}),
+        }),
+    });
+    return converter(atualizado);
+}
+
+export async function excluirObjetivo(id: string): Promise<void> {
+    await apiRequest(`/goals/${id}`, { method: 'DELETE' });
+}

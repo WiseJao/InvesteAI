@@ -1,19 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
+import { nomeParaExibir, obterUsuario } from '../services/usuario';
 
 
 type HeaderProps = {
 	name?: string;
 };
 
-export default function Header({ name = 'Usuario' }: HeaderProps) {
+export default function Header({ name }: HeaderProps) {
+	const [nomeDoUsuario, setNomeDoUsuario] = useState<string | null>(null);
+
+	useEffect(() => {
+		let ativo = true;
+		obterUsuario()
+			.then((usuario) => {
+				if (ativo) setNomeDoUsuario(nomeParaExibir(usuario));
+			})
+			.catch(() => {});
+		return () => {
+			ativo = false;
+		};
+	}, []);
+
+	const nomeExibido = name ?? nomeDoUsuario ?? 'Usuário';
+
 	return (
 		<View style={styles.header}>
 			<View style={styles.topRow}>
 				<View style={styles.avatar}>
-					<Text style={styles.avatarText}>F</Text>
+					<Text style={styles.avatarText}>{nomeExibido.charAt(0).toUpperCase()}</Text>
 				</View>
 
 				<View style={styles.actions}>
@@ -35,7 +52,7 @@ export default function Header({ name = 'Usuario' }: HeaderProps) {
 			</View>
 
 			<Text style={styles.greeting}>
-				Olá, <Text style={styles.name}>{name}</Text>
+				Olá, <Text style={styles.name}>{nomeExibido}</Text>
 			</Text>
 		</View>
 	);

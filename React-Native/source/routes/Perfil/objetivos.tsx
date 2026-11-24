@@ -1,13 +1,105 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../shared/card';
+import Estado from '../../shared/estado';
+import Field from '../../shared/field';
+import Opcoes from '../../shared/opcoes';
+import BotaoPrimario from '../../shared/botaoPrimario';
+import { formatarReais, lerValor } from '../../shared/currency';
+import { brParaIso, isoParaBr, mascaraData } from '../../shared/datas';
+import { useCarregar } from '../../shared/useCarregar';
+import { mensagemDeErro } from '../../services/api';
+import { criarObjetivo, listarObjetivos, type Objetivo } from '../../services/objetivos';
 import { colors } from '../../styles/colors';
 
-// TODO: substituir pelos objetivos do usuário vindos da API
+const tiposDeObjetivo = [
+    { valor: 'Investimentos', texto: 'Investimentos' },
+    { valor: 'Gastos', texto: 'Gastos' },
+] as const;
+
+type TipoDeObjetivo = (typeof tiposDeObjetivo)[number]['valor'];
+
+function ItemObjetivo({ objetivo }: { objetivo: Objetivo }) {
+    return (
+        <View style={styles.item}>
+            <Text style={styles.texto}>{objetivo.titulo}</Text>
+            <View style={styles.trilho}>
+                <View style={[styles.preenchimento, { width: `${objetivo.progresso}%` }]} />
+            </View>
+            <Text style={styles.apoio}>
+                {formatarReais(objetivo.valorAtual)} / {formatarReais(objetivo.valorAlvo)} (
+                {Math.round(objetivo.progresso)}%)
+                {objetivo.prazo ? ` · até ${isoParaBr(objetivo.prazo)}` : ''}
+            </Text>
+        </View>
+    );
+}
+
 export default function Objetivos() {
     const navigation = useNavigation();
+    const { dados, carregando, erro, recarregar } = useCarregar(listarObjetivos);
+    const [criando, setCriando] = useState(false);
+    const [titulo, setTitulo] = useState('');
+    const [tipo, setTipo] = useState<TipoDeObjetivo>('Investimentos');
+    const [alvo, setAlvo] = useState('');
+    const [atual, setAtual] = useState('');
+    const [prazo, setPrazo] = useState('');
+    const [salvando, setSalvando] = useState(false);
+    const [erroForm, setErroForm] = useState<string | null>(null);
+
+    const objetivos = dados ?? [];
+    const deInvestimento = objetivos.filter((objetivo) => objetivo.categoria === 'Investimentos');
+    const deGastos = objetivos.filter((objetivo) => objetivo.categoria === 'Gastos');
+    const outros = objetivos.filter(
+        (objetivo) => objetivo.categoria !== 'Investimentos' && objetivo.categoria !== 'Gastos',
+    );
+
+    async function salvar() {
+        const valorAlvo = lerValor(alvo);
+        const valorAtual = atual.trim() ? lerValor(atual) : 0;
+        const prazoIso = prazo.trim() ? brParaIso(prazo) : null;
+
+        if (!titulo.trim()) return setErroForm('Dê um nome ao objetivo.');
+        if (valorAlvo === null || valorAlvo <= 0) return setErroForm('Informe um valor alvo maior que zero.');
+        if (valorAtual === null || valorAtual < 0) return setErroForm('O valor atual é inválido.');
+        if (prazo.trim() && !prazoIso) return setErroForm('Informe um prazo válido (DD/MM/AAAA).');
+
+        setSalvando(true);
+        setErroForm(null);
+        try {
+            await criarObjetivo({
+                titulo: titulo.trim(),
+                categoria: tipo,
+                valorAlvo,
+                valorAtual,
+                prazo: prazoIso,
+            });
+            setTitulo('');
+            setAlvo('');
+            setAtual('');
+            setPrazo('');
+            setCriando(false);
+            await recarregar();
+        } catch (falha) {
+            setErroForm(mensagemDeErro(falha));
+        } finally {
+            setSalvando(false);
+        }
+    }
+
+    function Secao({ rotulo, itens }: { rotulo: string; itens: Objetivo[] }) {
+        if (itens.length === 0) return null;
+        return (
+            <Card rotulo={rotulo}>
+                {itens.map((objetivo) => (
+                    <ItemObjetivo key={objetivo.id} objetivo={objetivo} />
+                ))}
+            </Card>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -29,15 +121,39 @@ export default function Objetivos() {
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.conteudo}>
-                <Card rotulo="INVESTIMENTOS">
-                    <Text style={styles.texto}>1. R$ 999,99</Text>
-                    <Text style={styles.apoio}>1.700 / 100.000 investidos</Text>
-                </Card>
-                <Card rotulo="GASTOS">
-                    <Text style={styles.texto}>1. Reduzir gastos com comida</Text>
-                </Card>
-            </View>
+            <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
+                <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
+                    {objetivos.length === 0 ? (
+                        <Card>
+                            <Text style={styles.apoio}>Você ainda não criou nenhum objetivo.</Text>
+                        </Card>
+                    ) : null}
+                    <Secao rotulo="INVESTIMENTOS" itens={deInvestimento} />
+                    <Secao rotulo="GASTOS" itens={deGastos} />
+                    <Secao rotulo="OUTROS" itens={outros} />
+                </Estado>
+
+                {criando ? (
+                    <Card rotulo="NOVO OBJETIVO">
+                        <Opcoes rotulo="Tipo" opcoes={tiposDeObjetivo} selecionado={tipo} onSelecionar={setTipo} />
+                        <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
+                        <Field label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
+                        <Field label="Valor atual (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
+                        <Field
+                            label="Prazo (opcional)"
+                            placeholder="DD/MM/AAAA"
+                            keyboardType="numeric"
+                            maxLength={10}
+                            value={prazo}
+                            onChangeText={(texto) => setPrazo(mascaraData(texto))}
+                        />
+                        {erroForm ? <Text style={styles.erro}>{erroForm}</Text> : null}
+                        <BotaoPrimario titulo="Salvar objetivo" onPress={salvar} carregando={salvando} />
+                    </Card>
+                ) : (
+                    <BotaoPrimario titulo="Novo objetivo" onPress={() => setCriando(true)} />
+                )}
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -77,6 +193,27 @@ const styles = StyleSheet.create({
     },
     conteudo: {
         paddingHorizontal: 20,
+        paddingBottom: 40,
+    },
+    item: {
+        marginBottom: 12,
+    },
+    trilho: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.border,
+        overflow: 'hidden',
+        marginTop: 8,
+    },
+    preenchimento: {
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.primary,
+    },
+    erro: {
+        color: colors.negative,
+        fontSize: 12,
+        marginBottom: 8,
     },
     texto: {
         fontSize: 14,

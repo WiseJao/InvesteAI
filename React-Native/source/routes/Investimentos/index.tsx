@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../../shared/header';
 import { formatarReais } from '../../shared/currency';
 import { useCarregar } from '../../shared/useCarregar';
-import { obterCarteira } from '../../services/carteira';
+import { obterCarteira, type Ativo } from '../../services/carteira';
 import { colors } from '../../styles/colors';
 
 type Cotacao = {
@@ -66,6 +66,7 @@ export default function Investimentos() {
     const [erro, setErro] = useState<string | null>(null);
     const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState(false);
     const [tipoEscolhido, setTipoEscolhido] = useState<(typeof OPCOES_INVESTIMENTO)[number] | null>(null);
+    const [ativoEditando, setAtivoEditando] = useState<Ativo | null>(null);
     const navigation = useNavigation();
     const route = useRoute<{ key: string; name: string; params?: { adicionar?: number } }>();
     const { dados: carteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
@@ -79,6 +80,7 @@ export default function Investimentos() {
     function fecharModal() {
         setModalAdicionarVisivel(false);
         setTipoEscolhido(null);
+        setAtivoEditando(null);
     }
 
     const carregarCotacoes = useCallback(async () => {
@@ -169,7 +171,13 @@ export default function Investimentos() {
                             <Text style={styles.mensagemVazia}>Você ainda não adicionou nenhum investimento.</Text>
                         ) : null}
                         {(carteira?.ativos ?? []).map((ativo) => (
-                            <View key={ativo.id} style={styles.linhaCarteira}>
+                            <Pressable
+                                key={ativo.id}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Editar investimento ${ativo.simbolo}`}
+                                style={styles.linhaCarteira}
+                                onPress={() => setAtivoEditando(ativo)}
+                            >
                                 <View style={styles.linhaCarteiraNome}>
                                     <Text style={styles.title}>{ativo.simbolo}</Text>
                                     <Text style={styles.subtitle}>{ativo.quantidade} un.</Text>
@@ -186,7 +194,7 @@ export default function Investimentos() {
                                         {ativo.lucroPercentual.toFixed(2)}%
                                     </Text>
                                 </View>
-                            </View>
+                            </Pressable>
                         ))}
                     </View>
 
@@ -251,7 +259,7 @@ export default function Investimentos() {
             <Modal
                 animationType="fade"
                 transparent
-                visible={modalAdicionarVisivel}
+                visible={modalAdicionarVisivel || ativoEditando !== null}
                 onRequestClose={fecharModal}
             >
                 <View style={styles.modalContainer}>
@@ -265,7 +273,18 @@ export default function Investimentos() {
                         accessibilityViewIsModal
                         style={styles.modalConteudo}
                     >
-                        {tipoEscolhido ? (
+                        {ativoEditando ? (
+                            <FormNovoAtivo
+                                key={ativoEditando.id}
+                                tipo="Editar investimento"
+                                ativo={ativoEditando}
+                                onCancelar={fecharModal}
+                                onSalvo={() => {
+                                    fecharModal();
+                                    recarregarCarteira();
+                                }}
+                            />
+                        ) : tipoEscolhido ? (
                             <FormNovoAtivo
                                 tipo={tipoEscolhido}
                                 onCancelar={fecharModal}

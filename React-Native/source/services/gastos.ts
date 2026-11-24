@@ -101,3 +101,34 @@ export async function criarMovimentacao(nova: NovaMovimentacao): Promise<Movimen
     });
     return converter(criada);
 }
+
+function corpoDaMovimentacao(dados: NovaMovimentacao) {
+    return {
+        description: dados.nome,
+        amount: dados.valor,
+        type: dados.tipo,
+        // O backend só troca receita por gasto (e vice-versa) quando a direção vem explícita.
+        direction: dados.tipo === 'INCOME' ? 'IN' : 'OUT',
+        // Sem isto, um gasto fixo que vira receita manteria a classificação antiga (FIXED).
+        classification: dados.tipo === 'EXPENSE_FIXED' ? 'FIXED' : 'VARIABLE',
+        category: dados.categoria,
+        date: dados.data,
+    };
+}
+
+export async function atualizarMovimentacao(id: string, dados: NovaMovimentacao): Promise<Movimentacao> {
+    const atualizada = await apiRequest<MovimentacaoApi>(`/cashflow/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(corpoDaMovimentacao(dados)),
+    });
+    return converter(atualizada);
+}
+
+export async function excluirMovimentacao(id: string): Promise<void> {
+    await apiRequest(`/cashflow/${id}`, { method: 'DELETE' });
+}
+
+export function tipoDaMovimentacao(item: Movimentacao): TipoMovimentacao {
+    if (item.entrada) return 'INCOME';
+    return item.classificacao === 'FIXED' ? 'EXPENSE_FIXED' : 'EXPENSE_VARIABLE';
+}

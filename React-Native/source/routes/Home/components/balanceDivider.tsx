@@ -19,12 +19,19 @@ function Coluna({ titulo, valor, destaque }: ColunaProps) {
     );
 }
 
-export default function BalanceDivider() {
+type BalanceDividerProps = {
+    saldo: string;
+    saldoDestaque: string;
+    objetivo: string;
+    objetivoDestaque: string;
+};
+
+export default function BalanceDivider({ saldo, saldoDestaque, objetivo, objetivoDestaque }: BalanceDividerProps) {
     return (
         <View style={styles.container}>
-            <Text style={styles.titulo}>Saldo</Text>
+            <Coluna titulo="Saldo do mês" valor={saldo} destaque={saldoDestaque} />
             <View style={styles.divider} />
-            <Text style={styles.titulo}>Saldo</Text>
+            <Coluna titulo="Objetivo principal" valor={objetivo} destaque={objetivoDestaque} />
         </View>
     );
 }
@@ -53,6 +60,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: colors.text,
         marginBottom: 8,
+        textAlign: 'center',
     },
     destaque: {
         backgroundColor: colors.positive,

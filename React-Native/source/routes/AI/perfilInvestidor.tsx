@@ -4,58 +4,47 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Layout from '../../shared/layout';
 import Card from '../../shared/card';
 import { colors } from '../../styles/colors';
+import Estado from '../../shared/estado';
+import { useCarregar } from '../../shared/useCarregar';
+import { obterPerfilInvestidor } from '../../services/assessoria';
 import Botao from './components/botao';
 import type { AIStackParamList } from './types';
 
-// TODO: substituir pelos dados da API quando o backend estiver pronto
-const objetivos = [
-    'Aposentadoria (longo prazo)',
-    'Reserva de emergência',
-    'Compra de imóvel (médio prazo)',
-];
-
-const alocacao = [
-    { nome: 'Renda fixa', percentual: 45 },
-    { nome: 'Ações', percentual: 35 },
-    { nome: 'Fundos imobiliários', percentual: 15 },
-    { nome: 'Reserva/Caixa', percentual: 5 },
-];
-
 export default function PerfilInvestidor() {
     const navigation = useNavigation<NativeStackNavigationProp<AIStackParamList>>();
+    const { dados: perfil, carregando, erro, recarregar } = useCarregar(obterPerfilInvestidor);
 
     return (
         <Layout titulo="Perfil de investidor" voltar>
-            <Card rotulo="SEU PERFIL">
-                <Text style={styles.destaque}>Moderado</Text>
-                <Text style={styles.texto}>
-                    Você busca equilíbrio entre segurança e rentabilidade, aceitando alguma variação
-                    para obter retornos melhores que a renda fixa pura.
-                </Text>
-            </Card>
+            <Estado carregando={carregando} erro={erro} temDados={perfil !== null} onTentarNovamente={recarregar}>
+                <Card rotulo="SEU PERFIL">
+                    <Text style={styles.destaque}>{perfil?.perfil}</Text>
+                    <Text style={styles.texto}>{perfil?.resumo}</Text>
+                </Card>
 
-            <Card rotulo="TOLERÂNCIA A RISCO">
-                <Text style={styles.valor}>Média</Text>
-            </Card>
+                <Card rotulo="TOLERÂNCIA A RISCO">
+                    <Text style={styles.valor}>{perfil?.tolerancia}</Text>
+                </Card>
 
-            <Card rotulo="OBJETIVOS INFORMADOS">
-                {objetivos.map((objetivo) => (
-                    <Text key={objetivo} style={styles.texto}>
-                        {'•'} {objetivo}
-                    </Text>
-                ))}
-            </Card>
+                <Card rotulo="OBJETIVOS INFORMADOS">
+                    {(perfil?.objetivos ?? []).map((objetivo) => (
+                        <Text key={objetivo} style={styles.texto}>
+                            {'•'} {objetivo}
+                        </Text>
+                    ))}
+                </Card>
 
-            <Card rotulo="ALOCAÇÃO SUGERIDA">
-                {alocacao.map((item) => (
-                    <View key={item.nome} style={styles.linha}>
-                        <Text style={styles.texto}>{item.nome}</Text>
-                        <Text style={styles.valor}>{item.percentual}%</Text>
-                    </View>
-                ))}
-            </Card>
+                <Card rotulo="ALOCAÇÃO SUGERIDA">
+                    {(perfil?.alocacao ?? []).map((item) => (
+                        <View key={item.nome} style={styles.linha}>
+                            <Text style={styles.texto}>{item.nome}</Text>
+                            <Text style={styles.valor}>{item.percentual}%</Text>
+                        </View>
+                    ))}
+                </Card>
 
-            <Botao titulo="Ver recomendações" onPress={() => navigation.navigate('Recomendacoes')} />
+                <Botao titulo="Ver recomendações" onPress={() => navigation.navigate('Recomendacoes')} />
+            </Estado>
         </Layout>
     );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
     ActivityIndicator,
     Modal,
@@ -12,8 +13,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import CardAtivo from './components/CardAtivo';
 import Botao from './components/Botao';
+import FormNovoAtivo from './components/FormNovoAtivo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../../shared/header';
+import { formatarReais } from '../../shared/currency';
+import { useCarregar } from '../../shared/useCarregar';
+import { obterCarteira } from '../../services/carteira';
 import { colors } from '../../styles/colors';
 
 type Cotacao = {
@@ -60,6 +65,21 @@ export default function Investimentos() {
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
     const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState(false);
+    const [tipoEscolhido, setTipoEscolhido] = useState<(typeof OPCOES_INVESTIMENTO)[number] | null>(null);
+    const navigation = useNavigation();
+    const route = useRoute<{ key: string; name: string; params?: { adicionar?: number } }>();
+    const { dados: carteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
+
+    // Atalho "Adicionar Investimento" da Home abre direto o cadastro.
+    const pedidoDeAdicionar = route.params?.adicionar;
+    useEffect(() => {
+        if (pedidoDeAdicionar) setModalAdicionarVisivel(true);
+    }, [pedidoDeAdicionar]);
+
+    function fecharModal() {
+        setModalAdicionarVisivel(false);
+        setTipoEscolhido(null);
+    }
 
     const carregarCotacoes = useCallback(async () => {
         setCarregando(true);
@@ -116,14 +136,17 @@ export default function Investimentos() {
             style={{ flex: 1, backgroundColor: colors.background }}
             edges={['top']}
         >
-            <Header name="Usuario" />
+            <Header />
 
             <ScrollView
                 style={{ flex: 1 }}
                 refreshControl={
                     <RefreshControl
                         refreshing={carregando}
-                        onRefresh={carregarCotacoes}
+                        onRefresh={() => {
+                            void carregarCotacoes();
+                            recarregarCarteira();
+                        }}
                         tintColor={colors.primary}
                     />
                 }
@@ -131,7 +154,40 @@ export default function Investimentos() {
                 <ScrollView style={styles.container}>
                     <View style={styles.container_elementos}>
                         <Text style={styles.subtitle}>Saldo Investido: </Text>
-                        <Text style={styles.title}>1000 </Text>
+                        <Text style={styles.title}>{formatarReais(carteira?.valorAtual ?? 0)}</Text>
+                        {carteira ? (
+                            <Text style={styles.subtitle}>
+                                Investido: {formatarReais(carteira.totalInvestido)} · Resultado:{' '}
+                                {formatarReais(carteira.lucro)}
+                            </Text>
+                        ) : null}
+                    </View>
+
+                    <View style={[styles.container_elementos, styles.bloco]}>
+                        <Text style={styles.title}>Minha carteira</Text>
+                        {carteira && carteira.ativos.length === 0 ? (
+                            <Text style={styles.mensagemVazia}>Você ainda não adicionou nenhum investimento.</Text>
+                        ) : null}
+                        {(carteira?.ativos ?? []).map((ativo) => (
+                            <View key={ativo.id} style={styles.linhaCarteira}>
+                                <View style={styles.linhaCarteiraNome}>
+                                    <Text style={styles.title}>{ativo.simbolo}</Text>
+                                    <Text style={styles.subtitle}>{ativo.quantidade} un.</Text>
+                                </View>
+                                <View style={styles.linhaCarteiraValor}>
+                                    <Text style={styles.title}>{formatarReais(ativo.valorAtual)}</Text>
+                                    <Text
+                                        style={[
+                                            styles.subtitle,
+                                            { color: ativo.lucro >= 0 ? colors.positive : colors.negative },
+                                        ]}
+                                    >
+                                        {ativo.lucro >= 0 ? '+' : ''}
+                                        {ativo.lucroPercentual.toFixed(2)}%
+                                    </Text>
+                                </View>
+                            </View>
+                        ))}
                     </View>
 
 
@@ -150,7 +206,7 @@ export default function Investimentos() {
                             icone="home" />
                         <Botao
                             titulo={'Acessoria'}
-                            onPress={() => console.log('Acess')}
+                            onPress={() => navigation.getParent()?.navigate('AI' as never)}
                             icone="chatbubbles" />
                         <Botao
                             titulo={'Meus\ninvestimentos'}
@@ -196,38 +252,47 @@ export default function Investimentos() {
                 animationType="fade"
                 transparent
                 visible={modalAdicionarVisivel}
-                onRequestClose={() => setModalAdicionarVisivel(false)}
+                onRequestClose={fecharModal}
             >
                 <View style={styles.modalContainer}>
                     <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Fechar opções de investimento"
                         style={styles.modalBackdrop}
-                        onPress={() => setModalAdicionarVisivel(false)}
+                        onPress={fecharModal}
                     />
                     <View
                         accessibilityViewIsModal
                         style={styles.modalConteudo}
                     >
-                        <Text style={styles.modalTitulo}>Adicionar investimento</Text>
-                        <Text style={styles.modalDescricao}>
-                            Escolha o tipo de investimento que deseja adicionar.
-                        </Text>
-                        {OPCOES_INVESTIMENTO.map((opcao) => (
-                            <Pressable
-                                key={opcao}
-                                accessibilityRole="button"
-                                style={styles.opcaoInvestimento}
-                                onPress={() => setModalAdicionarVisivel(false)}
-                            >
-                                <Text style={styles.opcaoTexto}>{opcao}</Text>
-                                <Ionicons
-                                    name="chevron-forward"
-                                    size={20}
-                                    color={colors.primary}
-                                />
-                            </Pressable>
-                        ))}
+                        {tipoEscolhido ? (
+                            <FormNovoAtivo
+                                tipo={tipoEscolhido}
+                                onCancelar={fecharModal}
+                                onSalvo={() => {
+                                    fecharModal();
+                                    recarregarCarteira();
+                                }}
+                            />
+                        ) : (
+                            <>
+                                <Text style={styles.modalTitulo}>Adicionar investimento</Text>
+                                <Text style={styles.modalDescricao}>
+                                    Escolha o tipo de investimento que deseja adicionar.
+                                </Text>
+                                {OPCOES_INVESTIMENTO.map((opcao) => (
+                                    <Pressable
+                                        key={opcao}
+                                        accessibilityRole="button"
+                                        style={styles.opcaoInvestimento}
+                                        onPress={() => setTipoEscolhido(opcao)}
+                                    >
+                                        <Text style={styles.opcaoTexto}>{opcao}</Text>
+                                        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                                    </Pressable>
+                                ))}
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -256,6 +321,24 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: 10,
+    },
+    bloco: {
+        marginTop: 12,
+    },
+    linhaCarteira: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        marginTop: 8,
+    },
+    linhaCarteiraNome: {
+        gap: 2,
+    },
+    linhaCarteiraValor: {
+        alignItems: 'flex-end',
+        gap: 2,
     },
     acoes: {
         flexDirection: 'row',

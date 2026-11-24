@@ -1,11 +1,16 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Layout from '../../shared/layout';
-import { getAvatar, uploadAvatar } from '../../services/api';
+import { clearAuthTokens, getAvatar, logout, uploadAvatar } from '../../services/api';
+import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
+import { limparPerfil } from '../../services/assessoria';
+import { obterCarteira } from '../../services/carteira';
+import { listarObjetivos } from '../../services/objetivos';
+import { formatarReais } from '../../shared/currency';
 import { colors } from '../../styles/colors';
 import type { HomeStackParamList } from '../Home/types';
 import CabecalhoPesquisa from './components/cabecalhoPesquisa';
@@ -14,18 +19,28 @@ import ItemLista from './components/itemLista';
 type Item = {
     rotulo: string;
     rota?: 'Seguranca' | 'Configuracoes' | 'FAQ';
+    sair?: boolean;
 };
 
-// TODO: substituir pelos dados do usuário vindos da API
-const itens: Item[] = [
-    { rotulo: 'Email: email@gmail.com' },
-    { rotulo: 'CPF: 000.000.000-00' },
-    { rotulo: 'Número: 00-00000-0000' },
-    { rotulo: 'Central de segurança', rota: 'Seguranca' },
-    { rotulo: 'Central de configurações', rota: 'Configuracoes' },
-    { rotulo: 'FAQ', rota: 'FAQ' },
-    { rotulo: 'Renda mensal: R$ 4.000' },
-];
+function formatarCpf(cpf: string): string {
+    const numeros = cpf.replace(/\D/g, '');
+    return numeros.length === 11
+        ? `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`
+        : cpf;
+}
+
+function montarItens(usuario: Usuario | null): Item[] {
+    return [
+        { rotulo: `Nome: ${usuario?.nome || '—'}` },
+        { rotulo: `Email: ${usuario?.email ?? '—'}` },
+        { rotulo: `CPF: ${usuario ? formatarCpf(usuario.cpf) : '—'}` },
+        { rotulo: 'Central de segurança', rota: 'Seguranca' },
+        { rotulo: 'Central de configurações', rota: 'Configuracoes' },
+        { rotulo: 'FAQ', rota: 'FAQ' },
+        { rotulo: `Renda mensal: ${usuario?.renda != null ? formatarReais(usuario.renda) : '—'}` },
+        { rotulo: 'Sair da conta', sair: true },
+    ];
+}
 
 export default function Perfil() {
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -33,10 +48,22 @@ export default function Perfil() {
     const [termo, setTermo] = useState('');
     const [avatar, setAvatar] = useState<string | null>(null);
     const [enviando, setEnviando] = useState(false);
+    const [usuario, setUsuario] = useState<Usuario | null>(null);
+    const [totalInvestimentos, setTotalInvestimentos] = useState(0);
+    const [totalObjetivos, setTotalObjetivos] = useState(0);
     const versao = useRef(0);
 
     useFocusEffect(useCallback(() => {
         let ativo = true;
+        obterUsuario().then((dados) => {
+            if (ativo) setUsuario(dados);
+        }).catch(() => {});
+        obterCarteira().then((carteira) => {
+            if (ativo) setTotalInvestimentos(carteira.ativos.length);
+        }).catch(() => {});
+        listarObjetivos().then((objetivos) => {
+            if (ativo) setTotalObjetivos(objetivos.length);
+        }).catch(() => {});
         const atual = ++versao.current;
         getAvatar().then((imagem) => {
             if (ativo && atual === versao.current) setAvatar(imagem);
@@ -81,7 +108,15 @@ export default function Perfil() {
         }
     }
 
-    const filtrados = itens.filter((item) =>
+    async function sair() {
+        await logout();
+        clearAuthTokens();
+        limparUsuario();
+        limparPerfil();
+        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+    }
+
+    const filtrados = montarItens(usuario).filter((item) =>
         item.rotulo.toLowerCase().includes(termo.trim().toLowerCase()),
     );
 
@@ -108,15 +143,15 @@ export default function Perfil() {
                     ) : <Ionicons name="person" size={56} color={colors.primary} />}
                 </TouchableOpacity>
                 <Text style={styles.alterarFoto}>Alterar foto</Text>
-                <Text style={styles.nome}>Nome Sobrenome</Text>
+                <Text style={styles.nome}>{usuario?.nome || 'Carregando...'}</Text>
                 <View style={styles.contadores}>
                     <View style={styles.contador}>
-                        <Text style={styles.contadorValor}>0</Text>
+                        <Text style={styles.contadorValor}>{totalInvestimentos}</Text>
                         <Text style={styles.contadorRotulo}>investimentos</Text>
                     </View>
                     <View style={styles.divisor} />
                     <View style={styles.contador}>
-                        <Text style={styles.contadorValor}>0</Text>
+                        <Text style={styles.contadorValor}>{totalObjetivos}</Text>
                         <Text style={styles.contadorRotulo}>objetivos</Text>
                     </View>
                 </View>
@@ -126,7 +161,7 @@ export default function Perfil() {
                 <ItemLista
                     key={item.rotulo}
                     rotulo={item.rotulo}
-                    onPress={item.rota ? () => navigation.navigate(item.rota!) : undefined}
+                    onPress={item.sair ? sair : item.rota ? () => navigation.navigate(item.rota!) : undefined}
                 />
             ))}
         </Layout>

@@ -3,4 +3,5 @@ export type GastosStackParamList = {
     GastosFixos: undefined;
     GastosVariaveis: undefined;
     HistoricoGastos: undefined;
+    NovoGasto: undefined;
 };

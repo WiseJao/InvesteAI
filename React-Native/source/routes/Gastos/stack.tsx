@@ -3,6 +3,7 @@ import Gastos from './index';
 import GastosFixos from './fixos';
 import GastosVariaveis from './variaveis';
 import HistoricoGastos from './historico';
+import NovoGasto from './novoGasto';
 import type { GastosStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<GastosStackParamList>();
@@ -14,6 +15,7 @@ export default function GastosStack() {
             <Stack.Screen name="GastosFixos" component={GastosFixos} />
             <Stack.Screen name="GastosVariaveis" component={GastosVariaveis} />
             <Stack.Screen name="HistoricoGastos" component={HistoricoGastos} />
+            <Stack.Screen name="NovoGasto" component={NovoGasto} />
         </Stack.Navigator>
     );
 }

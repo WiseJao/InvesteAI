@@ -19,6 +19,62 @@ export function getAuthToken() {
     return authToken;
 }
 
+export type AuthTokens = { accessToken: string; refreshToken: string };
+
+let renovando: Promise<boolean> | null = null;
+
+// Troca o refresh token por um novo par de tokens. Várias chamadas simultâneas
+// compartilham a mesma renovação para não gastar o mesmo refresh token duas vezes.
+async function renovarTokens(): Promise<boolean> {
+    if (!refreshToken) return false;
+
+    if (!renovando) {
+        renovando = (async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken }),
+                });
+                if (!response.ok) {
+                    clearAuthTokens();
+                    return false;
+                }
+                setAuthTokens(await response.json());
+                return true;
+            } catch {
+                return false;
+            } finally {
+                renovando = null;
+            }
+        })();
+    }
+
+    return renovando;
+}
+
+// Envia a requisição com o token atual; se a API responder 401, renova o token
+// e tenta de novo uma única vez (o access token dura só 15 minutos).
+async function authFetch(
+    url: string,
+    init: RequestInit = {},
+    renovar = true
+): Promise<Response> {
+    const enviar = () => {
+        const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+        if (authToken && !headers['Authorization']) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        return fetch(url, { ...init, headers });
+    };
+
+    let response = await enviar();
+    if (response.status === 401 && renovar && (await renovarTokens())) {
+        response = await enviar();
+    }
+    return response;
+}
+
 export async function apiRequest<T = any>(
     path: string,
     options: RequestInit = {}
@@ -29,14 +85,8 @@ export async function apiRequest<T = any>(
         ...(options.headers as Record<string, string>),
     };
 
-    if (authToken && !headers['Authorization']) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-    }
-
-    const response = await fetch(url, {
-        ...options,
-        headers,
-    });
+    // As rotas /auth/* (login, cadastro...) não passam pela renovação de token.
+    const response = await authFetch(url, { ...options, headers }, !path.startsWith('/auth/'));
 
     if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
@@ -68,9 +118,7 @@ export async function uploadAvatar(file: { uri: string; name: string; type: stri
 }
 
 export async function getAvatar(): Promise<string | null> {
-    const response = await fetch(`${API_BASE_URL}/user/me/avatar`, {
-        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-    });
+    const response = await authFetch(`${API_BASE_URL}/user/me/avatar`);
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
@@ -80,6 +128,40 @@ export async function getAvatar(): Promise<string | null> {
         reader.onerror = () => reject(new Error('Não foi possível carregar a foto.'));
         reader.readAsDataURL(blob);
     });
+}
+
+// Converte o erro de uma chamada em uma frase que pode ser mostrada ao usuário.
+export function mensagemDeErro(erro: unknown): string {
+    const mensagem = erro instanceof Error ? erro.message : '';
+
+    if (/network|fetch|failed to connect/i.test(mensagem)) {
+        return 'Não foi possível conectar ao servidor. Tente novamente.';
+    }
+    if (mensagem === 'HTTP 401' || mensagem === 'HTTP 403') {
+        return 'Sua sessão expirou. Entre novamente.';
+    }
+    if (mensagem.startsWith('HTTP ')) {
+        return `O servidor não conseguiu concluir a operação (${mensagem}).`;
+    }
+    return mensagem || 'Algo deu errado. Tente novamente.';
+}
+
+export async function login(identifier: string, password: string) {
+    const result = await apiRequest<AuthTokens>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ identifier, password }),
+    });
+    setAuthTokens(result);
+    return result;
+}
+
+export async function logout() {
+    try {
+        await apiRequest('/auth/logout', { method: 'POST' });
+    } catch {
+        // O logout é só um aviso à API; os tokens locais são descartados de qualquer forma.
+    }
+    clearAuthTokens();
 }
 
 export type UnifiedRegisterData = {
@@ -128,7 +210,7 @@ export async function registerUnified(data: UnifiedRegisterData) {
         favoriteColor: data.corFavorita || null,
     };
 
-    const result = await apiRequest<{ accessToken: string; refreshToken: string }>('/auth/register', {
+    const result = await apiRequest<AuthTokens>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(payload),
     });

@@ -124,6 +124,7 @@ public class BrapiService {
                         if (symbolResults.isEmpty()) {
                             throw new IllegalStateException("A BRAPI não retornou cotação para o ativo.");
                         }
+                        symbolResults.forEach(BrapiService::addLogoUrl);
                         quoteCache.put(symbol, new CacheEntry<>(symbolResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
                         quotes.addAll(symbolResults);
                     } else {
@@ -144,6 +145,7 @@ public class BrapiService {
                             response.path("results").forEach(symbolResults::add);
                             symbolResults.removeIf(quote -> !isUsableQuote(quote, symbol));
                             if (symbolResults.isEmpty()) continue;
+                            symbolResults.forEach(BrapiService::addLogoUrl);
                             quoteCache.put(symbol, new CacheEntry<>(symbolResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
                             quotes.addAll(symbolResults);
                         }
@@ -163,7 +165,22 @@ public class BrapiService {
                 && price.isNumber() && price.decimalValue().signum() > 0;
     }
 
-    public record MarketPrice(BigDecimal price, Instant quotedAt) {
+    private static void addLogoUrl(JsonNode quote) {
+        String logo = logoUrl(quote);
+        if (logo != null && quote instanceof ObjectNode object) object.put("logoUrl", logo);
+    }
+
+    private static String logoUrl(JsonNode quote) {
+        String raw = quote.path("logourl").asText();
+        try {
+            var uri = java.net.URI.create(raw);
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null && uri.getUserInfo() == null ? raw : null;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    public record MarketPrice(BigDecimal price, Instant quotedAt, String logoUrl) {
         public static MarketPrice from(JsonNode quote) {
             JsonNode time = quote.path("regularMarketTime");
             Instant quotedAt = null;
@@ -174,7 +191,7 @@ public class BrapiService {
                     // A price without a valid timestamp is treated as stale.
                 }
             }
-            return new MarketPrice(quote.path("regularMarketPrice").decimalValue(), quotedAt);
+            return new MarketPrice(quote.path("regularMarketPrice").decimalValue(), quotedAt, BrapiService.logoUrl(quote));
         }
     }
 

@@ -51,7 +51,8 @@ public record HoldingResponse(
         String priceStatus,
         Instant quotedAt,
         FixedIncomeTerms fixedIncome,
-        LocalDate valuationThrough
+        LocalDate valuationThrough,
+        String logoUrl
 ) {
     /**
      * Converts an {@link Investment} entity to a {@link HoldingResponse} calculating valuations and profit.
@@ -133,7 +134,8 @@ public record HoldingResponse(
                 priceStatus,
                 quotedAt,
                 fixed ? new FixedIncomeTerms(entity.getFixedProduct(), entity.getInstitution(), entity.getCdiPercentage(), entity.getMaturityDate()) : null,
-                valuationThrough
+                valuationThrough,
+                quote == null ? null : quote.logoUrl()
         );
     }
 

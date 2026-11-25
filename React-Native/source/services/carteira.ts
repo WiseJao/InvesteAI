@@ -53,6 +53,7 @@ export type Ativo = {
     quotedAt?: string | null;
     fixedIncome?: CondicoesRendaFixa | null;
     valuationThrough?: string | null;
+    logoUrl?: string | null;
 };
 
 export type Carteira = {
@@ -82,6 +83,7 @@ type AtivoApi = {
     quotedAt?: string | null;
     fixedIncome?: CondicoesRendaFixa | null;
     valuationThrough?: string | null;
+    logoUrl?: string | null;
 };
 
 type CarteiraApi = {
@@ -122,6 +124,7 @@ export async function obterCarteira(): Promise<Carteira> {
             quotedAt: ativo.quotedAt ?? null,
             fixedIncome: ativo.fixedIncome ?? null,
             valuationThrough: ativo.valuationThrough ?? null,
+            logoUrl: ativo.logoUrl ?? null,
         })),
     };
 }

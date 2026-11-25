@@ -1,3 +1,4 @@
+import ImagemAtivo from './components/ImagemAtivo';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
@@ -29,6 +30,7 @@ type Cotacao = {
     regularMarketChangePercent?: number;
     regularMarketTime?: string;
     logourl?: string;
+    logoUrl?: string;
 };
 
 type RespostaCotacoes = {
@@ -199,15 +201,16 @@ export default function Investimentos() {
                                 style={styles.linhaCarteira}
                                 onPress={() => setAtivoEditando(ativo)}
                             >
+                                <ImagemAtivo uri={ativo.logoUrl} fixed={ativo.investmentType === 'FIXED_INCOME'} />
                                 <View style={styles.linhaCarteiraNome}>
-                                    <Text style={styles.title}>{ativo.simbolo}</Text>
-                                    <Text style={styles.subtitle}>{oculto ? 'Quantidade oculta' : `${ativo.quantidade} un.`}</Text>
+                                    <Text style={styles.title}>{ativo.investmentType === 'FIXED_INCOME' ? ativo.nome : ativo.simbolo}</Text>
+                                    <Text style={styles.subtitle}>{oculto ? 'Quantidade oculta' : ativo.fixedIncome?.product ? ({ CDB: 'CDB', CAIXINHA: 'Caixinha', OTHER: 'Outro' } as const)[ativo.fixedIncome.product] : `${ativo.quantidade} un.`}</Text>
                                     <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.fixedIncome?.cdiPercentage ? (oculto ? ' · Taxa oculta' : ' · ' + ativo.fixedIncome.cdiPercentage + '% do CDI') : ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
                                 </View>
                                 <View style={styles.linhaCarteiraValor}>
                                     <Text style={styles.title}>{oculto ? 'Valores ocultos' : formatarReais(ativo.valorAtual)}</Text>
                                     {ativo.investmentType === 'FIXED_INCOME' && ativo.priceStatus !== 'UNAVAILABLE' ? <Text style={styles.subtitle}>Estimativa bruta{ativo.valuationThrough ? ' · ' + ativo.valuationThrough.split('-').reverse().join('/') : ''}</Text> : null}
-                                    {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>Cotação indisponível · valor pelo custo de compra</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>Cotação possivelmente desatualizada</Text> : null}
+                                    {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>{ativo.investmentType === 'FIXED_INCOME' ? 'Estimativa indisponível' : 'Cotação indisponível'} · valor pelo custo de compra</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>{ativo.investmentType === 'FIXED_INCOME' ? 'Série CDI desatualizada' : 'Cotação possivelmente desatualizada'}</Text> : null}
                                     {ativo.quotedAt ? <Text style={styles.subtitle}>Cotação de {formatarDataCotacao(ativo.quotedAt)}</Text> : null}
                                     <Text
                                         style={[
@@ -275,7 +278,7 @@ export default function Investimentos() {
                                 empresa={ativo.shortName ?? ativo.symbol}
                                 preco={formatarPreco(ativo.regularMarketPrice)}
                                 variacao={formatarVariacao(ativo.regularMarketChangePercent)}
-                                logo={ativo.logourl ?? ''}
+                                logo={ativo.logoUrl ?? ativo.logourl ?? ''}
                             />
                         ))}
                     </View>

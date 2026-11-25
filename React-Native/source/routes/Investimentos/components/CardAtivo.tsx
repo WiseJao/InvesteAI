@@ -1,10 +1,10 @@
+import ImagemAtivo from './ImagemAtivo';
 
 import {
   ActivityIndicator,
   View,
   Text,
   StyleSheet,
-  Image,
   Pressable,
   Modal,
   useWindowDimensions,
@@ -180,15 +180,7 @@ export default function CardAtivo({
         style={styles.card}
         onPress={() => setModalDetalhesVisivel(true)}
       >
-        <View style={styles.logo}>
-          {logo ? (
-            <Image
-              source={{ uri: logo }}
-              style={styles.imagemLogo}
-              resizeMode="contain"
-            />
-          ) : null}
-        </View>
+        <ImagemAtivo uri={logo} size={36} />
 
         <View style={styles.identificacao}>
           <Text style={styles.ticker}>{ticker}</Text>
@@ -237,13 +229,7 @@ export default function CardAtivo({
               </View>
 
               <View style={styles.modalAtivo}>
-                {logo ? (
-                  <Image
-                    source={{ uri: logo }}
-                    style={styles.modalLogo}
-                    resizeMode="contain"
-                  />
-                ) : null}
+                <ImagemAtivo uri={logo} size={48} />
                 <View style={styles.modalIdentificacao}>
                   <Text style={styles.modalTicker}>{ticker}</Text>
                   <Text style={styles.modalEmpresa}>{empresa}</Text>
@@ -329,14 +315,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
-  logo: {
-    width: 43,
-    height: 43,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
 
   identificacao: {
     flex: 1,
@@ -398,11 +376,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  imagemLogo: {
-    width: 43,
-    height: 43,
-    borderRadius: 10,
-  },
 
   modalContainer: {
     flex: 1,
@@ -457,11 +430,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 
-  modalLogo: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-  },
 
   modalIdentificacao: {
     flex: 1,

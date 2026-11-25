@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AbasParamList } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../../shared/layout';
 import { colors, ui } from '../../styles/colors';
@@ -159,8 +161,8 @@ export default function FAQ() {
                                 {aberta ? <>
                                     <Text style={styles.resposta}>{item.resposta}</Text>
                                     {['Como o app calcula o valor da carteira?', 'O que são bolsa, ticker e cotação?', 'Qual é a diferença entre renda fixa e renda variável?'].includes(item.pergunta) && (
-                                        <TouchableOpacity accessibilityRole="button" style={styles.atalho} onPress={() => navigation.getParent()?.dispatch(
-                                            CommonActions.navigate({ name: 'Investimentos', params: { screen: 'Investimentos', params: { abrirCarteira: Date.now() } } })
+                                        <TouchableOpacity accessibilityRole="button" style={styles.atalho} onPress={() => navigation.getParent<BottomTabNavigationProp<AbasParamList>>()?.navigate(
+                                            'Investimentos', { screen: 'Carteira', params: { abrirCarteira: Date.now() } },
                                         )}><Text style={{ color: colors.primary }}>Abrir Investimentos</Text></TouchableOpacity>
                                     )}
                                 </> : null}

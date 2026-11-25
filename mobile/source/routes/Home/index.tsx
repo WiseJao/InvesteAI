@@ -20,11 +20,12 @@ import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
 import { colors, ui } from '../../styles/colors';
 import type { HomeStackParamList } from './types';
+import type { AbasParamList } from '../types';
 
 type Atalho = {
     label: string;
     icone: keyof typeof Ionicons.glyphMap;
-    destino: 'NovoGasto' | 'Investimentos' | Exclude<keyof HomeStackParamList, 'Home'>;
+    destino: 'NovoGasto' | 'Investimentos' | Exclude<keyof HomeStackParamList, 'Inicio'>;
 };
 
 type Item = {
@@ -113,18 +114,18 @@ export default function Home() {
     const atualizar = async () => { await Promise.all([estadoGastos.recarregar(), estadoCarteira.recarregar(), estadoObjetivos.recarregar()]); };
 
     function verLancamentos() {
-        navigation.getParent<BottomTabNavigationProp<Record<string, object | undefined>>>()
+        navigation.getParent<BottomTabNavigationProp<AbasParamList>>()
             ?.navigate('Gastos', { screen: 'HistoricoGastos', params: { periodo: String(ano) + '-' + String(mes).padStart(2, '0'), consulta: Date.now() } });
     }
 
     function abrir(destino: Atalho['destino']) {
         if (destino === 'NovoGasto') {
-            const abas = navigation.getParent<BottomTabNavigationProp<Record<string, object | undefined>>>();
+            const abas = navigation.getParent<BottomTabNavigationProp<AbasParamList>>();
             abas?.navigate('Gastos', { screen: 'NovoGasto', initial: false });
         } else if (destino === 'Investimentos') {
             navigation
-                .getParent<BottomTabNavigationProp<Record<string, object | undefined>>>()
-                ?.navigate('Investimentos', { screen: 'Investimentos', params: { adicionar: Date.now() } });
+                .getParent<BottomTabNavigationProp<AbasParamList>>()
+                ?.navigate('Investimentos', { screen: 'Carteira', params: { adicionar: Date.now() } });
         } else {
             navigation.navigate(destino);
         }
@@ -269,7 +270,7 @@ export default function Home() {
                             <Estado {...estadoCarteira} temDados={carteira !== null} onTentarNovamente={estadoCarteira.recarregar}>
                                 <Resumo
                                     titulo={posicoes.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
-                                    onVerTodos={() => navigation.getParent<BottomTabNavigationProp<Record<string, object | undefined>>>()?.navigate('Investimentos', { screen: 'Investimentos', params: { abrirCarteira: Date.now() } })}
+                                    onVerTodos={() => navigation.getParent<BottomTabNavigationProp<AbasParamList>>()?.navigate('Investimentos', { screen: 'Carteira', params: { abrirCarteira: Date.now() } })}
                                     subtitulo={mesesAtras > 0 ? 'Posições registradas até o fim do mês · valores atuais' : undefined}
                                     total={formatarReais(totalDaCarteira)}
                                     itens={itensInvestimento}

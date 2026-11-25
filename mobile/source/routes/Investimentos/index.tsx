@@ -2,7 +2,8 @@ import MarcadorCor from '../../shared/marcadorCor';
 import { corDaConta } from '../../styles/coresDaConta';
 import ImagemAtivo from './components/ImagemAtivo';
 import { useCallback, useEffect, useState } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, type RouteProp } from '@react-navigation/native';
+import type { InvestimentosStackParamList } from './types';
 import {
     ActivityIndicator,
     Modal,
@@ -94,7 +95,7 @@ export default function Investimentos() {
     const [tentativaMercado, setTentativaMercado] = useState(0);
     const [ativoInicial, setAtivoInicial] = useState<ResultadoBusca | undefined>();
     const [formAlterado, setFormAlterado] = useState(false);
-    const route = useRoute<{ key: string; name: string; params?: { adicionar?: number; abrirCarteira?: number } }>();
+    const route = useRoute<RouteProp<InvestimentosStackParamList, 'Carteira'>>();
     const { dados: carteira, carregando: carregandoCarteira, erro: erroCarteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
     const ativosFiltrados = (carteira?.ativos ?? []).filter(ativo => (filtro === 'TODOS' || ativo.investmentType === filtro) && (ativo.nome + ' ' + ativo.simbolo).toLowerCase().includes(buscaCarteira.trim().toLowerCase()));
 

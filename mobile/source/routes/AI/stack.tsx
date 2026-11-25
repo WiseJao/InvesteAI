@@ -10,7 +10,7 @@ const Stack = createNativeStackNavigator<AIStackParamList>();
 export default function AIStack() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="AI" component={AI} />
+            <Stack.Screen name="InicioAssessoria" component={AI} />
             <Stack.Screen name="Questionario" component={Questionario} />
             <Stack.Screen name="PerfilInvestidor" component={PerfilInvestidor} />
             <Stack.Screen name="Recomendacoes" component={Recomendacoes} />

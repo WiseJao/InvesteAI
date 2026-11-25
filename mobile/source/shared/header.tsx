@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { HomeStackParamList } from '../routes/Home/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, ui } from '../styles/colors';
 import { nomeParaExibir, obterUsuario } from '../services/usuario';
@@ -19,7 +21,7 @@ export function AcaoPrivacidade() {
 
 export default function Header() {
     const { dados: usuario, carregando, erro, recarregar } = useCarregar(obterUsuario);
-    const navigation = useNavigation();
+    const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
     const { width } = useWindowDimensions();
     const nome = usuario ? nomeParaExibir(usuario) : null;
 
@@ -37,7 +39,7 @@ export default function Header() {
             </View>
             <AcaoPrivacidade />
             <Pressable accessibilityRole="button" accessibilityLabel="Configurações"
-                onPress={() => navigation.getParent()?.dispatch(CommonActions.navigate({ name: 'Home', params: { screen: 'Configuracoes' } }))}
+                onPress={() => navigation.navigate('Configuracoes')}
                 style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
                 <Ionicons size={22} name="settings-outline" color={colors.primary} />
             </Pressable>

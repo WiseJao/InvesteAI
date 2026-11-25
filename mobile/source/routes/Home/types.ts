@@ -1,5 +1,5 @@
 export type HomeStackParamList = {
-    Home: undefined;
+    Inicio: undefined;
     Perfil: undefined;
     EditarPerfil: undefined;
     Seguranca: undefined;

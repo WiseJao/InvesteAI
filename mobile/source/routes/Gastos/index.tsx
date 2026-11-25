@@ -1,6 +1,7 @@
 import ProgressoOrcamento from '../../shared/progressoOrcamento';
 import BotaoPrimario from '../../shared/botaoPrimario';
-import { CommonActions } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { AbasParamList } from '../types';
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaCategoria } from '../../styles/coresDaConta';
 import { View, Text, StyleSheet } from 'react-native';
@@ -19,7 +20,7 @@ import type { GastosStackParamList } from './types';
 
 type Atalho = {
     label: string;
-    rota: Exclude<keyof GastosStackParamList, 'Gastos'>;
+    rota: Exclude<keyof GastosStackParamList, 'ResumoGastos'>;
 };
 
 const atalhos: Atalho[] = [
@@ -47,7 +48,7 @@ export default function Gastos() {
                         <Text style={styles.orcamento}>{oculto ? '••••' : `de ${formatarReais(orcamento)}`}</Text>
                     </View>
                     <ProgressoOrcamento gasto={gasto} orcamento={orcamento}
-                        onEditarRenda={() => navigation.getParent()?.dispatch(CommonActions.navigate({ name: 'Home', params: { screen: 'EditarPerfil', initial: false } }))} />
+                        onEditarRenda={() => navigation.getParent<BottomTabNavigationProp<AbasParamList>>()?.navigate('Home', { screen: 'EditarPerfil', initial: false })} />
                 </Card>
 
                 <Text style={styles.secao}>Gastos por categoria</Text>

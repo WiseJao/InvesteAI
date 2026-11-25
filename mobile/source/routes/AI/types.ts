@@ -1,5 +1,5 @@
 export type AIStackParamList = {
-    AI: undefined;
+    InicioAssessoria: undefined;
     Questionario: undefined;
     PerfilInvestidor: undefined;
     Recomendacoes: undefined;

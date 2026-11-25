@@ -10,8 +10,11 @@ import AIStack from './AI/stack';
 import { colors } from '../styles/colors';
 import { PrivacidadeProvider } from '../shared/privacidade';
 
-const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+import type { AbasParamList } from './types';
+import type { InvestimentosStackParamList } from './Investimentos/types';
+
+const Tab = createBottomTabNavigator<AbasParamList>();
+const Stack = createNativeStackNavigator<InvestimentosStackParamList>();
 
 export default function TabRouter() {
     return <PrivacidadeProvider><Tabs /></PrivacidadeProvider>;
@@ -75,7 +78,7 @@ function Tabs() {
 function InvestimentoStack() {
     return(
         <Stack.Navigator>
-            <Stack.Screen name="Investimentos" component={Investimentos} options={{ headerShown: false }} />
+            <Stack.Screen name="Carteira" component={Investimentos} options={{ headerShown: false }} />
         </Stack.Navigator>
     );
 }

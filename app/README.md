@@ -1,6 +1,6 @@
 # Aplicativo do InvesteAI
 
-O aplicativo usa React Native e Expo SDK 58. O mesmo projeto em `mobile/` roda no Android, iOS e navegador e consome a API REST da pasta `api/`.
+O aplicativo usa React Native e Expo SDK 58. O mesmo projeto em `app/` roda no Android, iOS e navegador e consome a API REST da pasta `api/`.
 
 ## Pré-requisitos
 
@@ -15,7 +15,7 @@ Na raiz do repositório:
 ```bash
 node --version
 npm --version
-cd mobile
+cd app
 npm ci
 ```
 
@@ -23,7 +23,7 @@ Execute os scripts npm do Expo a partir desta pasta. O `npm ci` usa o `package-l
 
 ## 2. Apontar o aplicativo para a API
 
-No `.env` da raiz do repositório, configure a URL base da API. Se você já usava `mobile/.env.local`, copie apenas a URL para a raiz. Os scripts npm ignoram o arquivo antigo.
+Copie [`.env.example`](.env.example) para `.env` dentro de `app/`. Use `cp .env.example .env` no macOS e Linux ou `Copy-Item .env.example .env` no PowerShell, a partir dessa pasta. Ao migrar uma instalação antiga, transfira apenas a URL da API e guarde o `.env.local` anterior fora de `app/` para evitar que ele sobrescreva o novo arquivo.
 
 ```dotenv
 EXPO_PUBLIC_API_URL=http://localhost:8080
@@ -41,7 +41,9 @@ Escolha o endereço conforme o dispositivo:
 
 No Windows, execute `ipconfig` e procure o endereço IPv4 no adaptador Ethernet ou Wi-Fi usado pelo computador. Por exemplo, se o IP do computador for `192.168.1.25`, a URL do celular será `http://192.168.1.25:8080`. A partir do celular, abra essa URL com `/actuator/health` no navegador para conferir a conexão antes de abrir o app.
 
-Reinicie o Expo após trocar a URL. Os scripts npm repassam `EXPO_PUBLIC_API_URL` para o bundle. Uma URL definida no terminal tem precedência. Se a variável estiver ausente, o padrão é `http://localhost:8080`. Use HTTP ou HTTPS e uma URL sem usuário, senha, consulta ou fragmento.
+Reinicie o Expo após trocar a URL. O Expo carrega `EXPO_PUBLIC_API_URL` de `app/.env` e inclui a URL no bundle. Uma URL definida no terminal tem precedência. Se a variável estiver ausente, o padrão é `http://localhost:8080`. Use HTTP ou HTTPS e uma URL sem usuário, senha, consulta ou fragmento.
+
+Mantenha senhas e chaves de serviço em `api/.env`.
 
 ## 3. Abrir na plataforma desejada
 
@@ -58,7 +60,7 @@ Abra o endereço exibido no terminal, normalmente `http://localhost:8081`. Caso 
 ### Celular físico
 
 1. Conecte computador e celular à mesma rede local.
-2. Em `mobile/`, rode `npm start`.
+2. Em `app/`, rode `npm start`.
 3. No Android, leia o QR code com o Expo Go. No iOS, use a câmera ou o fluxo indicado pelo Expo Go.
 4. Aguarde o carregamento do bundle e teste o login.
 
@@ -66,7 +68,7 @@ Se o QR code não conectar ao Metro, teste `npm start -- --tunnel`. O túnel cob
 
 ### Emulador Android ou simulador iOS
 
-Abra primeiro o dispositivo virtual no Android Studio ou o simulador no macOS. Em seguida, rode o script correspondente na pasta `mobile/`:
+Abra primeiro o dispositivo virtual no Android Studio ou o simulador no macOS. Em seguida, rode o script correspondente na pasta `app/`:
 
 ```bash
 npm run android

@@ -15,7 +15,6 @@ A identificação acadêmica completa e o espaço para o vídeo estão no [READM
 ```text
 InvesteAI/
 ├── README.md
-├── .env.example
 ├── compose.yaml
 ├── docs/
 │   ├── README.md
@@ -25,28 +24,30 @@ InvesteAI/
 │   └── modelagens e documentos editáveis
 ├── api/
 │   ├── README.md
+│   ├── .env.example
 │   ├── pom.xml
 │   ├── Dockerfile
 │   └── src/
-└── mobile/
+└── app/
     ├── README.md
+    ├── .env.example
     ├── package.json
     ├── App.tsx
     └── source/
 ```
 
-O aplicativo usa React Native com Expo para Android, iOS e navegador. A versão web é executada a partir de `mobile/`. A API usa Java 21, Spring Boot, PostgreSQL 18 e migrações Flyway.
+O aplicativo usa React Native com Expo para Android, iOS e navegador. A versão web é executada a partir de `app/`. A API usa Java 21, Spring Boot, PostgreSQL 18 e migrações Flyway.
 
 ## Executar o projeto
 
 1. Clone o repositório e entre na pasta `InvesteAI`.
-2. Copie `.env.example` para `.env` na raiz. Siga o [guia da API](api/README.md) para configurar o arquivo `.env`, iniciar o PostgreSQL e a API e verificar `/actuator/health`.
-3. Siga o [guia do aplicativo](mobile/README.md) para instalar as dependências em `mobile/`, apontar o Expo para a API e abrir o projeto na plataforma escolhida.
+2. Copie `api/.env.example` para `api/.env`. Siga o [guia da API](api/README.md) para configurar o arquivo `.env`, iniciar o PostgreSQL e a API e verificar `/actuator/health`.
+3. Siga o [guia do aplicativo](app/README.md) para instalar as dependências em `app/`, apontar o Expo para a API e abrir o projeto na plataforma escolhida.
 
-Execute `docker compose` a partir da raiz. O Compose, os scripts npm do Expo e o inicializador do Maven usam o mesmo `.env`.
+Execute `docker compose --env-file api/.env` a partir da raiz. O Maven lê `api/.env`, e o Expo lê `app/.env`.
 
 ## Referências
 
 - [Documentação acadêmica, requisitos e modelo de dados](docs/README.md)
-- [Contrato da API em português](API_DOCUMENTATION_PT.md)
-- [Contrato da API em inglês](API_DOCUMENTATION.md)
+- [Contrato da API em português](api/API_DOCUMENTATION_PT.md)
+- [Contrato da API em inglês](api/API_DOCUMENTATION.md)

@@ -2,10 +2,13 @@ spring:
   application:
     name: investeai-backend
 
+  config:
+    import: "optional:file:./.env[.properties]"
+
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/investeai}
-    username: ${SPRING_DATASOURCE_USERNAME:investeai}
-    password: ${SPRING_DATASOURCE_PASSWORD:investeai}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/${POSTGRES_DB:investeai}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:investeai}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:investeai}}
 
   servlet:
     multipart:

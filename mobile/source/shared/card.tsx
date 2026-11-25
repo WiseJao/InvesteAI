@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 
 type CardProps = {
     rotulo?: string;
@@ -18,7 +18,7 @@ export default function Card({ rotulo, onPress, children }: CardProps) {
 
     if (onPress) {
         return (
-            <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.card} onPress={onPress} accessibilityRole="button" activeOpacity={0.7}>
                 {conteudo}
             </TouchableOpacity>
         );
@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
-        borderRadius: 12,
+        borderRadius: ui.radius,
         padding: 16,
         marginBottom: 12,
     },

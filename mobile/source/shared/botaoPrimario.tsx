@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 
 type BotaoPrimarioProps = {
     titulo: string;
@@ -9,13 +10,19 @@ type BotaoPrimarioProps = {
 };
 
 export default function BotaoPrimario({ titulo, onPress, carregando = false, desabilitado = false }: BotaoPrimarioProps) {
+    const [focado, setFocado] = useState(false);
     const inativo = carregando || desabilitado;
 
     return (
         <TouchableOpacity
-            style={[styles.botao, inativo && styles.inativo]}
+            style={[styles.botao, inativo && styles.inativo, focado && styles.foco]}
+            onFocus={() => setFocado(true)}
+            onBlur={() => setFocado(false)}
             onPress={onPress}
             disabled={inativo}
+            accessibilityRole="button"
+            accessibilityLabel={titulo}
+            accessibilityState={{ disabled: inativo, busy: carregando }}
             activeOpacity={0.8}
         >
             {carregando ? (
@@ -30,17 +37,19 @@ export default function BotaoPrimario({ titulo, onPress, carregando = false, des
 const styles = StyleSheet.create({
     botao: {
         backgroundColor: colors.primary,
-        borderRadius: 10,
+        borderRadius: ui.radius,
         paddingVertical: 14,
+        minHeight: ui.touch,
         alignItems: 'center',
         marginTop: 8,
     },
+    foco: { outlineColor: colors.primary, outlineWidth: 2, outlineOffset: 3 },
     inativo: {
         opacity: 0.5,
     },
     texto: {
         color: colors.onPrimary,
-        fontSize: 15,
+        fontSize: ui.font.body,
         fontWeight: 'bold',
     },
 });

@@ -11,10 +11,10 @@ export default function EsqueciSenha({ navigation }: Props) {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Text style={styles.back}>{'< Voltar'}</Text>
+                <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => navigation.goBack()}>
+                    <Text style={styles.back}>Voltar ao login</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>Recuperação de senha indisponível</Text>
+                <Text accessibilityRole="header" style={styles.title}>Recuperação de senha indisponível</Text>
                 <Text style={styles.subtitle}>
                     A recuperação está indisponível até existir um canal seguro de verificação.
                     Se você ainda tem acesso à conta, pode alterar sua senha em Segurança.

@@ -37,7 +37,7 @@ async function setAuthTokens(tokens: AuthTokens, started = version) {
     return true;
 }
 
-async function clearAuthTokens() {
+export async function clearAuthTokens() {
     version++;
     authToken = null;
     refreshToken = null;
@@ -125,6 +125,10 @@ async function authFetch(
     return response;
 }
 
+export class ApiError extends Error {
+    constructor(readonly status: number, message: string) { super(message); }
+}
+
 export async function apiRequest<T = any>(
     path: string,
     options: RequestInit = {},
@@ -148,7 +152,7 @@ export async function apiRequest<T = any>(
         } catch {
             if (errorText) errorMessage = errorText;
         }
-        throw new Error(errorMessage);
+        throw new ApiError(response.status, errorMessage);
     }
 
     if (response.status === 204) {
@@ -200,13 +204,23 @@ export function mensagemDeErro(erro: unknown): string {
     if (/network|fetch|failed to connect/i.test(mensagem)) {
         return 'Não foi possível conectar ao servidor. Tente novamente.';
     }
-    if (mensagem === 'HTTP 401' || mensagem === 'HTTP 403') {
+    if (erro instanceof ApiError && erro.status === 429) return 'Muitas tentativas. Aguarde um minuto e tente novamente.';
+    if (erro instanceof ApiError && erro.status >= 500) return 'O servidor está indisponível. Tente novamente.';
+    if (erro instanceof ApiError && erro.status === 403) return 'Sua conta não tem acesso a esta ação.';
+    if ((erro instanceof ApiError && erro.status === 401) || mensagem === 'HTTP 401') {
         return 'Sua sessão expirou. Entre novamente.';
     }
     if (mensagem.startsWith('HTTP ')) {
         return `O servidor não conseguiu concluir a operação (${mensagem}).`;
     }
     return mensagem || 'Algo deu errado. Tente novamente.';
+}
+
+export function mensagemDeErroDeGravacao(erro: unknown) {
+    if (!(erro instanceof ApiError) || erro.status >= 500) {
+        return mensagemDeErro(erro) + ' Atualize a lista e confira se a alteração foi salva antes de reenviar.';
+    }
+    return mensagemDeErro(erro);
 }
 
 export async function login(identifier: string, password: string) {

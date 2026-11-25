@@ -6,12 +6,13 @@ type Preferences = { hideOnStart: boolean };
 const defaults: Preferences = { hideOnStart: false };
 const PrivacidadeContext = createContext({
     oculto: false, alternar: () => {}, preferences: defaults,
-    savePreferences: async (_next: Preferences) => {}, ready: false,
+    savePreferences: async (_next: Preferences) => {}, ready: false, reloadPreferences: () => {},
 });
 
 export function PrivacidadeProvider({ children }: { children: ReactNode }) {
     const [oculto, setOculto] = useState(true);
     const [preferences, setPreferences] = useState(defaults);
+    const [tentativa, setTentativa] = useState(0);
     const [key, setKey] = useState<string | null>(null);
 
     useEffect(() => {
@@ -26,7 +27,7 @@ export function PrivacidadeProvider({ children }: { children: ReactNode }) {
             setKey(storageKey);
         }).catch(() => {});
         return () => { active = false; };
-    }, []);
+    }, [tentativa]);
 
     async function savePreferences(next: Preferences) {
         if (!key) throw new Error('Preferências indisponíveis.');
@@ -34,7 +35,7 @@ export function PrivacidadeProvider({ children }: { children: ReactNode }) {
         setPreferences(next);
     }
 
-    return <PrivacidadeContext.Provider value={{ oculto, alternar: () => setOculto(v => !v), preferences, savePreferences, ready: key !== null }}>
+    return <PrivacidadeContext.Provider value={{ oculto, alternar: () => setOculto(v => !v), preferences, savePreferences, ready: key !== null, reloadPreferences: () => setTentativa(v => v + 1) }}>
         {children}
     </PrivacidadeContext.Provider>;
 }

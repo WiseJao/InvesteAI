@@ -1,6 +1,7 @@
+import AvisoDeSucesso from './source/shared/avisoDeSucesso';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, Text, View } from 'react-native';
-import { restoreSession, onSessionEnded } from './source/services/api';
+import { restoreSession, onSessionEnded, clearAuthTokens } from './source/services/api';
 import { limparUsuario } from './source/services/usuario';
 import { colors } from './source/styles/colors';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
@@ -17,6 +18,17 @@ const navigation = createNavigationContainerRef<RootStackParamList>();
 
 export default function App() {
     const [session, setSession] = useState<'loading' | 'retry' | 'active' | 'signed-out'>('loading');
+
+    const [erroSair, setErroSair] = useState(false);
+
+    async function voltarAoLogin() {
+        try {
+            await clearAuthTokens();
+            setSession('signed-out');
+        } catch {
+            setErroSair(true);
+        }
+    }
 
     function restore() {
         setSession('loading');
@@ -36,10 +48,13 @@ export default function App() {
             {session === 'loading' ? <ActivityIndicator color={colors.primary} accessibilityLabel="Restaurando sessão" /> : <>
                 <Text style={{ color: colors.text }}>Não foi possível restaurar sua sessão.</Text>
                 <Button title="Tentar novamente" onPress={restore} />
+                <Button title="Voltar ao login" onPress={() => void voltarAoLogin()} />
+                {erroSair && <Text style={{ color: colors.negative }} accessibilityLiveRegion="polite">Não foi possível apagar a sessão local. Tente novamente.</Text>}
             </>}
         </View>;
     }
     return (
+        <View style={{ flex: 1 }}>
         <NavigationContainer ref={navigation}>
             <RootStack.Navigator initialRouteName={session === 'active' ? 'Main' : 'Login'} screenOptions={{ headerShown: false }}>
                 <RootStack.Screen name="Login" component={Login} />
@@ -48,5 +63,7 @@ export default function App() {
                 <RootStack.Screen name="Main" component={Router} />
             </RootStack.Navigator>
         </NavigationContainer>
+        <AvisoDeSucesso />
+        </View>
     );
 }

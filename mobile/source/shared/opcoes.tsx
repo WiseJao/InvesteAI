@@ -1,5 +1,5 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 
 type OpcoesProps<T extends string> = {
     rotulo: string;
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     rotulo: {
-        fontSize: 13,
+        fontSize: ui.font.label,
         color: colors.textMuted,
         marginBottom: 6,
     },
@@ -52,6 +52,8 @@ const styles = StyleSheet.create({
         borderColor: colors.border,
         borderRadius: 16,
         paddingHorizontal: 12,
+        minHeight: ui.touch,
+        justifyContent: 'center',
         paddingVertical: 8,
         backgroundColor: colors.surface,
     },

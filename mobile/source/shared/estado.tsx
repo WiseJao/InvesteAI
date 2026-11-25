@@ -16,7 +16,7 @@ export default function Estado({ carregando, erro, temDados, onTentarNovamente, 
     if (!temDados && carregando) {
         return (
             <View style={styles.centro}>
-                <ActivityIndicator color={colors.primary} />
+                <ActivityIndicator color={colors.primary} accessibilityLabel="Carregando" />
             </View>
         );
     }
@@ -26,6 +26,7 @@ export default function Estado({ carregando, erro, temDados, onTentarNovamente, 
             <>
                 <View style={styles.centro}>
                     <Text accessibilityLiveRegion="polite" style={styles.erro}>{erro}</Text>
+                    {temDados && <Text style={styles.anterior}>Exibindo a última consulta bem-sucedida.</Text>}
                     <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={onTentarNovamente}>
                         <Text style={styles.tentar}>Tentar novamente</Text>
                     </TouchableOpacity>
@@ -50,6 +51,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     botao: { minHeight: 44, justifyContent: 'center' },
+    anterior: { color: colors.textMuted, textAlign: 'center' },
     tentar: {
         color: colors.primary,
         fontSize: 13,

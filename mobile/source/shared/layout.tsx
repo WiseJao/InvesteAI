@@ -3,7 +3,7 @@ import { ScrollView, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Header from './header';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 
 type LayoutProps = {
     titulo?: string;
@@ -25,13 +25,13 @@ export default function Layout({
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {comHeader ? <Header /> : null}
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="on-drag">
                 {voltar && navigation.canGoBack() ? (
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Text style={styles.voltar}>{'< Voltar'}</Text>
+                    <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" style={styles.voltarBotao}>
+                        <Text style={styles.voltar}>Voltar</Text>
                     </TouchableOpacity>
                 ) : null}
-                {titulo ? <Text style={styles.titulo}>{titulo}</Text> : null}
+                {titulo ? <Text accessibilityRole="header" style={styles.titulo}>{titulo}</Text> : null}
                 {subtitulo ? <Text style={styles.subtitulo}>{subtitulo}</Text> : null}
                 {children}
             </ScrollView>
@@ -45,16 +45,16 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
     },
     content: {
-        padding: 20,
+        padding: ui.screenPadding,
         paddingBottom: 40,
     },
+    voltarBotao: { minHeight: ui.touch, justifyContent: 'center', alignSelf: 'flex-start' },
     voltar: {
         color: colors.primary,
-        fontSize: 13,
-        marginBottom: 16,
+        fontSize: ui.font.label,
     },
     titulo: {
-        fontSize: 22,
+        fontSize: ui.font.screenTitle,
         fontWeight: 'bold',
         color: colors.text,
         marginBottom: 4,

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePreventRemove } from '@react-navigation/native';
+import { confirmarDescarte } from '../../shared/useConfirmarSaida';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
@@ -8,7 +10,7 @@ import PasswordStrength from '../../shared/passwordStrength';
 import { cpfValido, formatCPF } from '../../shared/format';
 import { lerDecimal } from '../../shared/currency';
 import { colors } from '../../styles/colors';
-import { registerUnified } from '../../services/api';
+import { mensagemDeErro, registerUnified } from '../../services/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Cadastro'>;
 
@@ -20,11 +22,9 @@ type FormData = {
     comoOuviu: string;
     email: string;
     nomeExibicao: string;
-    corFavorita: string;
     usoPretendido: string;
     emprego: string;
     renda: string;
-    datasRecebimento: string;
     interesseBancos: string;
     bancosAtuais: string;
     cpf: string;
@@ -38,11 +38,9 @@ const initialData: FormData = {
     comoOuviu: '',
     email: '',
     nomeExibicao: '',
-    corFavorita: '',
     usoPretendido: '',
     emprego: '',
     renda: '',
-    datasRecebimento: '',
     interesseBancos: '',
     bancosAtuais: '',
     cpf: '',
@@ -53,7 +51,17 @@ const initialData: FormData = {
 export default function Cadastro({ navigation }: Props) {
     const [step, setStep] = useState<Step>(1);
     const [data, setData] = useState<FormData>(initialData);
+    const enviando = useRef(false);
+    const [mostrarSenha, setMostrarSenha] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [concluido, setConcluido] = useState(false);
+    usePreventRemove(!concluido && (step > 1 || Object.values(data).some(Boolean)), ({ data: evento }) => {
+        if (step > 1 && ['GO_BACK', 'POP'].includes(evento.action.type)) {
+            setStep(v => (v - 1) as Step);
+            setErrorMsg(null);
+        } else confirmarDescarte(() => navigation.dispatch(evento.action));
+    });
+    useEffect(() => { if (concluido) navigation.replace('Main'); }, [concluido, navigation]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     function update<K extends keyof FormData>(key: K, value: FormData[K]) {
@@ -79,35 +87,40 @@ export default function Cadastro({ navigation }: Props) {
         if (!cpfValido(data.cpf)) return setErrorMsg('Informe um CPF válido.');
         if (!data.senha.trim()) return setErrorMsg('Informe uma senha.');
 
-        if (senhasDiferentes || loading) return;
+        if (data.senha !== data.repetirSenha) return setErrorMsg('Confirme a senha informada.');
+        if (enviando.current) return;
+        enviando.current = true;
 
         try {
             setLoading(true);
             setErrorMsg(null);
             await registerUnified(data);
-            navigation.replace('Main');
-        } catch (err: any) {
-            setErrorMsg(err.message || 'Erro ao realizar cadastro');
+            setConcluido(true);
+        } catch (err) {
+            setErrorMsg(mensagemDeErro(err));
         } finally {
+            enviando.current = false;
             setLoading(false);
         }
     }
 
     function handleVoltar() {
         if (step === 1) return navigation.goBack();
+        setErrorMsg(null);
         setStep((atual) => (atual - 1) as Step);
     }
 
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <TouchableOpacity onPress={handleVoltar}>
+                <TouchableOpacity accessibilityRole="button" onPress={handleVoltar} style={{ minHeight: 48 }}>
                     <Text style={styles.back}>{'< Voltar'}</Text>
                 </TouchableOpacity>
 
+                <Text accessibilityLiveRegion="polite" style={styles.section}>Etapa {step} de 3</Text>
                 {step === 1 && (
                     <>
-                        <Text style={styles.title}>Se cadastre, é grátis!</Text>
+                        <Text style={styles.title}>Crie sua conta</Text>
                         <Text style={styles.section}>Informações básicas</Text>
                         <Field label="Nome" value={data.nome} onChangeText={(v) => update('nome', v)} />
                         <Field
@@ -134,17 +147,12 @@ export default function Cadastro({ navigation }: Props) {
                             value={data.nomeExibicao}
                             onChangeText={(v) => update('nomeExibicao', v)}
                         />
-                        <Field
-                            label="Cor favorita"
-                            value={data.corFavorita}
-                            onChangeText={(v) => update('corFavorita', v)}
-                        />
                     </>
                 )}
 
                 {step === 2 && (
                     <>
-                        <Text style={styles.title}>Agora nos diga um pouco sobre você</Text>
+                        <Text style={styles.title}>Sobre você (opcional)</Text>
                         <Field
                             label="Como pretende usar o InvesteAI?"
                             value={data.usoPretendido}
@@ -160,12 +168,6 @@ export default function Cadastro({ navigation }: Props) {
                             keyboardType="decimal-pad"
                             value={data.renda}
                             onChangeText={(v) => update('renda', v)}
-                        />
-                        <Field
-                            label="Em que datas você recebe?"
-                            hint="O InvesteAI utiliza essas informações para automatizar seu dia a dia."
-                            value={data.datasRecebimento}
-                            onChangeText={(v) => update('datasRecebimento', v)}
                         />
 
                         <Text style={styles.note}>
@@ -187,7 +189,7 @@ export default function Cadastro({ navigation }: Props) {
 
                 {step === 3 && (
                     <>
-                        <Text style={styles.title}>Estamos quase lá</Text>
+                        <Text style={styles.title}>Proteja sua conta</Text>
                         <Text style={styles.section}>Informações para login</Text>
                         <Field
                             label="CPF"
@@ -198,26 +200,32 @@ export default function Cadastro({ navigation }: Props) {
                         />
                         <Field
                             label="Senha"
-                            secureTextEntry
+                            secureTextEntry={!mostrarSenha}
+                            autoComplete="new-password"
                             value={data.senha}
                             onChangeText={(v) => update('senha', v)}
                         />
                         <Field
                             label="Repetir senha"
-                            secureTextEntry
+                            secureTextEntry={!mostrarSenha}
+                            autoComplete="new-password"
                             value={data.repetirSenha}
                             onChangeText={(v) => update('repetirSenha', v)}
                         />
+                        <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => setMostrarSenha(v => !v)}><Text style={styles.back}>{mostrarSenha ? 'Ocultar senhas' : 'Mostrar senhas'}</Text></TouchableOpacity>
                         <PasswordStrength password={data.senha} />
                         {senhasDiferentes && <Text style={styles.error}>As senhas não coincidem.</Text>}
                     </>
                 )}
 
-                {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+                {step === 2 && <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => { setErrorMsg(null); setData(v => ({ ...v, usoPretendido: '', emprego: '', renda: '', interesseBancos: '', bancosAtuais: '' })); setStep(3); }}><Text style={styles.back}>Pular etapa opcional</Text></TouchableOpacity>}
+                {errorMsg && <Text accessibilityLiveRegion="polite" style={styles.error}>{errorMsg}</Text>}
                 <TouchableOpacity
                     style={[styles.button, (step === 3 && (senhasDiferentes || loading)) && styles.buttonDisabled]}
                     onPress={handleProsseguir}
                     disabled={loading}
+                    accessibilityRole="button"
+                    accessibilityState={{ busy: loading, disabled: loading }}
                 >
                     {loading ? (
                         <ActivityIndicator color={colors.onPrimary} />

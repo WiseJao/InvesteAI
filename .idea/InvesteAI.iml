@@ -3,9 +3,9 @@
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
     <content url="file://$MODULE_DIR$">
-      <excludeFolder url="file://$MODULE_DIR$/React-Native/.expo" />
-      <excludeFolder url="file://$MODULE_DIR$/React-Native/node_modules" />
-      <excludeFolder url="file://$MODULE_DIR$/backend/target" />
+      <excludeFolder url="file://$MODULE_DIR$/mobile/.expo" />
+      <excludeFolder url="file://$MODULE_DIR$/mobile/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/api/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -12,24 +12,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
-import { cpfValido, formatCPF } from '../../shared/format';
+import { cpfValido } from '../../shared/format';
 import { login } from '../../services/api';
 import { colors } from '../../styles/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function Login({ navigation }: Props) {
-    const [cpf, setCpf] = useState('');
+    const [identificador, setIdentificador] = useState('');
     const [senha, setSenha] = useState('');
-    const [biometria, setBiometria] = useState(false);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
 
     async function handleEntrar() {
-        const cpfNumeros = cpf.replace(/\D/g, '');
+        const valor = identificador.trim();
+        const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor);
+        const cpf = /^[0-9.-]+$/.test(valor) && cpfValido(valor);
 
-        if (!cpfValido(cpf) || !senha) {
-            setErro('Informe o CPF completo e a senha.');
+        if ((!email && !cpf) || !senha) {
+            setErro('Informe um CPF ou e-mail válido e a senha.');
             return;
         }
 
@@ -37,7 +38,7 @@ export default function Login({ navigation }: Props) {
         setErro(null);
 
         try {
-            await login(cpfNumeros, senha);
+            await login(cpf ? valor.replace(/\D/g, '') : valor, senha);
             navigation.replace('Main');
         } catch (erroLogin) {
             const mensagem = erroLogin instanceof Error ? erroLogin.message : '';
@@ -47,7 +48,7 @@ export default function Login({ navigation }: Props) {
             } else if (mensagem && !mensagem.startsWith('HTTP ')) {
                 setErro(mensagem);
             } else {
-                setErro('CPF ou senha incorretos.');
+                setErro('CPF, e-mail ou senha incorretos.');
             }
         } finally {
             setCarregando(false);
@@ -66,11 +67,13 @@ export default function Login({ navigation }: Props) {
 
                 <View style={styles.form}>
                     <Field
-                        label="CPF"
-                        placeholder="000.000.000-00"
-                        keyboardType="numeric"
-                        value={cpf}
-                        onChangeText={(value) => setCpf(formatCPF(value))}
+                        label="CPF ou e-mail"
+                        placeholder="Digite seu CPF ou e-mail"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        value={identificador}
+                        onChangeText={setIdentificador}
                     />
                     <Field
                         label="Senha"
@@ -102,14 +105,6 @@ export default function Login({ navigation }: Props) {
                         <Text style={styles.newUser}>Sou novo no InvesteAI</Text>
                     </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                    style={styles.biometriaRow}
-                    onPress={() => setBiometria((atual) => !atual)}
-                >
-                    <View style={[styles.checkbox, biometria && styles.checkboxChecked]} />
-                    <Text style={styles.biometriaText}>Logar com biometria</Text>
-                </TouchableOpacity>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -171,26 +166,5 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         marginTop: 24,
-    },
-    biometriaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingBottom: 24,
-    },
-    checkbox: {
-        width: 18,
-        height: 18,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: colors.primary,
-        marginRight: 8,
-    },
-    checkboxChecked: {
-        backgroundColor: colors.primary,
-    },
-    biometriaText: {
-        color: colors.textMuted,
-        fontSize: 12,
     },
 });

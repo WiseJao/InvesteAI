@@ -222,7 +222,7 @@ export default function Cadastro({ navigation }: Props) {
                     {loading ? (
                         <ActivityIndicator color={colors.onPrimary} />
                     ) : (
-                        <Text style={styles.buttonText}>{step === 3 ? 'Confirmar e-mail' : 'Prosseguir'}</Text>
+                        <Text style={styles.buttonText}>{step === 3 ? 'Criar conta' : 'Prosseguir'}</Text>
                     )}
                 </TouchableOpacity>
 

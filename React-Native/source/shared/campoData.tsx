@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../styles/colors';
+import Field from './field';
 import { brParaIso } from './datas';
 
 type Props = {
@@ -33,6 +34,9 @@ export default function CampoData({ label, value, onChange, opcional = false, im
             if (evento.type === 'set' && data) selecionar(data);
         } else if (data) setRascunho(data);
     }} />;
+
+    if (Platform.OS === 'web') return <Field label={label} placeholder="DD/MM/AAAA"
+        maxLength={10} value={value} onChangeText={onChange} />;
 
     return <View style={styles.wrapper}>
         <Text style={styles.label}>{label}</Text>

@@ -10,7 +10,7 @@ const PrivacidadeContext = createContext({
 });
 
 export function PrivacidadeProvider({ children }: { children: ReactNode }) {
-    const [oculto, setOculto] = useState(false);
+    const [oculto, setOculto] = useState(true);
     const [preferences, setPreferences] = useState(defaults);
     const [key, setKey] = useState<string | null>(null);
 

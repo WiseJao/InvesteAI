@@ -8,6 +8,7 @@ export type Usuario = {
     apelido: string | null;
     ocupacao: string | null;
     renda: number | null;
+    rendaExata: string | null;
 };
 
 type UsuarioApi = {
@@ -18,7 +19,7 @@ type UsuarioApi = {
         name: string;
         nickname: string | null;
         occupation: string | null;
-        salary: number | null;
+        salary: string | null;
     } | null;
 };
 
@@ -30,13 +31,14 @@ export function obterUsuario(): Promise<Usuario> {
     const token = getAuthToken();
     if (cache && cache.token === token) return cache.promessa;
 
-    const promessa = apiRequest<UsuarioApi>('/user/me').then((usuario) => ({
+    const promessa = apiRequest<UsuarioApi>('/user/me', {}, true).then((usuario) => ({
         id: usuario.id,
         email: usuario.email,
         cpf: usuario.cpf,
         nome: usuario.profile?.name ?? '',
         apelido: usuario.profile?.nickname ?? null,
         ocupacao: usuario.profile?.occupation ?? null,
+        rendaExata: usuario.profile?.salary ?? null,
         renda: usuario.profile?.salary != null ? Number(usuario.profile.salary) : null,
     }));
 

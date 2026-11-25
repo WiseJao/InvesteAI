@@ -283,8 +283,10 @@ class PostgresV1SchemaTest {
         var currentMonth = java.time.YearMonth.now(java.time.ZoneId.of("America/Sao_Paulo"));
         var first = currentMonth.minusMonths(3).atDay(1);
         var input = new com.InvesteAI.backend.service.CashFlowRecurrenceService.Input(
-                "Aluguel", "Moradia", new BigDecimal("1200"), first, currentMonth.minusMonths(1).atEndOfMonth(), null);
+                "Aluguel", "Moradia", new BigDecimal("1200"), currentMonth.plusMonths(1).atDay(1), null, null);
         var rule = transactions.execute(status -> service.create(user, input));
+        jdbc.sql("UPDATE cash_flow_recurrence SET first_date = :first, next_month = :first, last_date = :last WHERE id = :id")
+                .param("first", first).param("last", currentMonth.minusMonths(1).atEndOfMonth()).param("id", rule.id()).update();
         try (var workers = java.util.concurrent.Executors.newFixedThreadPool(2)) {
             var firstRead = workers.submit(() -> transactions.executeWithoutResult(status -> service.materialize(user)));
             var secondRead = workers.submit(() -> transactions.executeWithoutResult(status -> service.materialize(user)));

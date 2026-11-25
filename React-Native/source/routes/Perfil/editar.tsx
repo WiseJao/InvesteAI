@@ -6,9 +6,10 @@ import Field from '../../shared/field';
 import Estado from '../../shared/estado';
 import BotaoPrimario from '../../shared/botaoPrimario';
 import { useCarregar } from '../../shared/useCarregar';
-import { lerDecimal } from '../../shared/currency';
+import { decimalParaCampo, lerDecimal } from '../../shared/currency';
 import { atualizarUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { mensagemDeErro } from '../../services/api';
+import { usePrivacidade } from '../../shared/privacidade';
 import { colors } from '../../styles/colors';
 
 function Form({ usuario }: { usuario: Usuario }) {
@@ -16,7 +17,7 @@ function Form({ usuario }: { usuario: Usuario }) {
     const [name, setName] = useState(usuario.nome);
     const [nickname, setNickname] = useState(usuario.apelido ?? '');
     const [occupation, setOccupation] = useState(usuario.ocupacao ?? '');
-    const [income, setIncome] = useState(usuario.renda === null ? '' : String(usuario.renda).replace('.', ','));
+    const [income, setIncome] = useState(usuario.rendaExata === null ? '' : decimalParaCampo(usuario.rendaExata));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +49,11 @@ function Form({ usuario }: { usuario: Usuario }) {
 }
 
 export default function EditarPerfil() {
+    const { oculto } = usePrivacidade();
     const { dados, erro, carregando, recarregar } = useCarregar(obterUsuario);
     return <Layout titulo="Editar perfil" voltar>
-        <Estado temDados={dados !== null} erro={erro} carregando={carregando} onTentarNovamente={recarregar}>
+        {oculto ? <Text style={{ color: colors.text }}>Perfil oculto. Use o botão de privacidade para exibi-lo.</Text> : <Estado temDados={dados !== null} erro={erro} carregando={carregando} onTentarNovamente={recarregar}>
             {dados && <Form usuario={dados} />}
-        </Estado>
+        </Estado>}
     </Layout>;
 }

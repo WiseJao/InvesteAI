@@ -27,7 +27,7 @@ function Tabs() {
             tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textMuted,
             tabBarItemStyle: { minHeight: 48 },
             tabBarStyle: { backgroundColor: glass ? 'transparent' : colors.surface, borderTopColor: colors.border },
-            tabBarBackground: glass ? () => <GlassView pointerEvents="none" style={StyleSheet.absoluteFill} /> : undefined,
+            tabBarBackground: glass ? () => <GlassView colorScheme="dark" pointerEvents="none" style={StyleSheet.absoluteFill} /> : undefined,
         }}>
             <Tab.Screen name="Home" component={HomeStack} options={{
                 tabBarIcon: ({ color }) =>(

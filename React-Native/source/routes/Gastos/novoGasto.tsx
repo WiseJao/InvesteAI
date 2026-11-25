@@ -108,8 +108,8 @@ export default function NovoGasto() {
 
     return (
         <Layout
-            titulo={editando ? 'Editar lançamento' : 'Novo lançamento'}
-            subtitulo={editando ? 'Altere os dados ou exclua o lançamento' : 'Registre um gasto ou uma receita'}
+            titulo={regra ? 'Editar recorrência' : editando ? 'Editar lançamento' : 'Novo lançamento'}
+            subtitulo={regra ? 'Alterações valem para os próximos vencimentos' : editando ? 'Altere os dados ou exclua o lançamento' : 'Registre um gasto ou uma receita'}
             voltar
         >
             {!regra && <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />}
@@ -142,7 +142,7 @@ export default function NovoGasto() {
             {regra || (gastoEditado && tipo === 'EXPENSE_FIXED' && repetir === 'mensal')
                 ? <Text style={styles.aviso}>Primeiro vencimento · {data}</Text>
                 : <CampoData label={tipo === 'EXPENSE_FIXED' && repetir === 'mensal' ? 'Primeiro vencimento' : 'Data'} value={data} onChange={setData} />}
-            {tipo === 'EXPENSE_FIXED' && repetir === 'mensal' && <CampoData label="Último vencimento (opcional)" value={fim} onChange={setFim} />}
+            {tipo === 'EXPENSE_FIXED' && repetir === 'mensal' && <CampoData opcional label="Último vencimento (opcional)" value={fim} onChange={setFim} />}
 
             {erro ? <Text style={styles.erro}>{erro}</Text> : null}
             <BotaoPrimario titulo={editando ? 'Salvar alterações' : 'Salvar'} onPress={salvar} carregando={salvando} desabilitado={excluindo} />

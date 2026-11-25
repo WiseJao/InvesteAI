@@ -153,7 +153,7 @@ export default function Objetivos() {
             };
             if (editando) await atualizarObjetivo(editando.id, dadosDoObjetivo, {
                 alvo: alvo === decimalParaCampo(editando.valorAlvoExato),
-                atual: atual === decimalParaCampo(editando.valorAtualExato),
+                atual: editando.progressMode === 'MANUAL' && atual === decimalParaCampo(editando.valorAtualExato),
             });
             else await criarObjetivo(dadosDoObjetivo);
             limparFormulario();

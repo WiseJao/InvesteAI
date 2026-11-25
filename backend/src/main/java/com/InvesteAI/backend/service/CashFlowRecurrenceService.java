@@ -81,11 +81,14 @@ public class CashFlowRecurrenceService {
         if (!input.firstDate().equals(current.firstDate()) || input.existingCashFlowId() != null) {
             throw PersistedFields.invalid("primeiro vencimento");
         }
+        LocalDate now = today();
+        YearMonth future = YearMonth.from(now);
+        if (!dueDate(future, current.firstDate().getDayOfMonth()).isAfter(now)) future = future.plusMonths(1);
         jdbc.sql("""
                 UPDATE cash_flow_recurrence SET description = :description, category = :category, amount = :amount,
-                    last_date = :last WHERE id = :id
+                    last_date = :last, next_month = GREATEST(next_month, :future) WHERE id = :id
                 """).param("id", id).param("description", input.description().strip()).param("category", input.category().strip())
-                .param("amount", input.amount()).param("last", input.lastDate()).update();
+                .param("amount", input.amount()).param("last", input.lastDate()).param("future", future.atDay(1)).update();
         return lock(user, id);
     }
 

@@ -4,6 +4,7 @@ import { colors } from '../../styles/colors';
 import { formatarReais } from '../../shared/currency';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePrivacidade } from '../../shared/privacidade';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
@@ -13,6 +14,7 @@ import ListaGastos from './components/listaGastos';
 import { paraLinhaPorCategoria } from './dados';
 
 export default function GastosFixos() {
+    const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
     const { dados, carregando, erro, recarregar } = useCarregar(async () => {
         const agora = new Date();
@@ -26,7 +28,7 @@ export default function GastosFixos() {
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                 <BotaoPrimario titulo="Novo gasto fixo" onPress={() => navigation.navigate('NovoGasto', { novoFixo: true })} />
                 {dados?.regras.map(regra => <Pressable key={regra.id} accessibilityRole="button" disabled={regra.ended} onPress={() => navigation.navigate('NovoGasto', { regra })} style={{ minHeight: 48, justifyContent: 'center' }}>
-                    <Text style={{ color: colors.text }}>{regra.description} · {formatarReais(Number(regra.amount))}</Text>
+                    <Text style={{ color: colors.text }}>{regra.description}{oculto ? '' : ' · ' + formatarReais(Number(regra.amount))}</Text>
                     <Text style={{ color: colors.textMuted }}>{regra.ended ? 'Encerrada' : 'Mensal'}</Text>
                 </Pressable>)}
                 <ListaGastos

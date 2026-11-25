@@ -645,6 +645,14 @@ Retorna cotações de ações, fundos imobiliários, BDRs e índices da B3.
 
 ---
 
+#### Fechamento de referência por data
+
+`GET /investments/reference-price?symbol=PETR4&date=2026-06-14` (Protegido)
+
+Retorna `tradingDate` (data do pregão), `price` (decimal como texto) e `raw` (indica uso de fechamento sem ajuste). A consulta procura o fechamento na data solicitada ou nos 14 dias anteriores. O preço serve como referência para o cadastro e pode incluir ajustes históricos.
+
+Retorna 400 para parâmetros inválidos ou data futura, 404 quando a resposta não contém um fechamento utilizável no período e 502 se a consulta à BRAPI falhar.
+
 #### 5.2 Pesquisar Ativos de Mercado
 `GET /investments/market/search` (Público / Protegido)
 

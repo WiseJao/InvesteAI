@@ -7,7 +7,7 @@ import BotaoExcluir from '../../../shared/botaoExcluir';
 import { compararDecimais, decimalParaCampo, lerDecimal } from '../../../shared/currency';
 import { brParaIso, hojeIso, isoParaBr } from '../../../shared/datas';
 import { mensagemDeErro } from '../../../services/api';
-import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, type Ativo, type ResultadoBusca } from '../../../services/carteira';
+import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, obterPrecoReferencia, type Ativo, type PrecoReferencia, type ResultadoBusca } from '../../../services/carteira';
 import { colors } from '../../../styles/colors';
 import { usePrivacidade } from '../../../shared/privacidade';
 
@@ -33,6 +33,10 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
     const [quantidade, setQuantidade] = useState(ativo ? decimalParaCampo(ativo.quantidadeExata) : '');
     const [preco, setPreco] = useState(ativo ? decimalParaCampo(ativo.precoCompraExato) : '');
     const [data, setData] = useState(ativo ? (ativo.dataCompra ? isoParaBr(ativo.dataCompra) : '') : isoParaBr(hojeIso()));
+    const [precoManual, setPrecoManual] = useState(editando);
+    const [referencia, setReferencia] = useState<PrecoReferencia | null>(null);
+    const [consultandoPreco, setConsultandoPreco] = useState(false);
+    const [erroReferencia, setErroReferencia] = useState(false);
     const [excluindo, setExcluindo] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
@@ -59,9 +63,32 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
         return () => { vigente = false; clearTimeout(timer); };
     }, [simbolo, selecionado, investmentType, tentativa]);
 
+    const dataReferencia = brParaIso(data);
+    useEffect(() => {
+        setConsultandoPreco(false);
+        setErroReferencia(false);
+        if (editando || investmentType !== 'VARIABLE_INCOME' || !selecionado ||
+            !dataReferencia || dataReferencia > hojeIso()) return;
+
+        let vigente = true;
+        setConsultandoPreco(true);
+        const timer = setTimeout(() => {
+            void obterPrecoReferencia(simbolo, dataReferencia).then((resultado) => {
+                if (vigente) setReferencia(resultado);
+            }).catch(() => {
+                if (vigente) setErroReferencia(true);
+            }).finally(() => {
+                if (vigente) setConsultandoPreco(false);
+            });
+        }, 350);
+        return () => { vigente = false; clearTimeout(timer); };
+    }, [dataReferencia, editando, investmentType, selecionado, simbolo]);
+
+    const precoInformado = !precoManual && referencia ? decimalParaCampo(referencia.price) : preco;
+
     async function salvar() {
         const quantidadeNumerica = lerDecimal(quantidade, 14, 10);
-        const precoNumerico = lerDecimal(preco, 14, 10);
+        const precoNumerico = lerDecimal(precoInformado, 14, 10);
         const dataIso = brParaIso(data);
         const taxaNumerica = lerDecimal(taxa, 4, 4);
 
@@ -128,7 +155,7 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
                 label={investmentType === 'FIXED_INCOME' ? 'Código do título (ex.: CDB110)' : investmentType === 'VARIABLE_INCOME' ? 'Buscar ativo por código ou nome' : 'Código do ativo'}
                 autoCapitalize="characters"
                 value={simbolo}
-                onChangeText={(texto) => { setSimbolo(texto); if (investmentType === 'VARIABLE_INCOME') { setSelecionado(false); setNome(''); } }}
+                onChangeText={(texto) => { setSimbolo(texto); if (investmentType === 'VARIABLE_INCOME') { setSelecionado(false); setNome(''); setReferencia(null); } }}
             />
             {investmentType === 'VARIABLE_INCOME' && !selecionado ? (
                 <View>
@@ -147,14 +174,26 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
             <Field label="Nome (opcional)" value={nome} onChangeText={setNome} />
             {investmentType === 'FIXED_INCOME' ? <Field financeiro label="Taxa anual (%)" keyboardType="decimal-pad" value={taxa} onChangeText={setTaxa} hint="Estimativa por juros compostos, sem impostos ou garantia de rentabilidade." /> : null}
             <Field financeiro label="Quantidade" keyboardType="decimal-pad" value={quantidade} onChangeText={setQuantidade} />
-            <Field financeiro label="Preço de compra (R$)" keyboardType="decimal-pad" value={preco} onChangeText={setPreco} />
             <CampoData
                 label="Data da compra"
                 value={data}
-                onChange={setData}
+                onChange={(valor) => {
+                    if (brParaIso(valor) !== dataReferencia) setReferencia(null);
+                    setData(valor);
+                }}
                 opcional={Boolean(ativo) && investmentType !== 'FIXED_INCOME'}
                 impedirLimpeza={Boolean(ativo?.dataCompra) && investmentType !== 'FIXED_INCOME'}
             />
+            <Field financeiro label="Preço de compra (R$)" keyboardType="decimal-pad" value={precoInformado}
+                onChangeText={(valor) => { setPrecoManual(true); setPreco(valor); }} />
+            {!precoManual && consultandoPreco ? <Text accessibilityLiveRegion="polite" style={styles.info}>Consultando fechamento na BRAPI…</Text> : null}
+            {!precoManual && referencia ? (
+                <Text accessibilityLiveRegion="polite" style={styles.info}>
+                    Fechamento de referência de {isoParaBr(referencia.tradingDate)} (BRAPI).
+                    {referencia.raw ? '' : ' Pode incluir ajustes históricos.'} Você pode informar o valor pago.
+                </Text>
+            ) : null}
+            {!precoManual && erroReferencia ? <Text accessibilityLiveRegion="polite" style={styles.info}>Preço de referência indisponível. Informe o valor pago.</Text> : null}
 
             {erro ? <Text style={styles.erro}>{oculto ? 'Confira os dados informados.' : erro}</Text> : null}
             <BotaoPrimario

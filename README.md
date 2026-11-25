@@ -104,7 +104,7 @@ Use valores próprios para seu ambiente e **não versione nem compartilhe esse a
 ```dotenv
 JWT_ACCESS_TOKEN_EXPIRATION_MS=900000
 JWT_REFRESH_TOKEN_EXPIRATION_MS=604800000
-CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19006,http://localhost:3000
+CORS_ORIGINS=http://localhost:8081,http://localhost:19006,http://localhost:3000
 ```
 
 Os valores de expiração acima correspondem aos padrões definidos pela configuração. Ajuste as origens CORS ao ambiente em que a interface será executada.

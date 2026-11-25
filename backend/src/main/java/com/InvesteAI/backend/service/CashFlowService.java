@@ -80,6 +80,9 @@ public class CashFlowService {
         if (type != null && !type.isBlank()) {
             String upper = type.toUpperCase();
             list = list.stream().filter(item -> {
+                if (upper.contains("EXPENSE") && !"OUT".equalsIgnoreCase(item.getDirection())) {
+                    return false;
+                }
                 if (upper.contains("FIXED") || upper.equals("FIXO")) {
                     return "FIXED".equalsIgnoreCase(item.getClassification());
                 }

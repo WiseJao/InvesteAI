@@ -74,6 +74,28 @@ class CashFlowServiceTest {
     }
 
     @Test
+    void expenseFiltersExcludeIncomeWithTheSameClassification() {
+        UUID userId = UUID.randomUUID();
+        CashFlow income = new CashFlow();
+        income.setDirection("IN");
+        income.setClassification("VARIABLE");
+        CashFlow variable = new CashFlow();
+        variable.setDirection("OUT");
+        variable.setClassification("VARIABLE");
+        CashFlow fixed = new CashFlow();
+        fixed.setDirection("OUT");
+        fixed.setClassification("FIXED");
+        when(cashFlowRepository.findAllByUserIdOrderByFlowDateDesc(userId))
+                .thenReturn(List.of(income, variable, fixed));
+
+        assertEquals(List.of(CashFlowResponse.from(variable)),
+                cashFlowService.list(userId, null, null, "EXPENSE_VARIABLE"));
+        assertEquals(List.of(CashFlowResponse.from(fixed)),
+                cashFlowService.list(userId, null, null, "EXPENSE_FIXED"));
+        assertEquals(2, cashFlowService.list(userId, null, null, "VARIABLE").size());
+    }
+
+    @Test
     void calculatesMonthlySummaryAndCategoryPercentages() {
         UUID userId = UUID.randomUUID();
         User user = new User();

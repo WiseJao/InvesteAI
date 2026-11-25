@@ -66,6 +66,7 @@ class InvestmentServiceTest {
 
         Investment stock = new Investment();
         stock.setSymbol("VALE3");
+        stock.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME);
         stock.setName("Vale ON");
         stock.setOriginalQuantity(new BigDecimal("10"));
         stock.setRemainingQuantity(new BigDecimal("10"));

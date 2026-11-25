@@ -3,10 +3,13 @@ package com.InvesteAI.backend.Controller;
 import com.InvesteAI.backend.service.BrapiService;
 import tools.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -51,18 +54,33 @@ public class InvestmentController {
     public Map<String, List<JsonNode>> getHistory(
             @RequestParam String symbol,
             @RequestParam String range) {
-        String ticker = symbol.trim().toUpperCase(Locale.ROOT);
-        if (!ticker.matches("[A-Z0-9.-]{1,15}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticker inválido.");
-        }
-
+        String ticker = validateTicker(symbol);
         String interval = switch (range) {
             case "1d", "5d", "1mo", "3mo" -> "1d";
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Período inválido.");
         };
 
         return Map.of("results", brapiService.getHistoricalData(ticker, range, interval));
-    };
+    }
+
+    @GetMapping("/reference-price")
+    public BrapiService.ReferencePrice getReferencePrice(
+            @RequestParam String symbol,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (date.isAfter(LocalDate.now(ZoneId.of("America/Sao_Paulo")))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A data não pode estar no futuro.");
+        }
+        return brapiService.getReferencePrice(validateTicker(symbol), date)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sem fechamento na janela consultada."));
+    }
+
+    private String validateTicker(String symbol) {
+        String ticker = symbol.trim().toUpperCase(Locale.ROOT);
+        if (!ticker.matches("[A-Z0-9.-]{1,15}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticker inválido.");
+        }
+        return ticker;
+    }
     /**
      * Searches available tickers and company names on the market for auto-complete.
      *

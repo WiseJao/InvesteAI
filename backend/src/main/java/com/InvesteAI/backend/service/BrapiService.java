@@ -1,13 +1,21 @@
 package com.InvesteAI.backend.service;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,8 +49,13 @@ public class BrapiService {
      *
      * @param apiKey the BRAPI authorization token configured in application properties
      */
+    @Autowired
     public BrapiService(@Value("${brapi.api-key:}") String apiKey) {
-        this.client = RestClient.builder()
+        this(apiKey, RestClient.builder());
+    }
+
+    BrapiService(String apiKey, RestClient.Builder builder) {
+        this.client = builder
                 .baseUrl("https://brapi.dev")
                 .build();
         this.apiKey = apiKey;
@@ -88,9 +101,21 @@ public class BrapiService {
 
                     if (response != null && response.path("results").isArray()) {
                         List<JsonNode> symbolResults = new ArrayList<>();
-                        response.path("results").forEach(symbolResults::add);
+                        response.path("results").forEach(result -> {
+                            if (result.path("data") instanceof ObjectNode data
+                                    && result.path("symbol").isTextual()) {
+                                ObjectNode quote = data.deepCopy();
+                                quote.set("symbol", result.path("symbol"));
+                                symbolResults.add(quote);
+                            }
+                        });
+                        if (symbolResults.isEmpty()) {
+                            throw new IllegalStateException("A BRAPI não retornou cotação para o ativo.");
+                        }
                         quoteCache.put(symbol, new CacheEntry<>(symbolResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
                         quotes.addAll(symbolResults);
+                    } else {
+                        throw new IllegalStateException("Resposta de cotação inválida.");
                     }
                 } catch (Exception e) {
                     try {
@@ -180,15 +205,48 @@ public class BrapiService {
         return searchResults;
     }
 
-    public synchronized List<JsonNode> getHistoricalData(String symbol, String range, String interval) {
+    public record ReferencePrice(LocalDate tradingDate, String price, boolean raw) {}
+
+    public Optional<ReferencePrice> getReferencePrice(String symbol, LocalDate date) {
+        LocalDate start = date.minusDays(14);
+        try {
+            return fetchHistory(symbol, null, "1d", start, date).stream()
+                    .filter(point -> point.path("date").isIntegralNumber())
+                    .map(point -> {
+                        LocalDate tradingDate = Instant.ofEpochSecond(point.path("date").asLong())
+                                .atZone(ZoneId.of("America/Sao_Paulo")).toLocalDate();
+                        JsonNode raw = point.path("rawClose");
+                        JsonNode close = raw.isNumber() ? raw : point.path("close");
+                        BigDecimal price = close.isNumber() ? close.decimalValue() : BigDecimal.ZERO;
+                        return new ReferencePrice(tradingDate, price.toPlainString(), raw.isNumber());
+                    })
+                    .filter(price -> !price.tradingDate().isBefore(start) && !price.tradingDate().isAfter(date))
+                    .filter(price -> new BigDecimal(price.price()).signum() > 0)
+                    .max(Comparator.comparing(ReferencePrice::tradingDate));
+        } catch (RestClientException | IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Histórico da BRAPI indisponível.", e);
+        }
+    }
+
+    public List<JsonNode> getHistoricalData(String symbol, String range, String interval) {
+        return fetchHistory(symbol, range, interval, null, null);
+    }
+
+    private List<JsonNode> fetchHistory(String symbol, String range, String interval, LocalDate start, LocalDate end) {
         JsonNode response = client.get()
-                .uri(uri -> uri
+                .uri(uri -> {
+                    uri
                         .path("/api/v2/stocks/historical")
                         .queryParam("symbols", symbol)
-                        .queryParam("range", range)
                         .queryParam("interval", interval)
-                        .queryParam("sortOrder", "asc")
-                        .build())
+                        .queryParam("sortOrder", "asc");
+                    if (start != null) {
+                        uri.queryParam("startDate", start).queryParam("endDate", end);
+                    } else {
+                        uri.queryParam("range", range);
+                    }
+                    return uri.build();
+                })
                 .header("Authorization", "Bearer " + apiKey)
                 .retrieve()
                 .body(JsonNode.class);

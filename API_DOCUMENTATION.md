@@ -667,6 +667,14 @@ Proxies real-time and delayed Brazilian asset quotes (Stocks, FIIs, BDRs, Indice
 
 ---
 
+#### Reference closing price by date
+
+`GET /investments/reference-price?symbol=PETR4&date=2026-06-14` (Protected)
+
+Returns `tradingDate` (trading session date), `price` (decimal string), and `raw` (whether the unadjusted close was used). It searches the requested date and the preceding 14 days. The price is a reference for recording the purchase and may include historical adjustments.
+
+Returns 400 for invalid parameters or future dates, 404 when the response contains no usable close in the window, and 502 when the BRAPI request fails.
+
 #### 5.2 Search Market Assets
 `GET /investments/market/search` (Public / Protected)
 

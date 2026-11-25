@@ -3,6 +3,12 @@ import { apiRequest } from './api';
 export type TipoInvestimento = 'FIXED_INCOME' | 'VARIABLE_INCOME' | 'LEGACY';
 export type ResultadoBusca = { simbolo: string; nome: string };
 
+export type PrecoReferencia = { tradingDate: string; price: string; raw: boolean };
+
+export function obterPrecoReferencia(simbolo: string, data: string): Promise<PrecoReferencia> {
+    return apiRequest(`/investments/reference-price?symbol=${encodeURIComponent(simbolo)}&date=${encodeURIComponent(data)}`);
+}
+
 export async function buscarAtivos(query: string): Promise<ResultadoBusca[]> {
     const resposta = await apiRequest<{ results: unknown[] }>(`/investments/market/search?q=${encodeURIComponent(query)}`);
     if (!Array.isArray(resposta.results)) throw new Error('Resposta de busca inválida.');

@@ -80,6 +80,81 @@ class PostgresV1SchemaTest {
         }
     }
 
+    @Test
+    void upgradesV7PortfolioWithoutChangingItsLinkedPositions() throws SQLException {
+        String upgradeSchema = schemaName + "_v7";
+        var configuration = Flyway.configure()
+                .dataSource(jdbcUrl, username, password)
+                .defaultSchema(upgradeSchema)
+                .schemas(upgradeSchema)
+                .locations("classpath:db/migration")
+                .cleanDisabled(true);
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
+             Statement statement = connection.createStatement()) {
+            configuration.target("7").load().migrate();
+            statement.execute("SET search_path TO " + upgradeSchema + ", public");
+            UUID userId = createUser(connection, "52998224725");
+            UUID legacy = insertPurchase(connection, userId, new BigDecimal("12.30"),
+                    new BigDecimal("4"), new BigDecimal("3"), null).id();
+            UUID fixed = insertPurchase(connection, userId, BigDecimal.TEN,
+                    BigDecimal.ONE, BigDecimal.ONE, null).id();
+            UUID variable = insertPurchase(connection, userId, BigDecimal.ONE,
+                    BigDecimal.ONE, BigDecimal.ONE, null).id();
+            statement.executeUpdate("UPDATE investment SET investment_type = 'LEGACY' WHERE investment_id = '" + legacy + "'");
+            statement.executeUpdate("UPDATE investment SET investment_type = 'FIXED_INCOME', annual_rate = 10 WHERE investment_id = '" + fixed + "'");
+            insertTransaction(connection, legacy, "BUY", new BigDecimal("4"), new BigDecimal("12.30"), BigDecimal.ZERO);
+            try (ResultSet inserted = statement.executeQuery("""
+                    INSERT INTO goal (user_id, name, start_date, current_value, target_value, progress_mode)
+                    VALUES ('%s', 'Carteira', DATE '2026-01-15', 0, 100, 'PORTFOLIO') RETURNING goal_id
+                    """.formatted(userId))) {
+                inserted.next();
+                linkGoal(connection, inserted.getObject(1, UUID.class), legacy);
+            }
+
+            configuration.target("8").load().migrate();
+
+            try (ResultSet holdings = statement.executeQuery("""
+                    SELECT investment_type, original_quantity, remaining_quantity, purchase_unit_price,
+                           purchase_date, (SELECT count(*) FROM goal_holding WHERE investment_id = investment.investment_id)
+                    FROM investment WHERE investment_id = '%s'
+                    """.formatted(legacy))) {
+                holdings.next();
+                assertEquals("VARIABLE_INCOME", holdings.getString(1));
+                assertEquals(0, new BigDecimal("4").compareTo(holdings.getBigDecimal(2)));
+                assertEquals(0, new BigDecimal("3").compareTo(holdings.getBigDecimal(3)));
+                assertEquals(0, new BigDecimal("12.30").compareTo(holdings.getBigDecimal(4)));
+                assertEquals(LocalDate.of(2026, 1, 15), holdings.getObject(5, LocalDate.class));
+                assertEquals(1, holdings.getInt(6));
+            }
+            assertEquals(1, countTransactions(connection, legacy));
+            try (ResultSet counts = statement.executeQuery("SELECT investment_type, count(*) FROM investment GROUP BY investment_type ORDER BY investment_type")) {
+                counts.next();
+                assertEquals("FIXED_INCOME", counts.getString(1));
+                assertEquals(1, counts.getInt(2));
+                counts.next();
+                assertEquals("VARIABLE_INCOME", counts.getString(1));
+                assertEquals(2, counts.getInt(2));
+            }
+            assertConstraintViolation("23514", () -> statement.executeUpdate(
+                    "UPDATE investment SET investment_type = 'LEGACY' WHERE investment_id = '" + variable + "'"));
+        } finally {
+            try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
+                 Statement statement = connection.createStatement()) {
+                statement.execute("DROP SCHEMA IF EXISTS " + upgradeSchema + " CASCADE");
+            }
+        }
+    }
+
+    private static void linkGoal(Connection connection, UUID goalId, UUID holdingId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO goal_holding (goal_id, investment_id) VALUES (?, ?)")) {
+            statement.setObject(1, goalId);
+            statement.setObject(2, holdingId);
+            statement.executeUpdate();
+        }
+    }
+
     /**
      * Intent: a purchase must remain distinct from another purchase of the same
      * stock, and missing quote data must produce unknown rather than zero profit.
@@ -460,8 +535,8 @@ class PostgresV1SchemaTest {
         String sql = """
                 INSERT INTO investment
                     (user_id, name, symbol, purchase_date, purchase_unit_price,
-                     original_quantity, remaining_quantity, current_price)
-                VALUES (?, 'Example stock', 'EXM', ?, ?, ?, ?, ?)
+                     original_quantity, remaining_quantity, current_price, investment_type)
+                VALUES (?, 'Example stock', 'EXM', ?, ?, ?, ?, ?, 'VARIABLE_INCOME')
                 RETURNING investment_id, profit
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {

@@ -81,7 +81,7 @@ public class Investment {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "investment_type", nullable = false, length = 20)
-    private InvestmentType investmentType = InvestmentType.LEGACY;
+    private InvestmentType investmentType = InvestmentType.VARIABLE_INCOME;
 
     @Column(name = "annual_rate", precision = 9, scale = 4)
     private BigDecimal annualRate;

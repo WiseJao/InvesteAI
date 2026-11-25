@@ -9,7 +9,7 @@ import BotaoExcluir from '../../../shared/botaoExcluir';
 import { compararDecimais, decimalParaCampo, lerDecimal } from '../../../shared/currency';
 import { brParaIso, hojeIso, isoParaBr } from '../../../shared/datas';
 import { mensagemDeErro, mensagemDeErroDeGravacao } from '../../../services/api';
-import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, obterPrecoReferencia, type Ativo, type PrecoReferencia, type ProdutoRendaFixa, type ResultadoBusca } from '../../../services/carteira';
+import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, obterPrecoReferencia, type Ativo, type PrecoReferencia, type TipoInvestimento, type ProdutoRendaFixa, type ResultadoBusca } from '../../../services/carteira';
 import { colors } from '../../../styles/colors';
 import { usePrivacidade } from '../../../shared/privacidade';
 
@@ -25,9 +25,12 @@ type FormNovoAtivoProps = {
 export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, onCancelar, onSalvo }: FormNovoAtivoProps) {
     const { oculto } = usePrivacidade();
     const editando = Boolean(ativo);
-    const investmentType = ativo?.investmentType ?? (tipo === 'Renda fixa' ? 'FIXED_INCOME' : 'VARIABLE_INCOME');
+    const [investmentType, setInvestmentType] = useState<TipoInvestimento>(
+        ativo?.investmentType ?? (tipo === 'Renda fixa' ? 'FIXED_INCOME' : 'VARIABLE_INCOME'),
+    );
     const fixed = investmentType === 'FIXED_INCOME';
-    const oldQuantity = fixed && ativo && !ativo.fixedIncome?.product;
+    const oldQuantity = fixed && ativo && !ativo.fixedIncome?.product && ativo.investmentType === 'FIXED_INCOME';
+    const usaPrecoUnitario = !fixed || Boolean(ativo && (oldQuantity || ativo.quantidadeOriginal !== 1 || ativo.quantidade !== 1));
     const [product, setProduct] = useState<ProdutoRendaFixa>(ativo?.fixedIncome?.product ?? 'CDB');
     const [institution, setInstitution] = useState(ativo?.fixedIncome?.institution ?? '');
     const [modality, setModality] = useState<'prefixada' | 'cdi'>(ativo ? ativo.fixedIncome?.cdiPercentage ? 'cdi' : 'prefixada' : 'cdi');
@@ -51,7 +54,7 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
     const [excluindo, setExcluindo] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const ocupado = useRef(false);
-    const assinatura = JSON.stringify([product, institution, modality, cdi, maturity, simbolo, nome, taxa, quantidade, preco, data]);
+    const assinatura = JSON.stringify([investmentType, product, institution, modality, cdi, maturity, simbolo, nome, taxa, quantidade, preco, data]);
     const inicial = useRef(assinatura);
     useEffect(() => { onAlterado?.(assinatura !== inicial.current); }, [assinatura, onAlterado]);
     const [erro, setErro] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
         if (Array.from(nome.trim()).length > 380) return setErro('O nome deve ter no máximo 380 caracteres.');
         if (investmentType === 'VARIABLE_INCOME' && !selecionado) return setErro('Selecione um ativo dos resultados da busca.');
         if (fixed && modality === 'prefixada' && (taxaNumerica === null || Number(taxaNumerica) > 1000)) return setErro('Informe uma taxa entre 0 e 1000%, com até 4 casas decimais.');
-        if (quantidadeNumerica === null || Number(quantidadeNumerica) <= 0) return setErro('Informe uma quantidade positiva com até 14 dígitos inteiros e 10 casas decimais.');
+        if (quantidadeNumerica === null || (!ativo && Number(quantidadeNumerica) <= 0)) return setErro('Informe uma quantidade positiva com até 14 dígitos inteiros e 10 casas decimais.');
         if (ativo && compararDecimais(quantidadeNumerica, ativo.quantidadeOriginalExata) > 0) {
             // O backend só permite reduzir a quantidade de uma compra já registrada.
             return setErro(
@@ -178,7 +181,16 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
 
     return (
         <View>
-            <Text style={styles.titulo}>{tipo}</Text>
+            <Text style={styles.titulo}>{editando ? 'Editar investimento' : tipo}</Text>
+            {ativo?.investmentType === 'VARIABLE_INCOME' && <Opcoes
+                rotulo="Tipo de posição"
+                opcoes={[{ valor: 'VARIABLE_INCOME', texto: 'Renda variável' }, { valor: 'FIXED_INCOME', texto: 'Renda fixa' }]}
+                selecionado={investmentType}
+                onSelecionar={(valor) => {
+                    if (valor === 'FIXED_INCOME' && !nome.trim()) setNome(ativo.nome);
+                    setInvestmentType(valor);
+                }}
+            />}
             {!fixed && <Field
                 label={investmentType === 'VARIABLE_INCOME' ? 'Buscar ativo por código ou nome' : 'Código do ativo'}
                 autoCapitalize="characters"
@@ -203,9 +215,9 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
             <Field label={fixed ? 'Nome da aplicação' : 'Nome (opcional)'} value={nome} onChangeText={setNome} />
             {fixed && <Field label="Instituição (opcional)" value={institution} onChangeText={setInstitution} maxLength={100} />}
             {fixed && <Opcoes rotulo="Rentabilidade" opcoes={[{ valor: 'cdi', texto: '% do CDI' }, { valor: 'prefixada', texto: 'Prefixada' }]} selecionado={modality} onSelecionar={setModality} />}
-            {fixed && modality === 'cdi' && <Field financeiro label="Percentual do CDI" placeholder="Ex.: 105" keyboardType="decimal-pad" value={cdi} onChangeText={setCdi} />}
+            {fixed && modality === 'cdi' && <Field financeiro label="Rentabilidade (% do CDI)" placeholder="Ex.: 105" keyboardType="decimal-pad" value={cdi} onChangeText={setCdi} />}
             {fixed && modality === 'prefixada' ? <Field financeiro label="Taxa prefixada (% a.a.)" keyboardType="decimal-pad" value={taxa} onChangeText={setTaxa} hint="Estimativa por juros compostos, sem impostos ou garantia de rentabilidade." /> : null}
-            {(!fixed || oldQuantity) && <Field financeiro label="Quantidade" keyboardType="decimal-pad" value={quantidade} onChangeText={setQuantidade} />}
+            {usaPrecoUnitario && <Field financeiro label="Quantidade" keyboardType="decimal-pad" value={quantidade} onChangeText={setQuantidade} />}
             <CampoData
                 label={fixed ? 'Data da aplicação' : 'Data da compra'}
                 value={data}
@@ -217,7 +229,10 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
                 impedirLimpeza={Boolean(ativo?.dataCompra) && investmentType !== 'FIXED_INCOME'}
             />
             {fixed && <CampoData label="Vencimento (opcional)" opcional value={maturity} onChange={setMaturity} />}
-            <Field financeiro label={fixed && !oldQuantity ? 'Valor aplicado (R$)' : 'Preço de compra (R$)'} keyboardType="decimal-pad" value={preco}
+            {fixed && usaPrecoUnitario && ativo && !oculto && <Text style={styles.info}>
+                Custo da posição antes das alterações: {ativo.investido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </Text>}
+            <Field financeiro label={usaPrecoUnitario ? 'Preço unitário de compra (R$)' : 'Valor aplicado (R$)'} keyboardType="decimal-pad" value={preco}
                 onChangeText={(valor) => { setPreco(valor); }} />
             {consultandoPreco ? <Text accessibilityLiveRegion="polite" style={styles.info}>Consultando fechamento na BRAPI…</Text> : null}
             {referencia ? (

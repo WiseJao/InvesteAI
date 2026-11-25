@@ -1,6 +1,6 @@
 import { apiRequest } from './api';
 
-export type TipoInvestimento = 'FIXED_INCOME' | 'VARIABLE_INCOME' | 'LEGACY';
+export type TipoInvestimento = 'FIXED_INCOME' | 'VARIABLE_INCOME';
 export type ResultadoBusca = { simbolo: string; nome: string };
 
 export type PrecoReferencia = { tradingDate: string; price: string; raw: boolean };
@@ -118,7 +118,7 @@ export async function obterCarteira(): Promise<Carteira> {
             lucro: Number(ativo.profit ?? 0),
             lucroPercentual: Number(ativo.profitPercentage ?? 0),
             dataCompra: ativo.purchaseDate ?? null,
-            investmentType: ativo.investmentType ?? 'LEGACY',
+            investmentType: ativo.investmentType ?? 'VARIABLE_INCOME',
             annualRate: ativo.annualRate == null ? null : Number(ativo.annualRate),
             priceStatus: ativo.priceStatus ?? null,
             quotedAt: ativo.quotedAt ?? null,

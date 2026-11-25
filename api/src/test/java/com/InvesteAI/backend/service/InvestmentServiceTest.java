@@ -59,6 +59,7 @@ class InvestmentServiceTest {
 
         assertNotNull(response.id());
         assertEquals("PETR4", response.symbol());
+        assertEquals(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME, response.investmentType());
         assertEquals(new BigDecimal("3500.00"), response.totalInvested());
         assertEquals(new BigDecimal("3850.00"), response.currentTotalValue());
         assertEquals(new BigDecimal("350.00"), response.profit());
@@ -102,8 +103,10 @@ class InvestmentServiceTest {
         stock.setPurchaseDate(LocalDate.now());
 
         Investment fii = new Investment();
-        fii.setSymbol("HGLG11");
-        fii.setName("CSHG Logística");
+        fii.setSymbol("CDB");
+        fii.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.FIXED_INCOME);
+        fii.setAnnualRate(BigDecimal.ZERO);
+        fii.setName("CDB");
         fii.setOriginalQuantity(new BigDecimal("10"));
         fii.setRemainingQuantity(new BigDecimal("10"));
         fii.setPurchaseUnitPrice(new BigDecimal("160.00"));

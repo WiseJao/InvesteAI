@@ -228,7 +228,7 @@ export default function Investimentos() {
 
                     <View style={[styles.container_elementos, styles.bloco]}>
                         <Field label="Buscar na carteira" value={buscaCarteira} onChangeText={setBuscaCarteira} returnKeyType="search" />
-                        <Opcoes rotulo="Tipo de posição" opcoes={[{ valor: 'TODOS', texto: 'Todos' }, { valor: 'FIXED_INCOME', texto: 'Renda fixa' }, { valor: 'VARIABLE_INCOME', texto: 'Renda variável' }, { valor: 'LEGACY', texto: 'Legado' }]} selecionado={filtro} onSelecionar={setFiltro} />
+                        <Opcoes rotulo="Tipo de posição" opcoes={[{ valor: 'TODOS', texto: 'Todos' }, { valor: 'FIXED_INCOME', texto: 'Renda fixa' }, { valor: 'VARIABLE_INCOME', texto: 'Renda variável' }]} selecionado={filtro} onSelecionar={setFiltro} />
                         {(filtro !== 'TODOS' || buscaCarteira) && <Pressable accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => { setFiltro('TODOS'); setBuscaCarteira(''); }}><Text style={styles.tentarNovamente}>Limpar filtros</Text></Pressable>}
                         <BotaoPrimario titulo="Adicionar investimento" onPress={() => setModalAdicionarVisivel(true)} />
                         {carregandoCarteira && !carteira ? <ActivityIndicator color={colors.primary} /> : null}
@@ -251,7 +251,7 @@ export default function Investimentos() {
                                         <Text style={[styles.title, { flexShrink: 1 }]}>{ativo.investmentType === 'FIXED_INCOME' ? ativo.nome : ativo.simbolo}</Text>
                                     </View>
                                     <Text style={styles.subtitle}>{ativo.fixedIncome?.product ? ({ CDB: 'CDB', CAIXINHA: 'Caixinha', OTHER: 'Outro' } as const)[ativo.fixedIncome.product] : oculto ? 'Quantidade oculta' : `${ativo.quantidade} un.`}</Text>
-                                    <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.fixedIncome?.cdiPercentage ? (oculto ? ' · Taxa oculta' : ' · ' + ativo.fixedIncome.cdiPercentage + '% do CDI') : ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
+                                    <Text style={styles.subtitle}>{ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.fixedIncome?.cdiPercentage ? (oculto ? ' · Taxa oculta' : ' · ' + ativo.fixedIncome.cdiPercentage + '% do CDI') : ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
                                 </View>
                                 <View style={styles.linhaCarteiraValor}>
                                     <Text style={styles.title}>{oculto ? 'Valores ocultos' : formatarReais(ativo.valorAtual)}</Text>

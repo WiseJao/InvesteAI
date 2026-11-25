@@ -55,7 +55,7 @@ public class InvestmentService {
         investment.setPurchaseUnitPrice(request.resolvedPurchasePrice());
         investment.setCurrentPrice(request.currentPrice());
         investment.setPurchaseDate(request.resolvedPurchaseDate());
-        investment.setInvestmentType(request.investmentType() == null ? InvestmentType.LEGACY : request.investmentType());
+        investment.setInvestmentType(request.investmentType() == null ? InvestmentType.VARIABLE_INCOME : request.investmentType());
         investment.setAnnualRate(request.annualRate());
         if (request.fixedIncome() != null) setFixedIncome(investment, request.fixedIncome());
         validate(investment);
@@ -179,7 +179,6 @@ public class InvestmentService {
             String category = switch (hr.investmentType()) {
                 case FIXED_INCOME -> "Renda Fixa";
                 case VARIABLE_INCOME -> "Renda Variável";
-                case LEGACY -> "Legado";
             };
             categoryMap.put(category, categoryMap.getOrDefault(category, BigDecimal.ZERO).add(hr.currentTotalValue()));
         }

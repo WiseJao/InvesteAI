@@ -969,6 +969,8 @@ apiClient.interceptors.response.use(
 
 ### Foto de perfil
 
+`DELETE /user/me/avatar` remove a foto do usuário autenticado e retorna HTTP 204.
+
 Ambos os endpoints exigem `Authorization: Bearer <accessToken>` e acessam apenas o perfil do usuário autenticado.
 
 - `POST /user/me/avatar`: envie `multipart/form-data` com o campo `file` contendo JPEG (`image/jpeg`) ou PNG (`image/png`), de no máximo 2 MiB. Substitui a imagem anterior. Retorna `204 No Content`; arquivos vazios retornam `400`, formatos incompatíveis retornam `415` e requisições multipart grandes podem retornar `413`.

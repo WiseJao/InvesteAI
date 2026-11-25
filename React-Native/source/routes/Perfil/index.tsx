@@ -6,8 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
+import BotaoExcluir from '../../shared/botaoExcluir';
 import { useCarregar } from '../../shared/useCarregar';
-import { clearAuthTokens, getAvatar, logout, uploadAvatar } from '../../services/api';
+import { clearAuthTokens, deleteAvatar, getAvatar, logout, uploadAvatar } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
@@ -107,6 +108,21 @@ export default function Perfil() {
         }
     }
 
+    async function removerFoto() {
+        if (enviando) return;
+        setEnviando(true);
+        try {
+            await deleteAvatar();
+            ++versao.current;
+            setAvatar(null);
+            setErroAvatar(false);
+        } catch {
+            Alert.alert('Erro', 'Não foi possível remover a foto. Tente novamente.');
+        } finally {
+            setEnviando(false);
+        }
+    }
+
     async function sair() {
         await logout();
         clearAuthTokens();
@@ -142,6 +158,7 @@ export default function Perfil() {
                         ) : <Ionicons name="person" size={56} color={colors.primary} />}
                     </TouchableOpacity>
                     <Text style={styles.alterarFoto}>Alterar foto</Text>
+                    {avatar && !enviando ? <BotaoExcluir rotulo="Remover foto" onConfirmar={removerFoto} /> : null}
                     <Text style={styles.nome}>{usuario?.nome ?? '—'}</Text>
                     {erroAvatar ? <Text style={styles.alterarFoto}>Foto indisponível.</Text> : null}
                     <View style={styles.contadores}>

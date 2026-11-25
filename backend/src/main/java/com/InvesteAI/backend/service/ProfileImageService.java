@@ -72,6 +72,11 @@ public class ProfileImageService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found"));
     }
 
+    @Transactional
+    public void delete(UUID userId) {
+        images.deleteById(profileId(userId));
+    }
+
     private UUID profileId(UUID userId) {
         Profile profile = users.findById(userId).map(user -> user.getProfile()).orElse(null);
         if (profile == null) {

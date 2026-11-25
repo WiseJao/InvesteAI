@@ -124,6 +124,10 @@ export async function uploadAvatar(file: { uri: string; name: string; type: stri
     await apiRequest('/user/me/avatar', { method: 'POST', body: form });
 }
 
+export async function deleteAvatar(): Promise<void> {
+    await apiRequest('/user/me/avatar', { method: 'DELETE' });
+}
+
 export async function getAvatar(): Promise<string | null> {
     const response = await authFetch(`${API_BASE_URL}/user/me/avatar`);
     if (response.status === 404) return null;

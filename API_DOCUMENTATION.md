@@ -975,6 +975,8 @@ apiClient.interceptors.response.use(
 
 ### Profile avatar
 
+`DELETE /user/me/avatar` removes the authenticated user’s avatar and returns HTTP 204.
+
 Both endpoints require `Authorization: Bearer <accessToken>` and operate only on the authenticated user's profile.
 
 - `POST /user/me/avatar`: send `multipart/form-data` with a `file` part containing a JPEG (`image/jpeg`) or PNG (`image/png`), at most 2 MiB. Replaces any existing image. Returns `204 No Content`; empty files return `400`, unsupported or mismatched formats return `415`, and oversized multipart requests may return `413`.

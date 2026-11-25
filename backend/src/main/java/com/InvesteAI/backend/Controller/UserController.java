@@ -62,6 +62,12 @@ public class UserController {
                 .contentType(MediaType.parseMediaType(image.getContentType())).body(image.getImageData());
     }
 
+    @DeleteMapping("/me/avatar")
+    public ResponseEntity<Void> deleteAvatar(@CurrentUser UUID userID) {
+        profileImages.delete(userID);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Retrieves the profile, account details, and financial parameters for the authenticated user.
      *

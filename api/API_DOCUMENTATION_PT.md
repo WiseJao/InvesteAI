@@ -653,6 +653,11 @@ Cada posição inclui `priceStatus` (`MARKET`, `ESTIMATED`, `STALE` ou `UNAVAILA
 #### 6.3 Adicionar Ativo à Carteira
 `POST /portfolio/holdings` (Protegido - Bearer Token)
 
+### Tipos de investimento
+
+Use `FIXED_INCOME` ou `VARIABLE_INCOME` em `investmentType`. No POST, a ausência do campo ou o valor nulo usa `VARIABLE_INCOME`. No PATCH, omitir o campo preserva o tipo atual. Enviar `LEGACY` retorna HTTP 400.
+
+
 Registra uma compra de ativo na carteira de investimentos.
 
 - **Corpo da Requisição** (`CreateHoldingRequest`):

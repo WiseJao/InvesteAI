@@ -659,6 +659,11 @@ Each holding includes `priceStatus` (`MARKET`, `ESTIMATED`, `STALE`, or `UNAVAIL
 #### 6.3 Add Portfolio Holding
 `POST /portfolio/holdings` (Protected - Bearer Token)
 
+### Investment types
+
+Use `FIXED_INCOME` or `VARIABLE_INCOME` for `investmentType`. POST defaults to `VARIABLE_INCOME` when the field is missing or null. PATCH keeps the current type if the field is omitted. Sending `LEGACY` returns HTTP 400.
+
+
 Records a new asset purchase in the portfolio.
 
 - **Request Body** (`CreateHoldingRequest`):

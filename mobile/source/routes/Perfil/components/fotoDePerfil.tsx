@@ -15,6 +15,7 @@ export default function FotoDePerfil() {
     const [imagemComErro, setImagemComErro] = useState<string | null>(null);
     const [pendente, setPendente] = useState<ImagePicker.ImagePickerAsset | null>(null);
     const [ocupada, setOcupada] = useState(false);
+    const [falhaVisualizacao, setFalhaVisualizacao] = useState(false);
     const [status, setStatus] = useState('');
     const bloqueio = useRef(false);
     const avatar = preview === undefined ? foto.dados : preview;
@@ -34,6 +35,16 @@ export default function FotoDePerfil() {
         }
     }
 
+    async function atualizarVisualizacao() {
+        try {
+            setPreview(await getAvatar());
+            setImagemComErro(null);
+            setFalhaVisualizacao(false);
+        } catch {
+            setFalhaVisualizacao(true);
+        }
+    }
+
     async function enviar(imagem: ImagePicker.ImagePickerAsset) {
         setPendente(imagem);
         setStatus('Enviando foto…');
@@ -50,6 +61,7 @@ export default function FotoDePerfil() {
                 setImagemComErro(null);
                 setPendente(null);
                 setStatus('Foto atualizada.');
+                await atualizarVisualizacao();
             } finally {
                 render.release();
             }
@@ -76,6 +88,7 @@ export default function FotoDePerfil() {
             await deleteAvatar();
             setPreview(null);
             setPendente(null);
+            setFalhaVisualizacao(false);
             setStatus('Foto removida.');
         });
     }
@@ -97,11 +110,10 @@ export default function FotoDePerfil() {
                 </Pressable>}
             </View>
         </View>
-        {(foto.erro || Boolean(avatar && imagemComErro === avatar)) && <Pressable accessibilityRole="button" style={styles.acao} disabled={ocupada} onPress={() => {
-            setPreview(undefined);
-            setImagemComErro(null);
-            void foto.recarregar();
-        }}><Text style={styles.link}>Atualizar visualização da foto</Text></Pressable>}
+        {(falhaVisualizacao || (preview === undefined && foto.erro) || Boolean(avatar && imagemComErro === avatar)) &&
+            <Pressable accessibilityRole="button" style={styles.acao} disabled={ocupada} onPress={() => void operar(atualizarVisualizacao)}>
+                <Text style={styles.link}>Atualizar visualização da foto</Text>
+            </Pressable>}
         {status ? <Text accessibilityLiveRegion="polite" style={styles.status}>{status}</Text> : null}
         {pendente && !ocupada && <Pressable accessibilityRole="button" style={styles.acao} onPress={() => void operar(() => enviar(pendente))}>
             <Text style={styles.link}>Tentar envio novamente</Text>

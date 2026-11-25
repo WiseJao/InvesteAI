@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 import { brParaIso, isoParaBr } from './datas';
 
 type Props = {
@@ -22,7 +22,7 @@ export default function CampoData({ label, value, onChange, opcional = false, im
                 if (evento.target.value) onChange(isoParaBr(evento.target.value));
                 else if (opcional && !impedirLimpeza) onChange('');
             },
-            style: { border: `1px solid ${colors.border}`, borderRadius: 10, padding: 12, color: colors.text, backgroundColor: colors.surface, fontSize: 15 },
+            style: { border: `1px solid ${colors.controlBorder}`, borderRadius: 10, padding: 12, color: colors.text, backgroundColor: colors.surface, fontSize: 15 },
         })}
         {opcional && value && !impedirLimpeza ? <Pressable onPress={() => onChange('')} accessibilityRole="button" accessibilityLabel={`Limpar ${label}`}><Text style={styles.acao}>Limpar data</Text></Pressable> : null}
         {impedirLimpeza ? <Text style={styles.aviso}>Não é possível remover uma data já salva.</Text> : null}
@@ -30,8 +30,8 @@ export default function CampoData({ label, value, onChange, opcional = false, im
 }
 
 const styles = StyleSheet.create({
-    wrapper: { marginBottom: 16 },
-    label: { fontSize: 13, color: colors.textMuted, marginBottom: 6 },
+    wrapper: { gap: ui.space.xs },
+    label: { fontSize: ui.font.label, color: colors.textMuted },
     acao: { color: colors.primary, paddingVertical: 10 },
     aviso: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
 });

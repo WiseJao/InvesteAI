@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 
 type EstadoProps = {
     carregando: boolean;
@@ -41,16 +41,19 @@ export default function Estado({ carregando, erro, temDados, onTentarNovamente, 
 
 const styles = StyleSheet.create({
     centro: {
-        paddingVertical: 40,
+        padding: ui.space.lg,
+        borderRadius: ui.radius,
+        backgroundColor: colors.surface,
+        minHeight: 80,
         alignItems: 'center',
     },
     erro: {
         color: colors.negative,
         fontSize: 13,
         textAlign: 'center',
-        marginBottom: 12,
+        marginBottom: ui.space.sm,
     },
-    botao: { minHeight: 44, justifyContent: 'center' },
+    botao: { minHeight: ui.touch, justifyContent: 'center' },
     anterior: { color: colors.textMuted, textAlign: 'center' },
     tentar: {
         color: colors.primary,

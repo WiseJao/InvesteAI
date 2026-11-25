@@ -135,15 +135,12 @@ export default function NovoGasto() {
     }
 
     return (
-        <Layout
+        <Layout formulario
             titulo={regra ? 'Editar recorrência' : editando ? 'Editar lançamento' : 'Novo lançamento'}
             subtitulo={regra ? 'Alterações valem para os próximos vencimentos' : gastoEditado && tipo === 'EXPENSE_FIXED' && repetir === 'mensal' ? 'Este lançamento será a primeira ocorrência da regra mensal' : editando ? 'Altere os dados ou exclua o lançamento' : 'Registre um gasto ou uma receita'}
             voltar
         >
             {!regra && <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />}
-            {!regra && tipo === 'EXPENSE_FIXED' && (!gastoEditado || tipoDaMovimentacao(gastoEditado) === 'EXPENSE_FIXED') && <Opcoes rotulo="Repetição" opcoes={[{ valor: 'avulso', texto: 'Avulso' }, { valor: 'mensal', texto: 'Repetir mensalmente' }]} selecionado={repetir} onSelecionar={setRepetir} />}
-            {ehReceita ? <Text style={styles.aviso}>A categoria Salário substitui a previsão do perfil no orçamento do mês.</Text> : null}
-            <Field ref={descricaoRef} erro={erroCampo.descricao} label="Descrição" placeholder="Ex.: Supermercado" value={nome} onChangeText={setNome} />
             <Field
                 ref={valorRef}
                 erro={erroCampo.valor}
@@ -154,6 +151,7 @@ export default function NovoGasto() {
                 value={valor}
                 onChangeText={setValor}
             />
+            <Field ref={descricaoRef} erro={erroCampo.descricao} label="Descrição" placeholder="Ex.: Supermercado" value={nome} onChangeText={setNome} />
             {ehReceita ? (
                 <Opcoes
                     rotulo="Categoria"
@@ -169,6 +167,8 @@ export default function NovoGasto() {
                     onSelecionar={setCategoria}
                 />
             )}
+            {!regra && tipo === 'EXPENSE_FIXED' && (!gastoEditado || tipoDaMovimentacao(gastoEditado) === 'EXPENSE_FIXED') && <Opcoes rotulo="Repetição" opcoes={[{ valor: 'avulso', texto: 'Avulso' }, { valor: 'mensal', texto: 'Repetir mensalmente' }]} selecionado={repetir} onSelecionar={setRepetir} />}
+            {ehReceita ? <Text style={styles.aviso}>A categoria Salário substitui a previsão do perfil no orçamento do mês.</Text> : null}
             {regra || (gastoEditado && tipo === 'EXPENSE_FIXED' && repetir === 'mensal')
                 ? <Text style={styles.aviso}>Primeiro vencimento · {data}</Text>
                 : <CampoData label={tipo === 'EXPENSE_FIXED' && repetir === 'mensal' ? 'Primeiro vencimento' : 'Data'} value={data} onChange={setData} />}
@@ -185,12 +185,10 @@ export default function NovoGasto() {
 const styles = StyleSheet.create({
     aviso: {
         color: colors.textMuted,
-        fontSize: 12,
-        marginBottom: 8,
+        fontSize: 13,
     },
     erro: {
         color: colors.negative,
-        fontSize: 12,
-        marginBottom: 8,
+        fontSize: 13,
     },
 });

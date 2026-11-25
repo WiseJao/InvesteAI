@@ -1,3 +1,6 @@
+import ProgressoOrcamento from '../../shared/progressoOrcamento';
+import BotaoPrimario from '../../shared/botaoPrimario';
+import { CommonActions } from '@react-navigation/native';
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaCategoria } from '../../styles/coresDaConta';
 import { View, Text, StyleSheet } from 'react-native';
@@ -20,7 +23,6 @@ type Atalho = {
 };
 
 const atalhos: Atalho[] = [
-    { label: 'Adicionar gasto ou receita', rota: 'NovoGasto' },
     { label: 'Gastos fixos', rota: 'GastosFixos' },
     { label: 'Gastos variáveis', rota: 'GastosVariaveis' },
     { label: 'Lançamentos', rota: 'HistoricoGastos' },
@@ -33,25 +35,19 @@ export default function Gastos() {
 
     const orcamento = resumo?.orcamentoMensal ?? 0;
     const gasto = resumo?.totalGasto ?? 0;
-    const percentual = orcamento > 0 ? Math.round((gasto / orcamento) * 100) : 0;
     const categorias = resumo?.categorias ?? [];
 
     return (
         <Layout titulo="Gastos">
+            <BotaoPrimario titulo="Adicionar gasto ou receita" onPress={() => navigation.navigate('NovoGasto')} />
             <Estado carregando={carregando} erro={erro} temDados={resumo !== null} onTentarNovamente={recarregar}>
                 <Card rotulo="ORÇAMENTO MENSAL">
                     <View style={styles.valores}>
                         <Text style={styles.total}>{oculto ? 'Valores ocultos' : `${formatarReais(gasto)} gastos`}</Text>
                         <Text style={styles.orcamento}>{oculto ? '••••' : `de ${formatarReais(orcamento)}`}</Text>
                     </View>
-                    {!oculto && <View style={styles.trilho}>
-                        <View style={[styles.preenchimento, { width: `${Math.min(percentual, 100)}%` }]} />
-                    </View>}
-                    <Text style={styles.apoio}>
-                        {oculto ? 'Percentual oculto' : orcamento > 0
-                            ? `${percentual}% do orçamento utilizado`
-                            : 'Informe sua renda no perfil para acompanhar o orçamento'}
-                    </Text>
+                    <ProgressoOrcamento gasto={gasto} orcamento={orcamento}
+                        onEditarRenda={() => navigation.getParent()?.dispatch(CommonActions.navigate({ name: 'Home', params: { screen: 'EditarPerfil', initial: false } }))} />
                 </Card>
 
                 <Text style={styles.secao}>Gastos por categoria</Text>
@@ -98,6 +94,8 @@ const styles = StyleSheet.create({
     valores: {
         flexDirection: 'row',
         alignItems: 'baseline',
+        flexWrap: 'wrap',
+        gap: 8,
         justifyContent: 'space-between',
         marginBottom: 12,
     },
@@ -107,7 +105,7 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
     orcamento: {
-        fontSize: 11,
+        fontSize: 13,
         color: colors.textMuted,
     },
     trilho: {
@@ -120,11 +118,6 @@ const styles = StyleSheet.create({
         height: 6,
         borderRadius: 3,
         backgroundColor: colors.negative,
-    },
-    apoio: {
-        fontSize: 11,
-        color: colors.textMuted,
-        marginTop: 8,
     },
     secao: {
         fontSize: 14,
@@ -149,7 +142,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     categoriaNome: {
-        fontSize: 12,
+        fontSize: 13,
         color: colors.text,
     },
     atalho: {

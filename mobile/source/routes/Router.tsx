@@ -1,5 +1,6 @@
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack'; 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'
 import Investimentos from './Investimentos';
@@ -17,47 +18,52 @@ export default function TabRouter() {
 }
 
 function Tabs() {
+    const { bottom } = useSafeAreaInsets();
     return (
         <Tab.Navigator initialRouteName="Home" screenOptions={{
             headerShown: false, tabBarHideOnKeyboard: true,
             tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textMuted,
             tabBarItemStyle: { minHeight: 48 },
-            tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+            tabBarActiveBackgroundColor: colors.surfaceRaised,
+            tabBarLabelPosition: 'below-icon',
+            tabBarLabelStyle: { fontSize: 11, lineHeight: 15, fontWeight: '600' },
+            tabBarStyle: { height: 60 + bottom, backgroundColor: colors.surface, borderTopColor: colors.border },
         }}>
             <Tab.Screen name="Home" component={HomeStack} options={{
-                tabBarIcon: ({ color }) =>(
+                tabBarLabel: 'Início',
+                tabBarIcon: ({ color, focused }) =>(
                     <Ionicons
                     size={20}
                     color={color}
-                    name='home'
+                    name={focused ? 'home' : 'home-outline'}
                     />
                 )
             }} />
             <Tab.Screen name="Investimentos" component={InvestimentoStack} options={{
-                tabBarIcon: ({ color }) => (
+                tabBarIcon: ({ color, focused }) => (
                     <Ionicons
                     size={20}
                     color={color}
-                    name='cash'
+                    name={focused ? 'cash' : 'cash-outline'}
                     />
                 )
             }} />
             <Tab.Screen name="Gastos" component={GastosStack} options={{
-                tabBarIcon: ({ color }) => (
+                tabBarIcon: ({ color, focused }) => (
                     <Ionicons
                     size={20}
                     color={color}
-                    name='card'
+                    name={focused ? 'card' : 'card-outline'}
                     />
                 )
             }} />
             <Tab.Screen name="AI" component={AIStack} options={{
                 tabBarLabel: 'Assessoria',
-                tabBarIcon: ({ color }) => (
+                tabBarIcon: ({ color, focused }) => (
                     <Ionicons
                     size={20}
                     color={color}
-                    name='sparkles'
+                    name={focused ? 'sparkles' : 'sparkles-outline'}
                     />
                 )
             }} />

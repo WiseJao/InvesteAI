@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
 import Field from '../../shared/field';
 import Opcoes from '../../shared/opcoes';
-import BotaoPrimario from '../../shared/botaoPrimario';
 import { useCarregar } from '../../shared/useCarregar';
 import { usePrivacidade } from '../../shared/privacidade';
 import { formatarReais } from '../../shared/currency';
@@ -54,18 +53,20 @@ export default function HistoricoGastos() {
     return (
         <Layout titulo="Lançamentos" voltar>
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
-                <Field label="Buscar por descrição ou categoria" value={busca} onChangeText={setBusca} returnKeyType="search" />
-                <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />
                 <Opcoes rotulo="Período" opcoes={[{ valor: '', texto: 'Todos os meses' }, ...meses.map(valor => ({ valor, texto: rotuloMes(valor) }))]} selecionado={mes} onSelecionar={setMes} />
-                {filtrado && <BotaoPrimario titulo="Limpar filtros" onPress={() => { setMes(''); setTipo('TODOS'); setBusca(''); }} />}
-                <View style={{ gap: 4, marginVertical: 12 }}>
+                <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />
+                <Field label="Buscar por descrição ou categoria" value={busca} onChangeText={setBusca} returnKeyType="search" />
+                {filtrado && <Pressable accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start' }} onPress={() => { setMes(''); setTipo('TODOS'); setBusca(''); }}>
+                    <Text style={{ color: colors.primary }}>Limpar filtros</Text>
+                </Pressable>}
+                <View style={{ gap: 4 }}>
                     <Text accessibilityLiveRegion="polite" style={{ color: colors.text }}>{itens.length} lançamentos</Text>
                     <Text style={{ color: colors.textMuted }}>{oculto ? 'Valores ocultos' : 'Receitas ' + formatarReais(entradas) + ' · Despesas ' + formatarReais(despesas)}</Text>
                 </View>
                 <ListaGastos onSelecionar={id => {
                     const gasto = itens.find(item => item.id === id);
                     if (gasto) navigation.navigate('NovoGasto', { gasto });
-                }} itens={itens.map(paraLinhaDeHistorico)} vazio={filtrado ? 'Nenhum lançamento corresponde aos filtros.' : 'Seu histórico está vazio.'} />
+                }} itens={itens.map(paraLinhaDeHistorico)} vazio={(termo || tipo !== 'TODOS') ? 'Nenhum lançamento corresponde aos filtros.' : mes ? 'Nenhum lançamento neste mês.' : 'Seu histórico está vazio.'} />
             </Estado>
         </Layout>
     );

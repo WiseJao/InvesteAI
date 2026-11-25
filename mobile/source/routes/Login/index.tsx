@@ -8,6 +8,7 @@ import {
     Platform,
     ActivityIndicator,
     ScrollView,
+    useWindowDimensions,
     TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,11 +17,13 @@ import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
 import { cpfValido } from '../../shared/format';
 import { ApiError, login, mensagemDeErro } from '../../services/api';
-import { colors } from '../../styles/colors';
+import { conteudoTela } from '../../shared/conteudoTela';
+import { colors, ui } from '../../styles/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function Login({ navigation }: Props) {
+    const { width } = useWindowDimensions();
     const [identificador, setIdentificador] = useState('');
     const [senha, setSenha] = useState('');
     const [carregando, setCarregando] = useState(false);
@@ -69,7 +72,7 @@ export default function Login({ navigation }: Props) {
                         <Text style={styles.logo}>InvesteAI</Text>
                     </View>
 
-                    <View style={styles.form}>
+                    <View style={[conteudoTela(width, ui.width.auth), styles.form]}>
                         <Field
                             label="CPF ou e-mail"
                             ref={entradaIdentificador}
@@ -91,13 +94,15 @@ export default function Login({ navigation }: Props) {
                             returnKeyType="go"
                             onSubmitEditing={handleEntrar}
                             secureTextEntry={!mostrarSenha}
+                            acao={{
+                                rotulo: mostrarSenha ? 'Ocultar senha' : 'Mostrar senha',
+                                icone: mostrarSenha ? 'eye-off-outline' : 'eye-outline',
+                                onPress: () => setMostrarSenha(v => !v),
+                            }}
                             value={senha}
                             onChangeText={setSenha}
                         />
 
-                        <TouchableOpacity accessibilityRole="button" style={styles.acao} onPress={() => setMostrarSenha(v => !v)}>
-                            <Text style={styles.link}>{mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity accessibilityRole="button" style={styles.acao} onPress={() => navigation.navigate('EsqueciSenha')}>
                             <Text style={styles.link}>Esqueci minha senha</Text>
                         </TouchableOpacity>
@@ -138,11 +143,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     logoArea: {
-        height: 180,
+        minHeight: 112,
         alignItems: 'center',
         justifyContent: 'center',
-        borderBottomWidth: 2,
-        borderBottomColor: colors.primary,
     },
     logo: {
         fontSize: 32,
@@ -151,8 +154,9 @@ const styles = StyleSheet.create({
     },
     form: {
         flex: 1,
-        paddingHorizontal: 24,
-        paddingTop: 32,
+        paddingTop: ui.space.md,
+        paddingBottom: ui.space.xxl,
+        gap: ui.space.sm,
     },
     acao: { minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start' },
     link: {

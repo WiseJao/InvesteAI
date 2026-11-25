@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { colors } from '../styles/colors';
+import { colors, ui } from '../styles/colors';
 import Field from './field';
 import { brParaIso } from './datas';
 
@@ -57,9 +57,9 @@ export default function CampoData({ label, value, onChange, opcional = false, im
 }
 
 const styles = StyleSheet.create({
-    wrapper: { marginBottom: 16 },
-    label: { fontSize: 13, color: colors.textMuted, marginBottom: 6 },
-    input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.surface },
+    wrapper: { gap: ui.space.xs },
+    label: { fontSize: ui.font.label, color: colors.textMuted },
+    input: { borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.surface },
     texto: { fontSize: 15, color: colors.text },
     acao: { color: colors.primary, paddingVertical: 10 },
     aviso: { color: colors.textMuted, fontSize: 11, marginTop: 4 },

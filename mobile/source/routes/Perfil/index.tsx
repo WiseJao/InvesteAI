@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../../shared/layout';
+import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
 import { getAvatar, logout } from '../../services/api';
@@ -100,13 +101,13 @@ export default function Perfil() {
                 </View>
 
             </Estado>
-            {filtrados.map((item) => (
+            {filtrados.length ? <Card>{filtrados.map((item) => (
                 <ItemLista
                     key={item.rotulo}
                     rotulo={item.rotulo}
                     onPress={item.sair ? sair : item.rota ? () => navigation.navigate(item.rota!) : undefined}
                 />
-            ))}
+            ))}</Card> : <Text style={styles.avisoFoto}>Nenhum item encontrado.</Text>}
         </Layout>
     );
 }
@@ -114,7 +115,7 @@ export default function Perfil() {
 const styles = StyleSheet.create({
     identidade: {
         alignItems: 'center',
-        marginBottom: 20,
+        gap: 8,
     },
     avatar: {
         width: 110,

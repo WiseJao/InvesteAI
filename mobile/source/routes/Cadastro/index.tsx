@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePreventRemove } from '@react-navigation/native';
 import { confirmarDescarte } from '../../shared/useConfirmarSaida';
@@ -9,7 +9,8 @@ import Field from '../../shared/field';
 import PasswordStrength from '../../shared/passwordStrength';
 import { cpfValido, formatCPF } from '../../shared/format';
 import { lerDecimal } from '../../shared/currency';
-import { colors } from '../../styles/colors';
+import { conteudoTela } from '../../shared/conteudoTela';
+import { colors, ui } from '../../styles/colors';
 import { mensagemDeErro, registerUnified } from '../../services/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Cadastro'>;
@@ -49,6 +50,7 @@ const initialData: FormData = {
 };
 
 export default function Cadastro({ navigation }: Props) {
+    const { width } = useWindowDimensions();
     const [step, setStep] = useState<Step>(1);
     const [data, setData] = useState<FormData>(initialData);
     const enviando = useRef(false);
@@ -112,7 +114,7 @@ export default function Cadastro({ navigation }: Props) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={[conteudoTela(width, ui.width.auth), styles.content]} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
                 <TouchableOpacity accessibilityRole="button" onPress={handleVoltar} style={{ minHeight: 48 }}>
                     <Text style={styles.back}>{'< Voltar'}</Text>
                 </TouchableOpacity>
@@ -246,8 +248,9 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
     },
     content: {
-        padding: 24,
-        paddingBottom: 40,
+        paddingTop: 24,
+        paddingBottom: 32,
+        gap: ui.space.md,
     },
     back: {
         color: colors.primary,

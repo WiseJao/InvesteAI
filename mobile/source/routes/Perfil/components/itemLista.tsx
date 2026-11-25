@@ -14,6 +14,7 @@ export default function ItemLista({ rotulo, onPress }: ItemListaProps) {
             onPress={onPress}
             disabled={!onPress}
             activeOpacity={0.7}
+            accessibilityRole={onPress ? "button" : undefined}
         >
             <Text style={styles.texto}>{rotulo}</Text>
             {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.primary} /> : null}
@@ -27,15 +28,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        marginBottom: 8,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+        minHeight: 48,
+        gap: 8,
+        paddingVertical: 8,
     },
     texto: {
-        fontSize: 13,
+        flex: 1,
+        fontSize: 15,
         color: colors.text,
     },
 });

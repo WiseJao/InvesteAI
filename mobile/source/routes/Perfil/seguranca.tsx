@@ -44,7 +44,7 @@ export default function Seguranca() {
         }
     }
 
-    return <Layout titulo="Alterar senha" voltar>
+    return <Layout formulario titulo="Alterar senha" voltar>
         <Field label="Senha atual" erro={erro.atual} autoComplete="current-password" secureTextEntry={!mostrar}
             value={atual} onChangeText={setAtual} editable={!salvando} />
         <Field label="Nova senha" erro={erro.nova} autoComplete="new-password" secureTextEntry={!mostrar}

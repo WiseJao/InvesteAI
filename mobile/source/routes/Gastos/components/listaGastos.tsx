@@ -40,7 +40,7 @@ export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqu
                         <Text style={styles.detalhe}>{item.categoria ? <Text style={{ color: corDaCategoria(item.categoria) }}>{item.categoria} · </Text> : null}{item.detalhe}</Text>
                     </View>
                     <Text style={[styles.valor, item.entrada && styles.entrada]}>
-                        {oculto ? 'Valores ocultos' : `${item.entrada ? '+ ' : ''}${formatarReais(item.valor)}`}
+                        {oculto ? 'Valores ocultos' : `${item.entrada ? '+ ' : '− '}${formatarReais(item.valor)}`}
                     </Text>
                 </TouchableOpacity>
             ))}
@@ -55,14 +55,17 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 10,
         minHeight: 52,
-        columnGap: 10,
+        columnGap: 8,
+        rowGap: 4,
+        flexWrap: 'wrap',
     },
     separador: {
         borderTopWidth: 1,
         borderTopColor: colors.border,
     },
     textos: {
-        flex: 1,
+        flexGrow: 1,
+        flexBasis: 100,
         minWidth: 0,
     },
     nome: {
@@ -71,11 +74,15 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
     detalhe: {
-        fontSize: 11,
+        fontSize: 13,
         color: colors.textMuted,
         marginTop: 2,
     },
     valor: {
+        flexShrink: 1,
+        marginLeft: 'auto',
+        textAlign: 'right',
+        fontVariant: ['tabular-nums'],
         fontSize: 14,
         fontWeight: 'bold',
         color: colors.text,

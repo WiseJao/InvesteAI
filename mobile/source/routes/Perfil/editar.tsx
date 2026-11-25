@@ -64,7 +64,7 @@ function Form({ usuario }: { usuario: Usuario }) {
 export default function EditarPerfil() {
     const { oculto } = usePrivacidade();
     const { dados, erro, carregando, recarregar } = useCarregar(obterUsuario);
-    return <Layout titulo="Editar perfil" voltar>
+    return <Layout formulario titulo="Editar perfil" voltar>
         {oculto ? <Text style={{ color: colors.text }}>Perfil oculto. Use o botão de privacidade para exibi-lo.</Text> : <Estado temDados={dados !== null} erro={erro} carregando={carregando} onTentarNovamente={recarregar}>
             {dados && <>
                 <FotoDePerfil />

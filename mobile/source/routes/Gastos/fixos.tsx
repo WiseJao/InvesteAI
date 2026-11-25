@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import Card from '../../shared/card';
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaConta } from '../../styles/coresDaConta';
 import { Text, Pressable, View } from 'react-native';
@@ -10,12 +12,13 @@ import { usePrivacidade } from '../../shared/privacidade';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
-import { listarMovimentacoes, listarRecorrencias } from '../../services/gastos';
+import { listarMovimentacoes, listarRecorrencias, type Recorrencia } from '../../services/gastos';
 import type { GastosStackParamList } from './types';
 import ListaGastos from './components/listaGastos';
 import { paraLinhaPorCategoria } from './dados';
 
 export default function GastosFixos() {
+    const [mostrarEncerradas, setMostrarEncerradas] = useState(false);
     const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
     const { dados, carregando, erro, recarregar } = useCarregar(async () => {
@@ -25,21 +28,45 @@ export default function GastosFixos() {
         return { gastos, regras: await listarRecorrencias() };
     });
 
+    const regras = dados?.regras ?? [];
+    const ativas = regras.filter(regra => !regra.ended);
+    const encerradas = regras.filter(regra => regra.ended);
+
+    function linha(regra: Recorrencia) {
+        const estilo = { minHeight: 48, paddingVertical: 8, justifyContent: 'center' as const };
+        const conteudo = <>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                <MarcadorCor cor={corDaConta(regra.id)} />
+                <Text style={{ color: colors.text, flexGrow: 1, flexBasis: 96 }}>{regra.description}</Text>
+                {!oculto && <Text style={{ color: colors.text }}>{formatarReais(Number(regra.amount))}</Text>}
+            </View>
+            <Text style={{ color: colors.textMuted, marginLeft: 16, marginTop: 4 }}>
+                {regra.ended ? 'Encerrada' : 'Todo mês · dia ' + Number(regra.firstDate.slice(-2))}
+            </Text>
+        </>;
+        return regra.ended
+            ? <View key={regra.id} style={estilo}>{conteudo}</View>
+            : <Pressable key={regra.id} accessibilityRole="button" onPress={() => navigation.navigate('NovoGasto', { regra })} style={estilo}>
+                {conteudo}
+            </Pressable>;
+    }
+
     return (
         <Layout titulo="Gastos fixos" subtitulo="Recorrências e lançamentos do mês" voltar>
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                 <BotaoPrimario titulo="Novo gasto fixo" onPress={() => navigation.navigate('NovoGasto', { novoFixo: true })} />
-                <Text accessibilityRole="header" style={{ color: colors.text, marginTop: 16 }}>Regras mensais</Text>
-                {dados?.regras.length === 0 && <Text style={{ color: colors.textMuted }}>Nenhuma recorrência cadastrada.</Text>}
-                {dados?.regras.map(regra => <Pressable key={regra.id} accessibilityRole="button" disabled={regra.ended} onPress={() => navigation.navigate('NovoGasto', { regra })} style={{ minHeight: 48, justifyContent: 'center' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <MarcadorCor cor={corDaConta(regra.id)} />
-                        <Text style={{ color: colors.text, flex: 1 }}>{regra.description}</Text>
-                        {!oculto && <Text style={{ color: colors.text }}>{formatarReais(Number(regra.amount))}</Text>}
-                    </View>
-                    <Text style={{ color: colors.textMuted, marginLeft: 16 }}>{regra.ended ? 'Encerrada' : 'Mensal'}</Text>
-                </Pressable>)}
-                <Text accessibilityRole="header" style={{ color: colors.text, marginVertical: 12 }}>Lançamentos do mês</Text>
+                <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>Regras mensais</Text>
+                <Card>
+                    {ativas.length ? ativas.map(linha) : <Text style={{ color: colors.textMuted }}>Nenhuma recorrência ativa.</Text>}
+                    {!!encerradas.length && <>
+                        <Pressable accessibilityRole="button" accessibilityState={{ expanded: mostrarEncerradas }}
+                            style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => setMostrarEncerradas(valor => !valor)}>
+                            <Text style={{ color: colors.primary }}>{mostrarEncerradas ? 'Ocultar' : 'Ver'} encerradas ({encerradas.length})</Text>
+                        </Pressable>
+                        {mostrarEncerradas && encerradas.map(linha)}
+                    </>}
+                </Card>
+                <Text accessibilityRole="header" style={{ color: colors.text, fontSize: 18, fontWeight: '600' }}>Lançamentos do mês</Text>
                 <ListaGastos
                     onSelecionar={(id) => {
                         const gasto = (dados?.gastos ?? []).find((item) => item.id === id);

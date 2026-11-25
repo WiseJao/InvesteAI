@@ -34,11 +34,10 @@ export default function PasswordStrength({ password }: PasswordStrengthProps) {
 
 const styles = StyleSheet.create({
     wrapper: {
-        marginTop: -8,
         marginBottom: 16,
     },
     label: {
-        fontSize: 11,
+        fontSize: 13,
         color: colors.textMuted,
         marginBottom: 6,
     },

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { View, Text, Pressable, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { colors, ui } from '../styles/colors';
 import { usePrivacidade } from './privacidade';
@@ -9,10 +10,11 @@ type FieldProps = TextInputProps & {
     hint?: string;
     financeiro?: boolean;
     erro?: string;
+    acao?: { rotulo: string; icone: React.ComponentProps<typeof Ionicons>['name']; onPress: () => void };
     ref?: React.Ref<React.ComponentRef<typeof TextInput>>;
 };
 
-export default function Field({ label, hint, erro, style, financeiro = false, onFocus, onBlur, ...inputProps }: FieldProps) {
+export default function Field({ label, hint, erro, acao, style, financeiro = false, onFocus, onBlur, ...inputProps }: FieldProps) {
     const { oculto } = usePrivacidade();
     const [focado, setFocado] = useState(false);
     const [revelado, setRevelado] = useState(false);
@@ -24,14 +26,19 @@ export default function Field({ label, hint, erro, style, financeiro = false, on
                 <Pressable accessibilityRole="button" accessibilityLabel={`Mostrar ${label} nesta edição`} style={styles.input} onPress={() => setRevelado(true)}>
                     <Text style={styles.revelar}>Mostrar valor nesta edição</Text>
                 </Pressable>
-            ) : <TextInput
-                style={[styles.input, erro ? styles.invalido : null, focado && styles.foco, style]}
+            ) : <View style={styles.linha}>
+              <TextInput
+                style={[styles.input, erro ? styles.invalido : null, focado && styles.foco, acao && styles.comAcao, style]}
                 onFocus={event => { setFocado(true); onFocus?.(event); }}
                 onBlur={event => { setFocado(false); onBlur?.(event); }}
                 accessibilityLabel={label}
                 placeholderTextColor={colors.textMuted}
                 {...inputProps}
-            />}
+              />
+              {acao && <Pressable accessibilityRole="button" accessibilityLabel={acao.rotulo} onPress={acao.onPress} style={styles.acao}>
+                <Ionicons name={acao.icone} size={22} color={colors.primary} />
+              </Pressable>}
+            </View>}
             {erro ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erro}</Text> : null}
             {hint ? <Text style={styles.hint}>{hint}</Text> : null}
         </View>
@@ -39,18 +46,18 @@ export default function Field({ label, hint, erro, style, financeiro = false, on
 }
 
 const styles = StyleSheet.create({
-    wrapper: {
-        marginBottom: 16,
-    },
+    wrapper: { gap: ui.space.xs },
     label: {
         fontSize: ui.font.label,
         color: colors.textMuted,
-        marginBottom: 6,
     },
+    linha: { justifyContent: 'center' },
+    comAcao: { paddingRight: 56 },
+    acao: { position: 'absolute', right: 0, minHeight: ui.touch, minWidth: ui.touch, justifyContent: 'center', alignItems: 'center' },
     revelar: { color: colors.primary },
     foco: { outlineColor: colors.primary, outlineWidth: 2 },
     invalido: { borderColor: colors.negative },
-    erro: { color: colors.negative, fontSize: 12, marginTop: 4 },
+    erro: { color: colors.negative, fontSize: ui.font.label },
     input: {
         minHeight: ui.touch,
         justifyContent: 'center',
@@ -64,8 +71,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
     },
     hint: {
-        fontSize: 11,
+        fontSize: ui.font.label,
         color: colors.textMuted,
-        marginTop: 4,
     },
 });

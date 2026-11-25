@@ -9,6 +9,7 @@ import {
     Pressable,
     RefreshControl,
     ScrollView,
+    useWindowDimensions,
     Text,
     View,
     StyleSheet,
@@ -22,12 +23,13 @@ import BotaoPrimario from '../../shared/botaoPrimario';
 import { mensagemDeErro } from '../../services/api';
 import FormNovoAtivo from './components/FormNovoAtivo';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../../shared/header';
+import { conteudoTela } from '../../shared/conteudoTela';
+import { AcaoPrivacidade } from '../../shared/header';
 import { formatarReais } from '../../shared/currency';
 import { usePrivacidade } from '../../shared/privacidade';
 import { useCarregar } from '../../shared/useCarregar';
 import { buscarAtivos, obterCarteira, type Ativo, type ResultadoBusca, type TipoInvestimento } from '../../services/carteira';
-import { colors } from '../../styles/colors';
+import { colors, ui } from '../../styles/colors';
 
 type Cotacao = {
     symbol: string;
@@ -191,15 +193,22 @@ export default function Investimentos() {
         void carregarCotacoes();
     }, [carregarCotacoes]);
 
+    const { width } = useWindowDimensions();
+
     return (
         <SafeAreaView
             style={{ flex: 1, backgroundColor: colors.background }}
-            edges={['top']}
+            edges={['top', 'left', 'right']}
         >
-            <Header />
+            <View style={[conteudoTela(width), styles.topo]}>
+                <Text accessibilityRole="header" style={styles.tituloTela}>Investimentos</Text>
+                <AcaoPrivacidade />
+            </View>
 
             <ScrollView
                 style={{ flex: 1 }}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
                 refreshControl={
                     <RefreshControl
                         refreshing={area === 'mercado' ? carregando : carregandoCarteira}
@@ -211,14 +220,14 @@ export default function Investimentos() {
                     />
                 }
             >
-                <View style={styles.container}>
+                <View style={[conteudoTela(width), styles.container]}>
                     <View style={styles.container_elementos}>
-                        <Opcoes rotulo="Investimentos" opcoes={[{ valor: 'carteira', texto: 'Minha carteira' }, { valor: 'mercado', texto: 'Mercado' }]} selecionado={area} onSelecionar={setArea} />
+                        <Opcoes variante="segmentada" rotulo="Área" opcoes={[{ valor: 'carteira', texto: 'Minha carteira' }, { valor: 'mercado', texto: 'Mercado' }]} selecionado={area} onSelecionar={setArea} />
                     </View>
                     {area === 'carteira' && <>
                     <View style={styles.container_elementos}>
                         <Text style={styles.subtitle}>{avaliacaoAproximada ? 'Valor de referência da carteira' : 'Valor de mercado da carteira'}</Text>
-                        <Text style={styles.title}>{oculto ? 'Valores ocultos' : carteira ? formatarReais(carteira.valorAtual) : 'Indisponível'}</Text>
+                        <Text style={styles.totalCarteira}>{oculto ? 'Valores ocultos' : carteira ? formatarReais(carteira.valorAtual) : 'Indisponível'}</Text>
                         {carteira ? (
                             <Text style={styles.subtitle}>
                                 {oculto ? 'Valores ocultos' : `Investido: ${formatarReais(carteira.totalInvestido)} · ${avaliacaoAproximada ? 'Resultado de referência' : 'Resultado'}: ${formatarReais(carteira.lucro)}`}
@@ -320,7 +329,7 @@ export default function Investimentos() {
                 visible={modalAdicionarVisivel || ativoEditando !== null}
                 onRequestClose={solicitarFechamento}
             >
-                <View style={styles.modalContainer}>
+                <SafeAreaView style={styles.modalContainer}>
                     <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Fechar opções de investimento"
@@ -328,10 +337,15 @@ export default function Investimentos() {
                         onPress={solicitarFechamento}
                     />
                     <ScrollView
+                        automaticallyAdjustKeyboardInsets
                         accessibilityViewIsModal
                         style={styles.modalConteudo}
+                        contentContainerStyle={styles.modalInterno}
                         keyboardShouldPersistTaps="handled"
                     >
+                        <Pressable accessibilityRole="button" accessibilityLabel="Fechar" onPress={solicitarFechamento} style={styles.modalFechar}>
+                            <Ionicons name="close" color={colors.primary} size={22} />
+                        </Pressable>
                         {ativoEditando ? (
                             <FormNovoAtivo
                                 key={ativoEditando.id}
@@ -378,7 +392,7 @@ export default function Investimentos() {
                             </>
                         )}
                     </ScrollView>
-                </View>
+                </SafeAreaView>
             </Modal>
         </SafeAreaView>
     );
@@ -388,8 +402,13 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
-        padding: 20
+        paddingVertical: ui.space.lg,
+        paddingBottom: ui.space.xxl,
+        gap: ui.space.lg,
     },
+    topo: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+    tituloTela: { color: colors.text, fontSize: ui.font.screenTitle, fontWeight: '700', flex: 1 },
+    totalCarteira: { fontSize: ui.font.amount, color: colors.text, fontWeight: '700', fontVariant: ['tabular-nums'], marginVertical: 4 },
     title: {
         color: colors.text,
         fontSize: 16,
@@ -400,18 +419,20 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     container_elementos: {
-        padding: 10,
+        padding: ui.space.lg,
+        gap: ui.space.sm,
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: 10,
     },
     bloco: {
-        marginTop: 12,
+        gap: ui.space.md,
     },
     linhaCarteira: {
         flexDirection: 'row',
-        columnGap: 8,
+        gap: 8,
+        flexWrap: 'wrap',
         minHeight: 56,
         justifyContent: 'space-between',
         paddingVertical: 8,
@@ -426,7 +447,9 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     linhaCarteiraValor: {
-        maxWidth: '42%',
+        flexBasis: 112,
+        flexGrow: 1,
+        flexShrink: 1,
         alignItems: 'flex-end',
         gap: 2,
     },
@@ -461,11 +484,16 @@ const styles = StyleSheet.create({
     modalConteudo: {
         backgroundColor: colors.surface,
         borderColor: colors.border,
-        borderRadius: 16,
+        borderRadius: ui.radius,
         borderWidth: 1,
-        padding: 20,
+        width: '100%',
+        maxWidth: ui.width.form,
+        alignSelf: 'center',
+        flexGrow: 0,
         maxHeight: '90%',
     },
+    modalFechar: { minHeight: ui.touch, minWidth: ui.touch, justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-end' },
+    modalInterno: { padding: ui.space.lg, gap: ui.space.md },
     modalTitulo: {
         color: colors.text,
         fontSize: 20,
@@ -474,8 +502,6 @@ const styles = StyleSheet.create({
     modalDescricao: {
         color: colors.textMuted,
         fontSize: 14,
-        marginTop: 8,
-        marginBottom: 16,
     },
     opcaoInvestimento: {
         alignItems: 'center',

@@ -8,10 +8,9 @@ import {
   Pressable,
   ScrollView,
   Modal,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../../styles/colors';
+import { colors, ui } from '../../../styles/colors';
 import { LineChart } from "react-native-chart-kit/v2";
 import { useEffect, useState } from 'react';
 import { usePrivacidade } from '../../../shared/privacidade';
@@ -36,6 +35,17 @@ type HistoricalChartProps = {
   height?: number;
 };
 
+const temaDoGrafico = {
+  background: colors.surfaceRaised,
+  plotBackground: colors.surfaceRaised,
+  grid: colors.border,
+  axis: colors.controlBorder,
+  text: colors.text,
+  mutedText: colors.textMuted,
+  series: [colors.primary],
+  typography: { axisLabelSize: 12 },
+};
+
 function HistoricalChart({ data, width = 80, height = 80 }: HistoricalChartProps) {
   return (
     <LineChart
@@ -44,6 +54,8 @@ function HistoricalChart({ data, width = 80, height = 80 }: HistoricalChartProps
       yKey="preco"
       width={width}
       height={height}
+      theme={temaDoGrafico}
+      accessibilityLabel="Gráfico do histórico de preços"
       labelStrategy="auto"
       showDots={false}
     />
@@ -148,8 +160,7 @@ export default function CardAtivo({
   const [pontosHistoricos, setPontosHistoricos] = useState<PontoGrafico[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
   const [erroHistorico, setErroHistorico] = useState<string | null>(null);
-  const { width: larguraTela } = useWindowDimensions();
-  const larguraGrafico = Math.min(larguraTela - 76, 420);
+  const [larguraGrafico, setLarguraGrafico] = useState(0);
 
   useEffect(() => {
     if (!modalDetalhesVisivel || oculto) {
@@ -247,12 +258,13 @@ export default function CardAtivo({
             onPress={() => setModalDetalhesVisivel(false)}
           />
           <SafeAreaView style={styles.modalSafeArea} edges={['top', 'bottom']}>
-            <ScrollView accessibilityViewIsModal style={styles.modalConteudo} contentContainerStyle={{ padding: 18 }}>
+            <ScrollView accessibilityViewIsModal style={styles.modalConteudo} contentContainerStyle={{ padding: ui.space.lg }}>
               <View style={styles.modalCabecalho}>
                 <Text style={styles.modalTitulo}>Detalhes do investimento</Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Fechar modal"
+                  style={styles.acaoFechar}
                   onPress={() => setModalDetalhesVisivel(false)}
                 >
                   <Text style={styles.modalFechar}>Fechar</Text>
@@ -310,7 +322,7 @@ export default function CardAtivo({
                   </Pressable>
                 ))}
               </View>
-              <View style={styles.modalGrafico}>
+              <View style={styles.modalGrafico} onLayout={({ nativeEvent }) => setLarguraGrafico(Math.floor(nativeEvent.layout.width))}>
                 {oculto ? <Text style={styles.estadoGrafico}>Gráfico oculto</Text> : carregandoHistorico ? (
                   <ActivityIndicator color={colors.primary} style={styles.estadoGrafico} />
                 ) : erroHistorico ? (
@@ -320,7 +332,7 @@ export default function CardAtivo({
                     Não há dados suficientes para exibir esse período.
                   </Text>
                 ) : (
-                  <HistoricalChart
+                  larguraGrafico > 0 && <HistoricalChart
                     data={pontosHistoricos}
                     width={larguraGrafico}
                     height={220}
@@ -347,8 +359,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: ui.space.sm,
+    paddingHorizontal: ui.space.sm,
+    minHeight: ui.touch,
   },
 
 
@@ -365,7 +378,7 @@ const styles = StyleSheet.create({
   },
 
   empresa: {
-    fontSize: 10,
+    fontSize: ui.font.label,
     color: colors.textMuted,
   },
 
@@ -393,7 +406,7 @@ const styles = StyleSheet.create({
 
   variacaoTexto: {
     color: colors.onPrimary,
-    fontSize: 9,
+    fontSize: ui.font.label,
     fontWeight: 'bold',
   },
 
@@ -522,6 +535,7 @@ const styles = StyleSheet.create({
     color: colors.negative,
   },
 
+  acaoFechar: { minHeight: ui.touch, minWidth: ui.touch, justifyContent: 'center' },
   modalGraficoTitulo: {
     color: colors.text,
     fontSize: 14,
@@ -564,12 +578,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     minHeight: 220,
+    width: '100%',
+    justifyContent: 'center',
     overflow: 'hidden',
   },
 
   estadoGrafico: {
     color: colors.textMuted,
-    paddingVertical: 90,
+    paddingHorizontal: ui.space.sm,
     textAlign: 'center',
   },
 

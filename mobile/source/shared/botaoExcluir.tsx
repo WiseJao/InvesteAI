@@ -39,7 +39,7 @@ export default function BotaoExcluir({ rotulo, onConfirmar, detalhe, carregando 
                     disabled={carregando}
                     accessibilityRole="button"
                 >
-                    {carregando ? <ActivityIndicator color={colors.text} /> : <Text style={styles.textoConfirmar}>{rotulo}</Text>}
+                    {carregando ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.textoConfirmar}>{rotulo}</Text>}
                 </TouchableOpacity>
             </View>
         </View>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
     },
     textoConfirmar: {
-        color: colors.text,
+        color: colors.onPrimary,
         fontSize: 15,
         fontWeight: 'bold',
     },

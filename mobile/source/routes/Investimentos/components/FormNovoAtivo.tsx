@@ -180,8 +180,8 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
     }
 
     return (
-        <View>
-            <Text style={styles.titulo}>{editando ? 'Editar investimento' : tipo}</Text>
+        <View style={styles.formulario}>
+            <Text accessibilityRole="header" style={styles.titulo}>{editando ? 'Editar investimento' : tipo}</Text>
             {ativo?.investmentType === 'VARIABLE_INCOME' && <Opcoes
                 rotulo="Tipo de posição"
                 opcoes={[{ valor: 'VARIABLE_INCOME', texto: 'Renda variável' }, { valor: 'FIXED_INCOME', texto: 'Renda fixa' }]}
@@ -262,11 +262,11 @@ export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, o
 }
 
 const styles = StyleSheet.create({
+    formulario: { gap: 16 },
     titulo: {
         color: colors.text,
         fontSize: 20,
         fontWeight: 'bold',
-        marginBottom: 12,
     },
     erro: {
         color: colors.negative,

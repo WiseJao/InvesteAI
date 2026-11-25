@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../../shared/layout';
-import { colors } from '../../styles/colors';
+import { colors, ui } from '../../styles/colors';
 import CabecalhoPesquisa from './components/cabecalhoPesquisa';
 
 type Pergunta = {
@@ -184,8 +184,7 @@ const styles = StyleSheet.create({
         borderLeftWidth: 3,
         borderLeftColor: colors.warning,
         borderRadius: 8,
-        padding: 14,
-        marginBottom: 20,
+        padding: ui.space.lg,
     },
     avisoTitulo: {
         color: colors.warning,
@@ -229,10 +228,10 @@ const styles = StyleSheet.create({
     },
     atalho: { minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
     resposta: {
-        fontSize: 12,
+        fontSize: ui.font.label,
         color: colors.textMuted,
         paddingHorizontal: 12,
         paddingBottom: 12,
-        lineHeight: 18,
+        lineHeight: 20,
     },
 });

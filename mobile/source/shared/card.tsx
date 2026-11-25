@@ -33,11 +33,10 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: ui.radius,
-        padding: 16,
-        marginBottom: 12,
+        padding: ui.space.lg,
     },
     rotulo: {
-        fontSize: 10,
+        fontSize: ui.font.label,
         letterSpacing: 0.5,
         color: colors.textMuted,
         marginBottom: 8,

@@ -41,7 +41,8 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         minHeight: ui.touch,
         alignItems: 'center',
-        marginTop: 8,
+        justifyContent: 'center',
+        paddingHorizontal: ui.space.lg,
     },
     foco: { outlineColor: colors.primary, outlineWidth: 2, outlineOffset: 3 },
     inativo: {

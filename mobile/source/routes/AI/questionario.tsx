@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Layout from '../../shared/layout';
@@ -78,13 +78,15 @@ export default function Questionario() {
     }
 
     return (
-        <Layout titulo="Análise de perfil" subtitulo="A classificação atual considera experiência e reação a quedas." voltar>
+        <Layout formulario titulo="Análise de perfil" subtitulo="A classificação atual considera experiência e reação a quedas." voltar>
             <Card>
-                <Opcoes rotulo="1. Qual é o seu principal objetivo? (contexto)" opcoes={objetivos} selecionado={objetivo} onSelecionar={setObjetivo} />
-                <Opcoes rotulo="2. Quanto você aceita ver seu dinheiro oscilar? (contexto)" opcoes={oscilacoes} selecionado={oscilacao} onSelecionar={setOscilacao} />
-                <Opcoes rotulo="3. Se o mercado cair forte, o que você faz?" opcoes={reacoes} selecionado={reacao} onSelecionar={setReacao} />
-                <Opcoes rotulo="4. Há quanto tempo você investe?" opcoes={experiencias} selecionado={experiencia} onSelecionar={setExperiencia} />
-                <Opcoes rotulo="5. Por quanto tempo pretende manter o investimento? (contexto)" opcoes={horizontes} selecionado={horizonte} onSelecionar={setHorizonte} />
+                <View style={styles.perguntas}>
+                    <Opcoes variante="vertical" rotulo="1. Qual é o seu principal objetivo? (contexto)" opcoes={objetivos} selecionado={objetivo} onSelecionar={setObjetivo} />
+                    <Opcoes variante="vertical" rotulo="2. Quanto você aceita ver seu dinheiro oscilar? (contexto)" opcoes={oscilacoes} selecionado={oscilacao} onSelecionar={setOscilacao} />
+                    <Opcoes variante="vertical" rotulo="3. Se o mercado cair forte, o que você faz?" opcoes={reacoes} selecionado={reacao} onSelecionar={setReacao} />
+                    <Opcoes variante="vertical" rotulo="4. Há quanto tempo você investe?" opcoes={experiencias} selecionado={experiencia} onSelecionar={setExperiencia} />
+                    <Opcoes variante="vertical" rotulo="5. Por quanto tempo pretende manter o investimento? (contexto)" opcoes={horizontes} selecionado={horizonte} onSelecionar={setHorizonte} />
+                </View>
             </Card>
 
             {erro ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erro}</Text> : null}
@@ -94,6 +96,7 @@ export default function Questionario() {
 }
 
 const styles = StyleSheet.create({
+    perguntas: { gap: 24 },
     erro: {
         fontSize: 12,
         color: colors.negative,

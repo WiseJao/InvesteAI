@@ -1,8 +1,8 @@
 import { avisarSucesso } from '../../shared/avisoDeSucesso';
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaConta } from '../../styles/coresDaConta';
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +28,8 @@ import {
     listarObjetivos,
     type Objetivo, type ModoObjetivo,
 } from '../../services/objetivos';
-import { colors } from '../../styles/colors';
+import { conteudoTela } from '../../shared/conteudoTela';
+import { colors, ui } from '../../styles/colors';
 
 const tiposDeObjetivo = [
     { valor: 'Investimentos', texto: 'Investimentos' },
@@ -37,16 +38,27 @@ const tiposDeObjetivo = [
 
 const statusDaMeta: Record<string, string> = { UNLINKED: 'Vincule uma posição', UNAVAILABLE: 'Inclui valores pelo custo de compra', STALE: 'Inclui valores desatualizados', ESTIMATED: 'Inclui valores estimados' };
 
-function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (objetivo: Objetivo) => void }) {
+type ItemObjetivoProps = {
+    objetivo: Objetivo;
+    onEditar: (objetivo: Objetivo) => void;
+    onPosicionar?: (item: ComponentRef<typeof View>) => void;
+};
+
+function ItemObjetivo({ objetivo, onEditar, onPosicionar }: ItemObjetivoProps) {
     const { oculto } = usePrivacidade();
+    const item = useRef<ComponentRef<typeof View>>(null);
     return (
         <TouchableOpacity
+            ref={item}
+            onLayout={() => { if (item.current) onPosicionar?.(item.current); }}
             style={styles.item}
             onPress={() => onEditar(objetivo)}
             accessibilityRole="button"
             accessibilityLabel={`${objetivo.valuationStatus === 'UNLINKED' ? 'Vincular posições a' : 'Editar objetivo'} ${objetivo.titulo}`}
         >
             <Text style={styles.texto}>{objetivo.titulo}</Text>
+            <Text style={styles.apoio}>{objetivo.progressMode === 'PORTFOLIO' ? 'Vinculada à carteira' : 'Progresso manual'}
+                {!oculto && objetivo.progresso >= 100 ? ' · Concluída' : ''}</Text>
             {!oculto && <View style={styles.trilho}>
                 <LinearGradient colors={['#16804c', '#56e495']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.preenchimento, { width: `${objetivo.progresso}%` }]} />
             </View>}
@@ -62,7 +74,10 @@ function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (o
 export default function Objetivos() {
     const navigation = useNavigation();
     const scroll = useRef<import('react').ComponentRef<typeof ScrollView>>(null);
-    const moverAteFormulario = useRef(false);
+    const { width } = useWindowDimensions();
+    const rolarAoAbrir = useRef(false);
+    const lista = useRef<ComponentRef<typeof View>>(null);
+    const metaParaExibir = useRef<string | null>(null);
     const { dados, carregando, erro, recarregar } = useCarregar(listarObjetivos);
     const [criando, setCriando] = useState(false);
     const [editando, setEditando] = useState<Objetivo | null>(null);
@@ -86,7 +101,9 @@ export default function Objetivos() {
     useEffect(() => { if (inicializar.current) { inicial.current = dadosAtuais; inicializar.current = false; } }, [dadosAtuais]);
     const alterado = criando && !inicializar.current && dadosAtuais !== inicial.current;
     useConfirmarSaida(alterado);
-    const posicoesVisiveis = (holdings.dados ?? []).filter(item => (item.nome + ' ' + item.simbolo).toLowerCase().includes(buscaPosicao.trim().toLowerCase()));
+    const posicoesVisiveis = (holdings.dados ?? [])
+        .filter(item => (item.nome + ' ' + item.simbolo).toLowerCase().includes(buscaPosicao.trim().toLowerCase()))
+        .sort((a, b) => Number(selected.includes(b.id)) - Number(selected.includes(a.id)));
     const [erroForm, setErroForm] = useState<string | null>(null);
 
     const objetivos = dados ?? [];
@@ -120,7 +137,7 @@ export default function Objetivos() {
     }
 
     function editar(objetivo: Objetivo) {
-        moverAteFormulario.current = true;
+        rolarAoAbrir.current = true;
         inicializar.current = true;
         setBuscaPosicao('');
         setEditando(objetivo);
@@ -180,11 +197,13 @@ export default function Objetivos() {
                 holdingIds: linking ? selected.length ? selected : undefined : [],
                 prazo: prazoIso,
             };
-            if (editando) await atualizarObjetivo(editando.id, dadosDoObjetivo, {
-                alvo: alvo === decimalParaCampo(editando.valorAlvoExato),
-                atual: editando.progressMode === 'MANUAL' && atual === decimalParaCampo(editando.valorAtualExato),
-            });
-            else await criarObjetivo(dadosDoObjetivo);
+            const meta = editando
+                ? await atualizarObjetivo(editando.id, dadosDoObjetivo, {
+                    alvo: alvo === decimalParaCampo(editando.valorAlvoExato),
+                    atual: editando.progressMode === 'MANUAL' && atual === decimalParaCampo(editando.valorAtualExato),
+                })
+                : await criarObjetivo(dadosDoObjetivo);
+            metaParaExibir.current = meta.id;
             avisarSucesso('Meta salva.');
             limparFormulario();
             await recarregar();
@@ -201,89 +220,102 @@ export default function Objetivos() {
         return (
             <Card rotulo={rotulo}>
                 {itens.map((objetivo) => (
-                    <ItemObjetivo key={objetivo.id} objetivo={objetivo} onEditar={abrirEdicao} />
+                    <ItemObjetivo key={objetivo.id} objetivo={objetivo} onEditar={abrirEdicao} onPosicionar={(item) => {
+                        if (metaParaExibir.current !== objetivo.id || !lista.current) return;
+                        item.measureLayout(lista.current, (_x, y) => {
+                            metaParaExibir.current = null;
+                            scroll.current?.scrollTo({ y, animated: false });
+                        }, () => {});
+                    }} />
                 ))}
             </Card>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.topo}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+            <View style={[conteudoTela(width, criando ? ui.width.form : ui.width.reading), styles.topo]}>
                 <TouchableOpacity
                     style={styles.botaoFechar}
-                    onPress={() => navigation.goBack()}
+                    onPress={() => criando ? (alterado ? confirmarDescarte(limparFormulario) : limparFormulario()) : navigation.goBack()}
                     accessibilityRole="button"
-                    accessibilityLabel="Fechar"
+                    accessibilityLabel={criando ? "Cancelar edição" : "Fechar"}
                 >
                     <Ionicons name="close" size={20} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.titulo}>Objetivos</Text>
+                <Text accessibilityRole="header" style={styles.titulo}>{criando ? (editando ? "Editar objetivo" : "Nova meta") : "Objetivos"}</Text>
                 <View style={styles.espacoTopo} />
             </View>
 
-            <ScrollView ref={scroll} contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
-                {!criando && <BotaoPrimario titulo="Nova meta" onPress={() => { inicial.current = dadosAtuais; moverAteFormulario.current = true; setCriando(true); }} />}
-                <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
-                    {objetivos.length === 0 ? (
-                        <Card>
-                            <Text style={styles.apoio}>Você ainda não criou nenhum objetivo.</Text>
-                        </Card>
-                    ) : null}
-                    <Secao rotulo="INVESTIMENTOS" itens={deInvestimento} />
-                    <Secao rotulo="GASTOS" itens={deGastos} />
-                    <Secao rotulo="OUTROS" itens={outros} />
-                </Estado>
+            <ScrollView ref={scroll} contentContainerStyle={[conteudoTela(width, criando ? ui.width.form : ui.width.reading), styles.conteudo]}
+                keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+                {!criando && <View style={styles.formulario} ref={lista} collapsable={false}>
+                    <BotaoPrimario titulo="Nova meta" onPress={() => { inicial.current = dadosAtuais; rolarAoAbrir.current = true; setCriando(true); }} />
+                    <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
+                        {objetivos.length === 0 ? (
+                            <Card>
+                                <Text style={styles.apoio}>Você ainda não criou nenhum objetivo.</Text>
+                            </Card>
+                        ) : null}
+                        <Secao rotulo="INVESTIMENTOS" itens={deInvestimento} />
+                        <Secao rotulo="GASTOS" itens={deGastos} />
+                        <Secao rotulo="OUTROS" itens={outros} />
+                    </Estado>
+                </View>}
 
                 {criando ? (
-                    <View onLayout={() => {
-                        if (moverAteFormulario.current) {
-                            moverAteFormulario.current = false;
-                            scroll.current?.scrollToEnd({ animated: true });
-                        }
-                    }}>
-                    <Card rotulo={editando ? 'EDITAR OBJETIVO' : 'NOVO OBJETIVO'}>
-                        <Opcoes rotulo="Tipo" opcoes={opcoesDeTipo} selecionado={tipo} onSelecionar={setTipo} />
-                        <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
-                        <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
-                        {tipo === 'Investimentos' && <Opcoes rotulo="Progresso" opcoes={[{ valor: 'MANUAL', texto: 'Manual' }, { valor: 'PORTFOLIO', texto: 'Vincular posições' }]} selecionado={mode} onSelecionar={setMode} />}
-                        {tipo === 'Investimentos' && <Text style={styles.apoio}>{linking ? 'O progresso acompanha o valor das posições selecionadas.' : 'No modo manual, atualize o valor acumulado quando quiser.'}</Text>}
-                        {!linking ? <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} /> :
-                            <Estado carregando={holdings.carregando} erro={holdings.erro} temDados={Boolean(holdings.dados?.length)}
-                                onTentarNovamente={holdings.recarregar}>
-                                <Field label="Buscar posições" value={buscaPosicao} onChangeText={setBuscaPosicao} />
-                                <Text accessibilityLiveRegion="polite" style={styles.apoio}>{selected.length} posições selecionadas</Text>
-                                {posicoesVisiveis.length ? posicoesVisiveis.map(holding => {
-                                    const checked = selected.includes(holding.id);
-                                    return <TouchableOpacity key={holding.id} accessibilityRole="checkbox" accessibilityState={{ checked }}
-                                        style={styles.posicao} onPress={() => setSelected(ids => checked ? ids.filter(id => id !== holding.id) : [...ids, holding.id])}>
-                                        <Ionicons name={checked ? 'checkbox' : 'square-outline'} color={colors.primary} size={20} />
-                                        <MarcadorCor cor={corDaConta(holding.id)} />
-                                        <Text style={styles.texto}>{holding.nome}{oculto ? '' : ' · ' + formatarReais(holding.valorAtual)}</Text>
-                                    </TouchableOpacity>;
-                                }) : <Text style={styles.apoio}>{holdings.dados?.length ? 'Nenhuma posição encontrada.' : 'Adicione uma posição na carteira para vinculá-la.'}</Text>}
-                            </Estado>}
-                        <CampoData
-                            label="Prazo (opcional)"
-                            value={prazo}
-                            onChange={setPrazo}
-                            opcional
-                        />
-                        {erroForm ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erroForm}</Text> : null}
-                        <BotaoPrimario
-                            titulo={editando ? 'Salvar alterações' : 'Salvar objetivo'}
-                            onPress={salvar}
-                            carregando={salvando}
-                            desabilitado={excluindo}
-                        />
-                        {editando ? (
-                            <BotaoExcluir rotulo="Excluir objetivo" detalhe={`Excluir a meta ${editando.titulo}? As posições da carteira permanecem.`} onConfirmar={excluir} carregando={excluindo} />
-                        ) : null}
-                        <TouchableOpacity style={styles.cancelar} accessibilityRole="button" onPress={() => alterado ? confirmarDescarte(limparFormulario) : limparFormulario()}>
-                            <Text style={styles.apoio}>Cancelar</Text>
-                        </TouchableOpacity>
+                    <Card>
+                        <View style={styles.formulario} onLayout={() => {
+                            if (rolarAoAbrir.current) {
+                                rolarAoAbrir.current = false;
+                                scroll.current?.scrollTo({ y: 0, animated: false });
+                            }
+                        }}>
+                            <Opcoes rotulo="Tipo" opcoes={opcoesDeTipo} selecionado={tipo} onSelecionar={setTipo} />
+                            <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
+                            <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
+                            {tipo === 'Investimentos' && <Opcoes rotulo="Progresso" opcoes={[{ valor: 'MANUAL', texto: 'Manual' }, { valor: 'PORTFOLIO', texto: 'Vincular posições' }]} selecionado={mode} onSelecionar={setMode} />}
+                            {tipo === 'Investimentos' && <Text style={styles.apoio}>{linking ? 'O progresso acompanha o valor das posições selecionadas.' : 'No modo manual, atualize o valor acumulado quando quiser.'}</Text>}
+                            {!linking ? <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} /> :
+                                <Estado carregando={holdings.carregando} erro={holdings.erro} temDados={Boolean(holdings.dados?.length)}
+                                    onTentarNovamente={holdings.recarregar}>
+                                    <Field label="Buscar posições" value={buscaPosicao} onChangeText={setBuscaPosicao} />
+                                    <Text accessibilityLiveRegion="polite" style={styles.apoio}>{selected.length} posições selecionadas</Text>
+                                    {posicoesVisiveis.length ? posicoesVisiveis.map(holding => {
+                                        const checked = selected.includes(holding.id);
+                                        return <TouchableOpacity key={holding.id} accessibilityRole="checkbox" accessibilityState={{ checked }}
+                                            style={styles.posicao} onPress={() => setSelected(ids => checked ? ids.filter(id => id !== holding.id) : [...ids, holding.id])}>
+                                            <Ionicons name={checked ? 'checkbox' : 'square-outline'} color={colors.primary} size={20} />
+                                            <MarcadorCor cor={corDaConta(holding.id)} />
+                                            <View style={styles.posicaoDados}>
+                                                <Text style={styles.texto}>{holding.nome}</Text>
+                                                <Text style={styles.apoio}>{holding.investmentType === 'FIXED_INCOME' ? 'Renda fixa' : 'Renda variável'}
+                                                    {oculto ? '' : ' · ' + formatarReais(holding.valorAtual)}</Text>
+                                            </View>
+                                        </TouchableOpacity>;
+                                    }) : <Text style={styles.apoio}>{holdings.dados?.length ? 'Nenhuma posição encontrada.' : 'Adicione uma posição na carteira para vinculá-la.'}</Text>}
+                                </Estado>}
+                            <CampoData
+                                label="Prazo (opcional)"
+                                value={prazo}
+                                onChange={setPrazo}
+                                opcional
+                            />
+                            {erroForm ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erroForm}</Text> : null}
+                            <BotaoPrimario
+                                titulo={editando ? 'Salvar alterações' : 'Salvar objetivo'}
+                                onPress={salvar}
+                                carregando={salvando}
+                                desabilitado={excluindo}
+                            />
+                            {editando ? (
+                                <BotaoExcluir rotulo="Excluir objetivo" detalhe={`Excluir a meta ${editando.titulo}? As posições da carteira permanecem.`} onConfirmar={excluir} carregando={excluindo} />
+                            ) : null}
+                            <TouchableOpacity style={styles.cancelar} accessibilityRole="button" onPress={() => alterado ? confirmarDescarte(limparFormulario) : limparFormulario()}>
+                                <Text style={styles.apoio}>Cancelar</Text>
+                            </TouchableOpacity>
+                        </View>
                     </Card>
-                    </View>
                 ) : null}
             </ScrollView>
         </SafeAreaView>
@@ -299,29 +331,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
         paddingVertical: 16,
     },
     titulo: {
-        fontSize: 16,
+        flex: 1,
+        textAlign: 'center',
+        fontSize: ui.font.sectionTitle,
         fontWeight: 'bold',
         color: colors.text,
     },
     botaoFechar: {
-        width: 44,
-        height: 44,
+        width: ui.touch,
+        minHeight: ui.touch,
         borderRadius: 22,
         backgroundColor: colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    espacoTopo: { width: 44 },
+    espacoTopo: { width: ui.touch },
     conteudo: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingBottom: ui.space.xxl,
+        gap: ui.space.lg,
     },
+    formulario: { gap: ui.space.lg },
+    posicaoDados: { flex: 1, minWidth: 0 },
     item: {
-        marginBottom: 12,
+        minHeight: ui.touch,
+        paddingVertical: ui.space.sm,
     },
     trilho: {
         height: 6,
@@ -349,7 +385,7 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
     apoio: {
-        fontSize: 11,
+        fontSize: ui.font.label,
         color: colors.textMuted,
         marginTop: 4,
     },

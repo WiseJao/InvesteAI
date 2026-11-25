@@ -2,8 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { obterUsuario } from '../services/usuario';
 
-type Preferences = { hideOnStart: boolean; opaqueTabs: boolean };
-const defaults: Preferences = { hideOnStart: false, opaqueTabs: false };
+type Preferences = { hideOnStart: boolean };
+const defaults: Preferences = { hideOnStart: false };
 const PrivacidadeContext = createContext({
     oculto: false, alternar: () => {}, preferences: defaults,
     savePreferences: async (_next: Preferences) => {}, ready: false,
@@ -21,7 +21,7 @@ export function PrivacidadeProvider({ children }: { children: ReactNode }) {
             const raw = await AsyncStorage.getItem(storageKey);
             if (!active) return;
             const saved = raw ? JSON.parse(raw) : defaults;
-            setPreferences({ hideOnStart: saved.hideOnStart === true, opaqueTabs: saved.opaqueTabs === true });
+            setPreferences({ hideOnStart: saved.hideOnStart === true });
             setOculto(saved.hideOnStart === true);
             setKey(storageKey);
         }).catch(() => {});

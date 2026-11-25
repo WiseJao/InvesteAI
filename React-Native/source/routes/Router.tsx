@@ -6,10 +6,8 @@ import Investimentos from './Investimentos';
 import HomeStack from './Home/stack';
 import GastosStack from './Gastos/stack';
 import AIStack from './AI/stack';
-import { Platform, StyleSheet } from 'react-native';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { colors } from '../styles/colors';
-import { PrivacidadeProvider, usePrivacidade } from '../shared/privacidade';
+import { PrivacidadeProvider } from '../shared/privacidade';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -19,15 +17,12 @@ export default function TabRouter() {
 }
 
 function Tabs() {
-    const { preferences } = usePrivacidade();
-    const glass = Platform.OS === 'ios' && !preferences.opaqueTabs && isLiquidGlassAvailable();
     return (
         <Tab.Navigator initialRouteName="Home" screenOptions={{
             headerShown: false, tabBarHideOnKeyboard: true,
             tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textMuted,
             tabBarItemStyle: { minHeight: 48 },
-            tabBarStyle: { backgroundColor: glass ? 'transparent' : colors.surface, borderTopColor: colors.border },
-            tabBarBackground: glass ? () => <GlassView colorScheme="dark" pointerEvents="none" style={StyleSheet.absoluteFill} /> : undefined,
+            tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         }}>
             <Tab.Screen name="Home" component={HomeStack} options={{
                 tabBarIcon: ({ color }) =>(

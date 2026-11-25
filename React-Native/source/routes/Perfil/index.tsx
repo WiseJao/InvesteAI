@@ -1,14 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
 import BotaoExcluir from '../../shared/botaoExcluir';
 import { useCarregar } from '../../shared/useCarregar';
-import { deleteAvatar, getAvatar, logout, uploadAvatar } from '../../services/api';
+import { deleteAvatar, getAvatar, mensagemDeErro, logout, uploadAvatar } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
@@ -55,6 +56,7 @@ export default function Perfil() {
     const [aberto, setAberto] = useState(false);
     const [termo, setTermo] = useState('');
     const [avatar, setAvatar] = useState<string | null>(null);
+    const [fotoPendente, setFotoPendente] = useState<ImagePicker.ImagePickerAsset | null>(null);
     const [enviando, setEnviando] = useState(false);
     const { dados, erro, carregando, recarregar } = useCarregar(carregarPerfil);
     const [erroAvatar, setErroAvatar] = useState(false);
@@ -73,39 +75,49 @@ export default function Perfil() {
         return () => { ativo = false; };
     }, []));
 
-    async function alterarFoto() {
-        if (enviando) return;
+    async function enviarFoto(imagem: ImagePicker.ImagePickerAsset) {
+        setEnviando(true);
+        setFotoPendente(imagem);
         try {
-            const resultado = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 1,
-            });
-            if (resultado.canceled) return;
-            const imagem = resultado.assets[0];
-            if (!imagem.mimeType || !['image/jpeg', 'image/png'].includes(imagem.mimeType)) {
-                Alert.alert('Foto inválida', 'Selecione uma imagem JPEG ou PNG.');
-                return;
+            const context = ImageManipulator.manipulate(imagem.uri);
+            context.resize(imagem.width >= imagem.height ? { width: Math.min(1024, imagem.width) } : { height: Math.min(1024, imagem.height) });
+            const rendered = await context.renderAsync();
+            try {
+                const normalized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
+                if (!normalized.base64 || normalized.base64.length * 3 / 4 > 2 * 1024 * 1024) {
+                    throw new Error('A foto processada excede 2 MiB.');
+                }
+                const webFile = Platform.OS === 'web'
+                    ? new File([await (await fetch(normalized.uri)).blob()], 'avatar.jpg', { type: 'image/jpeg' })
+                    : undefined;
+                await uploadAvatar({ uri: normalized.uri, name: 'avatar.jpg', type: 'image/jpeg', webFile });
+            } finally {
+                rendered.release();
+                context.release();
             }
-            if (imagem.fileSize != null && imagem.fileSize > 2 * 1024 * 1024) {
-                Alert.alert('Foto muito grande', 'Selecione uma imagem de até 2 MB.');
-                return;
-            }
-            setEnviando(true);
-            await uploadAvatar({
-                uri: imagem.uri,
-                name: imagem.fileName ?? (imagem.mimeType === 'image/png' ? 'avatar.png' : 'avatar.jpg'),
-                type: imagem.mimeType,
-                webFile: imagem.file,
-            });
             ++versao.current;
+            setFotoPendente(null);
             setAvatar(await getAvatar());
             setErroAvatar(false);
-        } catch {
-            Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
+        } catch (failure) {
+            Alert.alert('Foto indisponível', mensagemDeErro(failure));
         } finally {
             setEnviando(false);
+        }
+    }
+
+    async function alterarFoto(camera = false) {
+        if (enviando) return;
+        try {
+            if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
+                Alert.alert('Permissão necessária', 'Permita o acesso à câmera nas configurações do dispositivo.');
+                return;
+            }
+            const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1] };
+            const result = await (camera ? ImagePicker.launchCameraAsync(options) : ImagePicker.launchImageLibraryAsync(options));
+            if (!result.canceled) await enviarFoto(result.assets[0]);
+        } catch (failure) {
+            Alert.alert('Foto indisponível', mensagemDeErro(failure));
         }
     }
 
@@ -150,13 +162,15 @@ export default function Perfil() {
 
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                 <View style={styles.identidade}>
-                    <TouchableOpacity style={styles.avatar} onPress={alterarFoto} disabled={enviando}
+                    <TouchableOpacity style={styles.avatar} onPress={() => void alterarFoto()} disabled={enviando}
                         accessibilityRole="button" accessibilityLabel="Alterar foto de perfil">
                         {enviando ? <ActivityIndicator color={colors.primary} /> : avatar ? (
                             <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setAvatar(null)} />
                         ) : <Ionicons name="person" size={56} color={colors.primary} />}
                     </TouchableOpacity>
-                    <Text style={styles.alterarFoto}>Alterar foto</Text>
+                    <Text style={styles.alterarFoto}>Escolher foto</Text>
+                    {Platform.OS !== 'web' && <TouchableOpacity accessibilityRole="button" disabled={enviando} onPress={() => void alterarFoto(true)}><Text style={styles.alterarFoto}>Tirar foto</Text></TouchableOpacity>}
+                    {fotoPendente && !enviando && <TouchableOpacity accessibilityRole="button" onPress={() => void enviarFoto(fotoPendente)}><Text style={styles.alterarFoto}>Tentar envio novamente</Text></TouchableOpacity>}
                     {avatar && !enviando ? <BotaoExcluir rotulo="Remover foto" onConfirmar={removerFoto} /> : null}
                     <Text style={styles.nome}>{usuario?.nome ?? '—'}</Text>
                     {erroAvatar ? <Text style={styles.alterarFoto}>Foto indisponível.</Text> : null}

@@ -62,6 +62,10 @@ public class Profile {
     @Column(name = "salary_date")
     private LocalDate salaryDate;
 
+    @JsonIgnore
+    @Column(name = "investor_risk_score")
+    private Integer investorRiskScore;
+
     /**
      * The parent user entity linked to this profile.
      */

@@ -29,16 +29,7 @@ function converter(perfil: PerfilApi): PerfilInvestidor {
     };
 }
 
-// A API ainda não guarda o resultado do questionário (GET /ai/profile devolve sempre o perfil padrão),
-// então a última avaliação feita nesta sessão fica aqui para as telas continuarem coerentes.
-let perfilAvaliado: PerfilInvestidor | null = null;
-
-export function limparPerfil() {
-    perfilAvaliado = null;
-}
-
 export async function obterPerfilInvestidor(): Promise<PerfilInvestidor> {
-    if (perfilAvaliado) return perfilAvaliado;
     return converter(await apiRequest<PerfilApi>('/ai/profile'));
 }
 
@@ -59,8 +50,7 @@ export async function avaliarPerfil(dados: RespostasQuestionario): Promise<Perfi
             investmentHorizon: dados.horizonte,
         }),
     });
-    perfilAvaliado = converter(perfil);
-    return perfilAvaliado;
+    return converter(perfil);
 }
 
 export type Recomendacao = {

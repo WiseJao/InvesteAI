@@ -3,7 +3,14 @@ package com.InvesteAI.backend.service;
 import com.InvesteAI.backend.dto.ai.request.EvaluateRiskProfileRequest;
 import com.InvesteAI.backend.dto.ai.response.RecommendationResponse;
 import com.InvesteAI.backend.dto.ai.response.RiskProfileResponse;
+import com.InvesteAI.backend.interfaces.UserInterface;
+import com.InvesteAI.backend.model.Profile;
+import com.InvesteAI.backend.model.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
@@ -16,7 +23,9 @@ import java.util.*;
  * </p>
  */
 @Service
+@RequiredArgsConstructor
 public class AIAdvisoryService {
+    private final UserInterface userRepository;
 
     /**
      * Retrieves the baseline investor profile and recommended allocation for a user.
@@ -24,20 +33,11 @@ public class AIAdvisoryService {
      * @param userId the UUID of the authenticated user
      * @return {@link RiskProfileResponse} with profile classification and percentage allocations
      */
+    @Transactional(readOnly = true)
     public RiskProfileResponse getProfile(UUID userId) {
-        Map<String, Double> allocation = new LinkedHashMap<>();
-        allocation.put("Renda Fixa", 45.0);
-        allocation.put("Ações", 35.0);
-        allocation.put("Fundos Imobiliários", 15.0);
-        allocation.put("Reserva / Caixa", 5.0);
-
-        return new RiskProfileResponse(
-                "Moderado",
-                "Média",
-                "Você busca equilíbrio entre segurança e rentabilidade, aceitando volatilidade moderada a médio e longo prazo.",
-                List.of("Preservação de capital", "Crescimento a médio prazo", "Diversificação de carteira"),
-                allocation
-        );
+        int score = userRepository.findById(userId).map(User::getProfile)
+                .map(Profile::getInvestorRiskScore).orElse(50);
+        return classify(score);
     }
 
     /**
@@ -47,13 +47,14 @@ public class AIAdvisoryService {
      * @param request the questionnaire answers, experience years, and drop reactions
      * @return evaluated {@link RiskProfileResponse}
      */
+    @Transactional
     public RiskProfileResponse evaluateProfile(UUID userId, EvaluateRiskProfileRequest request) {
         int score = 50; // Base score
         if (request.investmentExperienceYears() != null) {
-            score += Math.min(30, request.investmentExperienceYears() * 5);
+            score += Math.clamp(request.investmentExperienceYears(), 0, 6) * 5;
         }
         if (request.reactionToMarketDrop() != null) {
-            String reaction = request.reactionToMarketDrop().toLowerCase();
+            String reaction = request.reactionToMarketDrop().toLowerCase(Locale.ROOT);
             if (reaction.contains("compro") || reaction.contains("oportunidade")) {
                 score += 20;
             } else if (reaction.contains("vendo") || reaction.contains("medo")) {
@@ -61,6 +62,13 @@ public class AIAdvisoryService {
             }
         }
 
+        Profile profile = userRepository.findById(userId).map(User::getProfile)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil do usuário não encontrado."));
+        profile.setInvestorRiskScore(score);
+        return classify(score);
+    }
+
+    private RiskProfileResponse classify(int score) {
         String profileName;
         String riskTol;
         String summary;
@@ -85,7 +93,7 @@ public class AIAdvisoryService {
         } else {
             profileName = "Arrojado";
             riskTol = "Alta";
-            summary = "Foco em retornos exponenciais a longo prazo, com alta tolerância a volatilidade.";
+            summary = "Busca de crescimento a longo prazo, com alta tolerância a oscilações e perdas.";
             allocation.put("Ações", 55.0);
             allocation.put("Fundos Imobiliários", 20.0);
             allocation.put("Renda Fixa", 20.0);

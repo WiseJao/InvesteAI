@@ -3,7 +3,13 @@ package com.InvesteAI.backend.service;
 import com.InvesteAI.backend.dto.ai.request.EvaluateRiskProfileRequest;
 import com.InvesteAI.backend.dto.ai.response.RecommendationResponse;
 import com.InvesteAI.backend.dto.ai.response.RiskProfileResponse;
+import com.InvesteAI.backend.interfaces.UserInterface;
+import com.InvesteAI.backend.model.Profile;
+import com.InvesteAI.backend.model.User;
 import org.junit.jupiter.api.Test;
+import java.util.Optional;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class AIAdvisoryServiceTest {
 
-    private final AIAdvisoryService aiAdvisoryService = new AIAdvisoryService();
+    private final UserInterface userRepository = mock(UserInterface.class);
+    private final AIAdvisoryService aiAdvisoryService = new AIAdvisoryService(userRepository);
 
     @Test
     void returnsDefaultInvestorProfile() {
@@ -38,10 +45,14 @@ class AIAdvisoryServiceTest {
                 "Longo prazo (10+ anos)"
         );
 
+        User user = new User();
+        user.setProfile(new Profile());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         RiskProfileResponse profile = aiAdvisoryService.evaluateProfile(userId, request);
 
         assertEquals("Arrojado", profile.profile());
         assertEquals("Alta", profile.riskTolerance());
+        assertEquals(profile, aiAdvisoryService.getProfile(userId));
     }
 
     @Test

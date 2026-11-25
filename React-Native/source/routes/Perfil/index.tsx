@@ -9,7 +9,6 @@ import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
 import { clearAuthTokens, getAvatar, logout, uploadAvatar } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
-import { limparPerfil } from '../../services/assessoria';
 import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
 import { formatarReais } from '../../shared/currency';
@@ -112,7 +111,6 @@ export default function Perfil() {
         await logout();
         clearAuthTokens();
         limparUsuario();
-        limparPerfil();
         navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
     }
 

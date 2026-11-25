@@ -20,6 +20,7 @@ InvesteAI/
 │   ├── README.md
 │   ├── BMC.pdf
 │   ├── DADOS.pdf
+│   ├── DADOS.docx
 │   └── modelagens e documentos editáveis
 ├── api/
 │   ├── README.md

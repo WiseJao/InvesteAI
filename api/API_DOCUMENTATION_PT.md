@@ -655,7 +655,7 @@ Cada posição inclui `priceStatus` (`MARKET`, `ESTIMATED`, `STALE` ou `UNAVAILA
 
 ### Tipos de investimento
 
-Use `FIXED_INCOME` ou `VARIABLE_INCOME` em `investmentType`. No POST, a ausência do campo ou o valor nulo usa `VARIABLE_INCOME`. No PATCH, omitir o campo preserva o tipo atual. Enviar `LEGACY` retorna HTTP 400.
+Use `FIXED_INCOME` ou `VARIABLE_INCOME` em `investmentType`. No POST, a ausência do campo ou o valor nulo usa `VARIABLE_INCOME`. No PATCH, omitir o campo preserva o tipo atual. Enviar `LEGACY` retorna HTTP 400. A migração Flyway V8 converte os registros anteriores para `VARIABLE_INCOME` e preserva o lote, o histórico e os vínculos com metas.
 
 
 Registra uma compra de ativo na carteira de investimentos.
@@ -973,6 +973,8 @@ apiClient.interceptors.response.use(
 ```
 
 ### Foto de perfil
+
+No aplicativo, o Perfil exibe a foto e **Editar perfil** concentra seu envio, substituição e remoção. O app salva a foto separadamente dos dados cadastrais.
 
 `DELETE /user/me/avatar` remove a foto do usuário autenticado e retorna HTTP 204.
 

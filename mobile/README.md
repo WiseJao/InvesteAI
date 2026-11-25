@@ -78,9 +78,10 @@ O script de iOS depende de macOS e Xcode. No Windows, use Android, navegador ou 
 ## 4. Conferir a integração
 
 1. Cadastre uma conta de teste ou faça login em uma conta existente.
-2. Abra a Home e consulte o resumo do mês.
+2. Abra a Home e consulte o saldo e a barra de uso do orçamento. Troque o mês para conferir o recorte histórico.
 3. Registre um gasto fictício e confirme se ele aparece no histórico.
-4. Se quiser testar a busca de investimentos, confirme antes se a API está configurada com acesso à BRAPI.
+4. Na Carteira, confirme os filtros de renda fixa e renda variável. Para testar a busca de mercado, confira se a API tem acesso à BRAPI.
+5. No Perfil, abra **Editar perfil** para conferir a edição da renda e os controles da foto.
 
 Para validar o TypeScript localmente:
 

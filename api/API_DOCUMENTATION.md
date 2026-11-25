@@ -661,7 +661,7 @@ Each holding includes `priceStatus` (`MARKET`, `ESTIMATED`, `STALE`, or `UNAVAIL
 
 ### Investment types
 
-Use `FIXED_INCOME` or `VARIABLE_INCOME` for `investmentType`. POST defaults to `VARIABLE_INCOME` when the field is missing or null. PATCH keeps the current type if the field is omitted. Sending `LEGACY` returns HTTP 400.
+Use `FIXED_INCOME` or `VARIABLE_INCOME` for `investmentType`. POST defaults to `VARIABLE_INCOME` when the field is missing or null. PATCH keeps the current type if the field is omitted. Sending `LEGACY` returns HTTP 400. Flyway migration V8 converts existing records to `VARIABLE_INCOME` and preserves the holding, its history, and its goal links.
 
 
 Records a new asset purchase in the portfolio.
@@ -979,6 +979,8 @@ apiClient.interceptors.response.use(
 ```
 
 ### Profile avatar
+
+The app displays the avatar on Profile. Edit Profile is where users upload, replace, or remove it, separately from saving profile fields.
 
 `DELETE /user/me/avatar` removes the authenticated user’s avatar and returns HTTP 204.
 

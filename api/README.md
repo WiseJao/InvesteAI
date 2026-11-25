@@ -1,6 +1,6 @@
 # API do InvesteAI
 
-A API é um serviço REST em Java 21 com Spring Boot. O PostgreSQL 18 armazena os dados e o Flyway aplica as migrações ao iniciar. O [README principal](../README.md) descreve o projeto.
+A API é um serviço REST em Java 21 com Spring Boot. O PostgreSQL 18 armazena os dados e o Flyway aplica as migrações ao iniciar. O [README principal](../README.md) descreve o projeto. O [modelo de dados](../docs/DADOS.pdf) cobre as migrações até a V8. Em uma atualização de versão, inicie a API e conclua a V8 antes de distribuir o app. A migração converte posições `LEGACY` em `VARIABLE_INCOME` e preserva os vínculos.
 
 ## Pré-requisitos
 

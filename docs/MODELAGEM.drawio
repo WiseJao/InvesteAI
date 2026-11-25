@@ -282,7 +282,7 @@
         <mxCell id="note2" value="O CDI é uma referência compartilhada para avaliar posições de renda fixa." style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=12;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
           <mxGeometry as="geometry" x="40" y="929" width="1400" height="20" />
         </mxCell>
-        <mxCell id="foot" value="Fonte: DADOS.pdf  /  Flyway V1 a V7" style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=10;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
+        <mxCell id="foot" value="Fonte: DADOS.pdf  /  Flyway V1 a V8" style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=10;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
           <mxGeometry as="geometry" x="25" y="976" width="900" height="20" />
         </mxCell>
       </root>
@@ -1047,7 +1047,10 @@
         <mxCell id="note2" value="As tabelas CDI são independentes. A aplicação usa a série histórica no cálculo, sem FK para posições." style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=12;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
           <mxGeometry as="geometry" x="40" y="929" width="1400" height="20" />
         </mxCell>
-        <mxCell id="foot" value="Fonte: DADOS.pdf  /  Flyway V1 a V7" style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=10;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
+        <mxCell id="note3" value="investment_type admite FIXED_INCOME ou VARIABLE_INCOME, com preenchimento obrigatório e sem valor padrão no banco." style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=12;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="40" y="949" width="1400" height="20" />
+        </mxCell>
+        <mxCell id="foot" value="Fonte: DADOS.pdf  /  Flyway V1 a V8" style="text;html=0;strokeColor=none;fillColor=none;verticalAlign=middle;align=left;spacing=0;fontSize=10;fontColor=#000000;fontStyle=0;" parent="1" vertex="1">
           <mxGeometry as="geometry" x="25" y="976" width="900" height="20" />
         </mxCell>
       </root>

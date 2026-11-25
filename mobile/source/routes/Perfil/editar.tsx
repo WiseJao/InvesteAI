@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { avisarSucesso } from '../../shared/avisoDeSucesso';
+import { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useConfirmarSaida } from '../../shared/useConfirmarSaida';
 import Layout from '../../shared/layout';
 import Field from '../../shared/field';
 import Estado from '../../shared/estado';
@@ -8,7 +10,7 @@ import BotaoPrimario from '../../shared/botaoPrimario';
 import { useCarregar } from '../../shared/useCarregar';
 import { decimalParaCampo, lerDecimal } from '../../shared/currency';
 import { atualizarUsuario, obterUsuario, type Usuario } from '../../services/usuario';
-import { mensagemDeErro } from '../../services/api';
+import { mensagemDeErroDeGravacao } from '../../services/api';
 import { usePrivacidade } from '../../shared/privacidade';
 import { colors } from '../../styles/colors';
 
@@ -18,21 +20,31 @@ function Form({ usuario }: { usuario: Usuario }) {
     const [nickname, setNickname] = useState(usuario.apelido ?? '');
     const [occupation, setOccupation] = useState(usuario.ocupacao ?? '');
     const [income, setIncome] = useState(usuario.rendaExata === null ? '' : decimalParaCampo(usuario.rendaExata));
+    const [concluido, setConcluido] = useState(false);
+    const ocupado = useRef(false);
+    const assinatura = JSON.stringify([name, nickname, occupation, income]);
+    const inicial = useRef(assinatura);
+    useConfirmarSaida(!concluido && assinatura !== inicial.current);
+    useEffect(() => { if (concluido) navigation.goBack(); }, [concluido, navigation]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     async function save() {
+        if (ocupado.current) return;
         const salary = income.trim() ? lerDecimal(income, 17, 2) : null;
         if (!name.trim()) return setError('Informe seu nome.');
         if (income.trim() && salary === null) return setError('Informe uma renda mensal válida.');
+        ocupado.current = true;
         setSaving(true);
         setError(null);
         try {
             await atualizarUsuario({ name: name.trim(), nickname: nickname.trim() || null, occupation: occupation.trim() || null, salary });
-            navigation.goBack();
+            avisarSucesso('Perfil atualizado.');
+            setConcluido(true);
         } catch (failure) {
-            setError(mensagemDeErro(failure));
+            setError(mensagemDeErroDeGravacao(failure));
         } finally {
+            ocupado.current = false;
             setSaving(false);
         }
     }

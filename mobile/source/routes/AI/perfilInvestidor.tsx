@@ -19,7 +19,7 @@ export default function PerfilInvestidor() {
     return (
         <Layout titulo="Perfil de investidor" voltar>
             <Estado carregando={carregando} erro={erro} temDados={perfil !== null} onTentarNovamente={recarregar}>
-                <Card rotulo="SEU PERFIL">
+                <Card rotulo="PERFIL DE REFERÊNCIA">
                     <Text style={styles.destaque}>{perfil?.perfil}</Text>
                     <Text style={styles.texto}>{oculto ? 'Detalhes ocultos' : perfil?.resumo}</Text>
                 </Card>
@@ -28,7 +28,7 @@ export default function PerfilInvestidor() {
                     <Text style={styles.valor}>{perfil?.tolerancia}</Text>
                 </Card>
 
-                <Card rotulo="OBJETIVOS INFORMADOS">
+                <Card rotulo="OBJETIVOS ASSOCIADOS AO PERFIL">
                     {(perfil?.objetivos ?? []).map((objetivo) => (
                         <Text key={objetivo} style={styles.texto}>
                             {'•'} {oculto ? 'Objetivo oculto' : objetivo}
@@ -36,7 +36,7 @@ export default function PerfilInvestidor() {
                     ))}
                 </Card>
 
-                <Card rotulo="ALOCAÇÃO SUGERIDA">
+                <Card rotulo="EXEMPLO DE ALOCAÇÃO">
                     {(perfil?.alocacao ?? []).map((item) => (
                         <View key={item.nome} style={styles.linha}>
                             <Text style={styles.texto}>{item.nome}</Text>
@@ -45,7 +45,8 @@ export default function PerfilInvestidor() {
                     ))}
                 </Card>
 
-                <Botao titulo="Ver recomendações" onPress={() => navigation.navigate('Recomendacoes')} />
+                <Botao titulo="Refazer avaliação" onPress={() => navigation.navigate('Questionario')} />
+                <Botao titulo="Ver exemplos educativos" onPress={() => navigation.navigate('Recomendacoes')} />
             </Estado>
         </Layout>
     );

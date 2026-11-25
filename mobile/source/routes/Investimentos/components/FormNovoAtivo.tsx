@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { avisarSucesso } from '../../../shared/avisoDeSucesso';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Opcoes from '../../../shared/opcoes';
 import Field from '../../../shared/field';
@@ -7,7 +8,7 @@ import BotaoPrimario from '../../../shared/botaoPrimario';
 import BotaoExcluir from '../../../shared/botaoExcluir';
 import { compararDecimais, decimalParaCampo, lerDecimal } from '../../../shared/currency';
 import { brParaIso, hojeIso, isoParaBr } from '../../../shared/datas';
-import { mensagemDeErro } from '../../../services/api';
+import { mensagemDeErro, mensagemDeErroDeGravacao } from '../../../services/api';
 import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, obterPrecoReferencia, type Ativo, type PrecoReferencia, type ProdutoRendaFixa, type ResultadoBusca } from '../../../services/carteira';
 import { colors } from '../../../styles/colors';
 import { usePrivacidade } from '../../../shared/privacidade';
@@ -15,11 +16,13 @@ import { usePrivacidade } from '../../../shared/privacidade';
 type FormNovoAtivoProps = {
     tipo: string;
     ativo?: Ativo;
+    ativoInicial?: ResultadoBusca;
+    onAlterado?: (alterado: boolean) => void;
     onCancelar: () => void;
     onSalvo: () => void;
 };
 
-export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: FormNovoAtivoProps) {
+export default function FormNovoAtivo({ tipo, ativo, ativoInicial, onAlterado, onCancelar, onSalvo }: FormNovoAtivoProps) {
     const { oculto } = usePrivacidade();
     const editando = Boolean(ativo);
     const investmentType = ativo?.investmentType ?? (tipo === 'Renda fixa' ? 'FIXED_INCOME' : 'VARIABLE_INCOME');
@@ -30,9 +33,9 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
     const [modality, setModality] = useState<'prefixada' | 'cdi'>(ativo ? ativo.fixedIncome?.cdiPercentage ? 'cdi' : 'prefixada' : 'cdi');
     const [cdi, setCdi] = useState(ativo?.fixedIncome?.cdiPercentage ? decimalParaCampo(ativo.fixedIncome.cdiPercentage) : '');
     const [maturity, setMaturity] = useState(ativo?.fixedIncome?.maturityDate ? isoParaBr(ativo.fixedIncome.maturityDate) : '');
-    const [simbolo, setSimbolo] = useState(ativo?.simbolo ?? '');
-    const [nome, setNome] = useState(ativo && (fixed || ativo.nome !== ativo.simbolo) ? ativo.nome : '');
-    const [selecionado, setSelecionado] = useState(Boolean(ativo));
+    const [simbolo, setSimbolo] = useState(ativo?.simbolo ?? ativoInicial?.simbolo ?? '');
+    const [nome, setNome] = useState(ativo && (fixed || ativo.nome !== ativo.simbolo) ? ativo.nome : ativoInicial?.nome ?? '');
+    const [selecionado, setSelecionado] = useState(Boolean(ativo || ativoInicial));
     const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
     const [buscando, setBuscando] = useState(false);
     const [erroBusca, setErroBusca] = useState<string | null>(null);
@@ -41,12 +44,16 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
     const [quantidade, setQuantidade] = useState(ativo ? decimalParaCampo(ativo.quantidadeExata) : fixed ? '1' : '');
     const [preco, setPreco] = useState(ativo ? decimalParaCampo(ativo.precoCompraExato) : '');
     const [data, setData] = useState(ativo ? (ativo.dataCompra ? isoParaBr(ativo.dataCompra) : '') : isoParaBr(hojeIso()));
-    const [precoManual, setPrecoManual] = useState(editando);
+    const [reconsulta, setReconsulta] = useState(0);
     const [referencia, setReferencia] = useState<PrecoReferencia | null>(null);
     const [consultandoPreco, setConsultandoPreco] = useState(false);
     const [erroReferencia, setErroReferencia] = useState(false);
     const [excluindo, setExcluindo] = useState(false);
     const [salvando, setSalvando] = useState(false);
+    const ocupado = useRef(false);
+    const assinatura = JSON.stringify([product, institution, modality, cdi, maturity, simbolo, nome, taxa, quantidade, preco, data]);
+    const inicial = useRef(assinatura);
+    useEffect(() => { onAlterado?.(assinatura !== inicial.current); }, [assinatura, onAlterado]);
     const [erro, setErro] = useState<string | null>(null);
 
     useEffect(() => {
@@ -74,8 +81,9 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
     const dataReferencia = brParaIso(data);
     useEffect(() => {
         setConsultandoPreco(false);
+        setReferencia(null);
         setErroReferencia(false);
-        if (editando || investmentType !== 'VARIABLE_INCOME' || !selecionado ||
+        if (investmentType !== 'VARIABLE_INCOME' || !selecionado ||
             !dataReferencia || dataReferencia > hojeIso()) return;
 
         let vigente = true;
@@ -90,13 +98,12 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
             });
         }, 350);
         return () => { vigente = false; clearTimeout(timer); };
-    }, [dataReferencia, editando, investmentType, selecionado, simbolo]);
-
-    const precoInformado = !precoManual && referencia ? decimalParaCampo(referencia.price) : preco;
+    }, [dataReferencia, investmentType, selecionado, simbolo, reconsulta]);
 
     async function salvar() {
+        if (ocupado.current) return;
         const quantidadeNumerica = lerDecimal(quantidade, 14, 10);
-        const precoNumerico = lerDecimal(precoInformado, 14, 10);
+        const precoNumerico = lerDecimal(preco, 14, 10);
         const dataIso = brParaIso(data);
         const taxaNumerica = lerDecimal(taxa, 4, 4);
 
@@ -122,6 +129,7 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
         if (!dataIso && (data.trim() || !ativo || investmentType === 'FIXED_INCOME')) return setErro('Informe uma data válida (DD/MM/AAAA).');
         if (investmentType === 'FIXED_INCOME' && dataIso && dataIso > hojeIso()) return setErro('A data de compra não pode estar no futuro.');
 
+        ocupado.current = true;
         setSalvando(true);
         setErro(null);
         try {
@@ -141,24 +149,29 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
                 annualRate: taxa === (ativo.annualRateExata == null ? '' : decimalParaCampo(ativo.annualRateExata)),
             });
             else await adicionarAtivo(dadosDoAtivo);
+            avisarSucesso('Posição salva.');
             onSalvo();
         } catch (falha) {
-            setErro(mensagemDeErro(falha));
+            setErro(mensagemDeErroDeGravacao(falha));
         } finally {
+            ocupado.current = false;
             setSalvando(false);
         }
     }
 
     async function excluir() {
-        if (!ativo) return;
+        if (!ativo || ocupado.current) return;
+        ocupado.current = true;
         setExcluindo(true);
         setErro(null);
         try {
             await excluirAtivo(ativo.id);
+            avisarSucesso('Posição excluída.');
             onSalvo();
         } catch (falha) {
-            setErro(mensagemDeErro(falha));
+            setErro(mensagemDeErroDeGravacao(falha));
         } finally {
+            ocupado.current = false;
             setExcluindo(false);
         }
     }
@@ -204,16 +217,17 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
                 impedirLimpeza={Boolean(ativo?.dataCompra) && investmentType !== 'FIXED_INCOME'}
             />
             {fixed && <CampoData label="Vencimento (opcional)" opcional value={maturity} onChange={setMaturity} />}
-            <Field financeiro label={fixed && !oldQuantity ? 'Valor aplicado (R$)' : 'Preço de compra (R$)'} keyboardType="decimal-pad" value={precoInformado}
-                onChangeText={(valor) => { setPrecoManual(true); setPreco(valor); }} />
-            {!precoManual && consultandoPreco ? <Text accessibilityLiveRegion="polite" style={styles.info}>Consultando fechamento na BRAPI…</Text> : null}
-            {!precoManual && referencia ? (
+            <Field financeiro label={fixed && !oldQuantity ? 'Valor aplicado (R$)' : 'Preço de compra (R$)'} keyboardType="decimal-pad" value={preco}
+                onChangeText={(valor) => { setPreco(valor); }} />
+            {consultandoPreco ? <Text accessibilityLiveRegion="polite" style={styles.info}>Consultando fechamento na BRAPI…</Text> : null}
+            {referencia ? (
                 <Text accessibilityLiveRegion="polite" style={styles.info}>
                     Fechamento de referência de {isoParaBr(referencia.tradingDate)} (BRAPI).
                     {referencia.raw ? '' : ' Pode incluir ajustes históricos.'} Você pode informar o valor pago.
                 </Text>
             ) : null}
-            {!precoManual && erroReferencia ? <Text accessibilityLiveRegion="polite" style={styles.info}>Preço de referência indisponível. Informe o valor pago.</Text> : null}
+            {referencia && <Pressable accessibilityRole="button" style={styles.acao} onPress={() => setPreco(decimalParaCampo(referencia.price))}><Text style={styles.info}>Usar fechamento de referência</Text></Pressable>}
+            {erroReferencia && <Pressable accessibilityRole="button" style={styles.acao} onPress={() => setReconsulta(v => v + 1)}><Text accessibilityLiveRegion="polite" style={styles.info}>Preço de referência indisponível. Tentar novamente</Text></Pressable>}
 
             {erro ? <Text style={styles.erro}>{oculto ? 'Confira os dados informados.' : erro}</Text> : null}
             <BotaoPrimario
@@ -223,7 +237,7 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
                 desabilitado={excluindo}
             />
             {editando ? (
-                <BotaoExcluir rotulo="Excluir investimento" onConfirmar={excluir} carregando={excluindo} />
+                <BotaoExcluir rotulo="Excluir investimento" detalhe={`Excluir a posição ${ativo?.nome ?? simbolo}? O vínculo com metas também será removido.`} onConfirmar={excluir} carregando={excluindo} />
             ) : null}
             <TouchableOpacity onPress={onCancelar} style={styles.cancelar}>
                 <Text style={styles.cancelarTexto}>Cancelar</Text>
@@ -244,6 +258,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginBottom: 8,
     },
+    acao: { minHeight: 48, justifyContent: 'center' },
     info: { color: colors.textMuted, marginBottom: 8 },
     resultado: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border },
     resultadoTexto: { color: colors.text },

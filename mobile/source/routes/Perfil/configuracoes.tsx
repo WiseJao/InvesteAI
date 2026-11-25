@@ -10,7 +10,7 @@ import { colors } from '../../styles/colors';
 
 export default function Configuracoes() {
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
-    const { preferences, savePreferences, ready, oculto } = usePrivacidade();
+    const { preferences, savePreferences, ready, oculto, reloadPreferences } = usePrivacidade();
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(false);
 
@@ -34,6 +34,7 @@ export default function Configuracoes() {
             <Switch accessibilityLabel="Ocultar valores ao abrir o app" disabled={!ready || saving}
                 value={preferences.hideOnStart} onValueChange={value => void change(value)} />
         </View>
+        {!ready && <BotaoPrimario titulo="Recarregar preferências" onPress={reloadPreferences} />}
         {(!ready || error) && <Text accessibilityLiveRegion="polite" style={{ color: colors.textMuted }}>
             {error ? 'Não foi possível salvar a preferência. Tente novamente.' : 'Preferências ainda indisponíveis.'}
         </Text>}

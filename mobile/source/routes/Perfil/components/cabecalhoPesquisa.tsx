@@ -25,6 +25,8 @@ export default function CabecalhoPesquisa({
                 <TouchableOpacity
                     style={styles.lateral}
                     onPress={onAlternar}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: aberto }}
                     accessibilityLabel={aberto ? 'Fechar pesquisa' : 'Abrir pesquisa'}
                 >
                     <Ionicons
@@ -38,6 +40,7 @@ export default function CabecalhoPesquisa({
             {aberto ? (
                 <TextInput
                     style={styles.campo}
+                    accessibilityLabel="Pesquisar"
                     placeholder="Pesquisa..."
                     placeholderTextColor={colors.textMuted}
                     value={termo}
@@ -59,7 +62,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     lateral: {
-        width: 32,
+        width: 48,
+        minHeight: 48,
+        justifyContent: 'center',
         alignItems: 'flex-end',
     },
     titulo: {

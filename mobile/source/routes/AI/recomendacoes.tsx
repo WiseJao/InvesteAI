@@ -3,36 +3,25 @@ import Layout from '../../shared/layout';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
-import { usePrivacidade } from '../../shared/privacidade';
-import { listarRecomendacoes, obterPerfilInvestidor } from '../../services/assessoria';
+import { listarRecomendacoes } from '../../services/assessoria';
 import { colors } from '../../styles/colors';
 
-async function carregar() {
-    const [perfil, itens] = await Promise.all([obterPerfilInvestidor(), listarRecomendacoes()]);
-    return { perfil, itens };
-}
+const explicacoes: Record<string, string> = {
+    'Renda Fixa': 'A forma de calcular a remuneração é definida na aplicação. Compare prazo, liquidez e risco do emissor.',
+    'Ações / ETF': 'Ações representam participação em empresas. ETFs são fundos negociados em bolsa, e alguns acompanham um índice.',
+    'Fundos Imobiliários': 'Fundos que investem em ativos do mercado imobiliário. O preço das cotas e os rendimentos podem variar.',
+};
 
 export default function Recomendacoes() {
-    const { oculto } = usePrivacidade();
-    const { dados, carregando, erro, recarregar } = useCarregar(carregar);
-
+    const { dados, carregando, erro, recarregar } = useCarregar(listarRecomendacoes);
     return (
-        <Layout
-            titulo="Recomendações"
-            subtitulo={dados ? `Baseado no seu perfil ${dados.perfil.perfil}` : undefined}
-            voltar
-        >
+        <Layout titulo="Exemplos educativos" subtitulo="Tipos de investimento para conhecer. O catálogo tem finalidade educacional." voltar>
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
-                {(dados?.itens ?? []).map((item) => (
-                    <Card key={item.simbolo}>
-                        <Text style={styles.titulo}>{item.titulo}</Text>
-                        <Text style={styles.descricao}>{oculto ? 'Detalhes ocultos' : item.descricao}</Text>
-                        <Text style={styles.detalhe}>
-                            {item.categoria} · Risco {item.risco.toLowerCase()}
-                        </Text>
-                        <Text style={styles.detalhe}>
-                            {oculto ? 'Valores ocultos' : `Retorno esperado: ${item.retornoEsperado} · Aporte mínimo: ${item.aporteMinimo}`}
-                        </Text>
+                {dados?.length === 0 && <Text style={styles.detalhe}>Nenhum exemplo disponível.</Text>}
+                {Array.from(new Set((dados ?? []).map(item => item.categoria))).map(categoria => (
+                    <Card key={categoria}>
+                        <Text accessibilityRole="header" style={styles.titulo}>{categoria}</Text>
+                        <Text style={styles.detalhe}>{explicacoes[categoria] ?? 'Confira as condições e os riscos da categoria.'}</Text>
                     </Card>
                 ))}
             </Estado>
@@ -41,20 +30,6 @@ export default function Recomendacoes() {
 }
 
 const styles = StyleSheet.create({
-    titulo: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    descricao: {
-        fontSize: 12,
-        color: colors.textMuted,
-        marginBottom: 6,
-    },
-    detalhe: {
-        fontSize: 11,
-        color: colors.textMuted,
-        marginTop: 2,
-    },
+    titulo: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 4 },
+    detalhe: { fontSize: 13, color: colors.textMuted },
 });

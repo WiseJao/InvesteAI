@@ -1,3 +1,4 @@
+import { avisarSucesso } from '../../shared/avisoDeSucesso';
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -38,17 +39,12 @@ function montarItens(usuario: Usuario | null): Item[] {
         { rotulo: `Email: ${usuario?.email ?? '—'}` },
         { rotulo: `CPF: ${usuario ? formatarCpf(usuario.cpf) : '—'}` },
         { rotulo: 'Editar perfil e renda mensal', rota: 'EditarPerfil' },
-        { rotulo: 'Central de segurança', rota: 'Seguranca' },
-        { rotulo: 'Central de configurações', rota: 'Configuracoes' },
+        { rotulo: 'Senha e segurança', rota: 'Seguranca' },
+        { rotulo: 'Privacidade e configurações', rota: 'Configuracoes' },
         { rotulo: 'FAQ', rota: 'FAQ' },
         { rotulo: `Renda mensal: ${usuario?.renda != null ? formatarReais(usuario.renda) : '—'}` },
         { rotulo: 'Sair da conta', sair: true },
     ];
-}
-
-async function carregarPerfil() {
-    const [usuario, carteira, objetivos] = await Promise.all([obterUsuario(), obterCarteira(), listarObjetivos()]);
-    return { usuario, totalInvestimentos: carteira.ativos.length, totalObjetivos: objetivos.length };
 }
 
 export default function Perfil() {
@@ -57,11 +53,14 @@ export default function Perfil() {
     const [termo, setTermo] = useState('');
     const [avatar, setAvatar] = useState<string | null>(null);
     const [fotoPendente, setFotoPendente] = useState<ImagePicker.ImagePickerAsset | null>(null);
+    const [fotoErro, setFotoErro] = useState<string | null>(null);
     const [enviando, setEnviando] = useState(false);
-    const { dados, erro, carregando, recarregar } = useCarregar(carregarPerfil);
+    const { dados, erro, carregando, recarregar } = useCarregar(obterUsuario);
+    const carteira = useCarregar(obterCarteira);
+    const objetivos = useCarregar(listarObjetivos);
     const [erroAvatar, setErroAvatar] = useState(false);
     const versao = useRef(0);
-    const usuario = dados?.usuario ?? null;
+    const usuario = dados;
 
     useFocusEffect(useCallback(() => {
         let ativo = true;
@@ -76,6 +75,7 @@ export default function Perfil() {
     }, []));
 
     async function enviarFoto(imagem: ImagePicker.ImagePickerAsset) {
+        setFotoErro(null);
         setEnviando(true);
         setFotoPendente(imagem);
         try {
@@ -85,6 +85,7 @@ export default function Perfil() {
             try {
                 const normalized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
                 await uploadAvatar(normalized.uri);
+                avisarSucesso('Foto atualizada.');
             } finally {
                 rendered.release();
                 context.release();
@@ -94,7 +95,7 @@ export default function Perfil() {
             setAvatar(await getAvatar());
             setErroAvatar(false);
         } catch (failure) {
-            Alert.alert('Foto indisponível', mensagemDeErro(failure));
+            setFotoErro(mensagemDeErro(failure));
         } finally {
             setEnviando(false);
         }
@@ -104,7 +105,7 @@ export default function Perfil() {
         if (enviando) return;
         try {
             if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
-                Alert.alert('Permissão necessária', 'Permita o acesso à câmera nas configurações do dispositivo.');
+                setFotoErro('A câmera está sem permissão. Escolha uma foto da galeria ou permita o acesso nas configurações do dispositivo.');
                 return;
             }
             const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1] };
@@ -120,6 +121,7 @@ export default function Perfil() {
         setEnviando(true);
         try {
             await deleteAvatar();
+            avisarSucesso('Foto removida.');
             ++versao.current;
             setAvatar(null);
             setErroAvatar(false);
@@ -162,20 +164,22 @@ export default function Perfil() {
                             <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setAvatar(null)} />
                         ) : <Ionicons name="person" size={56} color={colors.primary} />}
                     </TouchableOpacity>
-                    <Text style={styles.alterarFoto}>Escolher foto</Text>
-                    {Platform.OS !== 'web' && <TouchableOpacity accessibilityRole="button" disabled={enviando} onPress={() => void alterarFoto(true)}><Text style={styles.alterarFoto}>Tirar foto</Text></TouchableOpacity>}
+                    <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} disabled={enviando} onPress={() => void alterarFoto()}><Text style={styles.alterarFoto}>Escolher da galeria</Text></TouchableOpacity>
+                    {enviando && <Text accessibilityLiveRegion="polite" style={styles.alterarFoto}>Atualizando foto…</Text>}
+                    {fotoErro && <Text accessibilityLiveRegion="polite" style={styles.alterarFoto}>{fotoErro}</Text>}
+                    {Platform.OS !== 'web' && <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} disabled={enviando} onPress={() => void alterarFoto(true)}><Text style={styles.alterarFoto}>Tirar foto</Text></TouchableOpacity>}
                     {fotoPendente && !enviando && <TouchableOpacity accessibilityRole="button" onPress={() => void enviarFoto(fotoPendente)}><Text style={styles.alterarFoto}>Tentar envio novamente</Text></TouchableOpacity>}
                     {avatar && !enviando ? <BotaoExcluir rotulo="Remover foto" onConfirmar={removerFoto} /> : null}
                     <Text style={styles.nome}>{usuario?.nome ?? '—'}</Text>
                     {erroAvatar ? <Text style={styles.alterarFoto}>Foto indisponível.</Text> : null}
                     <View style={styles.contadores}>
                         <View style={styles.contador}>
-                            <Text style={styles.contadorValor}>{dados?.totalInvestimentos ?? '—'}</Text>
+                            <Text style={styles.contadorValor}>{carteira.dados?.ativos.length ?? '—'}</Text>
                             <Text style={styles.contadorRotulo}>investimentos</Text>
                         </View>
                         <View style={styles.divisor} />
                         <View style={styles.contador}>
-                            <Text style={styles.contadorValor}>{dados?.totalObjetivos ?? '—'}</Text>
+                            <Text style={styles.contadorValor}>{objetivos.dados?.length ?? '—'}</Text>
                             <Text style={styles.contadorRotulo}>objetivos</Text>
                         </View>
                     </View>

@@ -1,8 +1,8 @@
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaConta } from '../../styles/coresDaConta';
 import ImagemAtivo from './components/ImagemAtivo';
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import { useRoute } from '@react-navigation/native';
 import {
     ActivityIndicator,
     Modal,
@@ -15,14 +15,18 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CardAtivo from './components/CardAtivo';
-import Botao from './components/Botao';
+import { confirmarDescarte } from '../../shared/useConfirmarSaida';
+import Field from '../../shared/field';
+import Opcoes from '../../shared/opcoes';
+import BotaoPrimario from '../../shared/botaoPrimario';
+import { mensagemDeErro } from '../../services/api';
 import FormNovoAtivo from './components/FormNovoAtivo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../../shared/header';
 import { formatarReais } from '../../shared/currency';
 import { usePrivacidade } from '../../shared/privacidade';
 import { useCarregar } from '../../shared/useCarregar';
-import { obterCarteira, type Ativo, type TipoInvestimento } from '../../services/carteira';
+import { buscarAtivos, obterCarteira, type Ativo, type ResultadoBusca, type TipoInvestimento } from '../../services/carteira';
 import { colors } from '../../styles/colors';
 
 type Cotacao = {
@@ -79,21 +83,45 @@ export default function Investimentos() {
     const [tipoEscolhido, setTipoEscolhido] = useState<(typeof OPCOES_INVESTIMENTO)[number] | null>(null);
     const [ativoEditando, setAtivoEditando] = useState<Ativo | null>(null);
     const [filtro, setFiltro] = useState<TipoInvestimento | 'TODOS'>('TODOS');
-    const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
-    const carteiraY = useRef(0);
-    const navigation = useNavigation();
-    const route = useRoute<{ key: string; name: string; params?: { adicionar?: number } }>();
+    const [area, setArea] = useState<'carteira' | 'mercado'>('carteira');
+    const [buscaCarteira, setBuscaCarteira] = useState('');
+    const [buscaMercado, setBuscaMercado] = useState('');
+    const [achadosMercado, setAchadosMercado] = useState<ResultadoBusca[]>([]);
+    const [buscandoMercado, setBuscandoMercado] = useState(false);
+    const [erroMercado, setErroMercado] = useState<string | null>(null);
+    const [tentativaMercado, setTentativaMercado] = useState(0);
+    const [ativoInicial, setAtivoInicial] = useState<ResultadoBusca | undefined>();
+    const [formAlterado, setFormAlterado] = useState(false);
+    const route = useRoute<{ key: string; name: string; params?: { adicionar?: number; abrirCarteira?: number } }>();
     const { dados: carteira, carregando: carregandoCarteira, erro: erroCarteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
-    const ativosFiltrados = (carteira?.ativos ?? []).filter((ativo) => filtro === 'TODOS' || ativo.investmentType === filtro);
+    const ativosFiltrados = (carteira?.ativos ?? []).filter(ativo => (filtro === 'TODOS' || ativo.investmentType === filtro) && (ativo.nome + ' ' + ativo.simbolo).toLowerCase().includes(buscaCarteira.trim().toLowerCase()));
 
     const avaliacaoAproximada = carteira?.ativos.some((ativo) => ativo.priceStatus !== 'MARKET');
 
-    function mostrarCarteira(tipo: TipoInvestimento | 'TODOS') {
-        setFiltro(tipo);
-        rolagem.current?.scrollTo({ y: carteiraY.current, animated: true });
+    useEffect(() => {
+        const termo = buscaMercado.trim();
+        setAchadosMercado([]);
+        setErroMercado(null);
+        setBuscandoMercado(termo.length >= 2);
+        if (termo.length < 2) return;
+        let vigente = true;
+        const timer = setTimeout(() => {
+            void buscarAtivos(termo).then(itens => { if (vigente) setAchadosMercado(itens); })
+                .catch(falha => { if (vigente) setErroMercado(mensagemDeErro(falha)); })
+                .finally(() => { if (vigente) setBuscandoMercado(false); });
+        }, 350);
+        return () => { vigente = false; clearTimeout(timer); };
+    }, [buscaMercado, tentativaMercado]);
+
+    function adicionarSelecionado(ativo: ResultadoBusca) {
+        setAtivoInicial(ativo);
+        setTipoEscolhido('Renda variável');
+        setModalAdicionarVisivel(true);
     }
 
     // Atalho "Adicionar Investimento" da Home abre direto o cadastro.
+    const pedidoCarteira = route.params?.abrirCarteira;
+    useEffect(() => { if (pedidoCarteira) setArea('carteira'); }, [pedidoCarteira]);
     const pedidoDeAdicionar = route.params?.adicionar;
     useEffect(() => {
         if (pedidoDeAdicionar) setModalAdicionarVisivel(true);
@@ -103,6 +131,13 @@ export default function Investimentos() {
         setModalAdicionarVisivel(false);
         setTipoEscolhido(null);
         setAtivoEditando(null);
+        setAtivoInicial(undefined);
+        setFormAlterado(false);
+    }
+
+    function solicitarFechamento() {
+        if (formAlterado) confirmarDescarte(fecharModal);
+        else fecharModal();
     }
 
     const carregarCotacoes = useCallback(async () => {
@@ -164,20 +199,23 @@ export default function Investimentos() {
             <Header />
 
             <ScrollView
-                ref={rolagem}
                 style={{ flex: 1 }}
                 refreshControl={
                     <RefreshControl
-                        refreshing={carregando}
+                        refreshing={area === 'mercado' ? carregando : carregandoCarteira}
                         onRefresh={() => {
-                            void carregarCotacoes();
-                            recarregarCarteira();
+                            if (area === 'mercado') void carregarCotacoes();
+                            else void recarregarCarteira();
                         }}
                         tintColor={colors.primary}
                     />
                 }
             >
                 <View style={styles.container}>
+                    <View style={styles.container_elementos}>
+                        <Opcoes rotulo="Investimentos" opcoes={[{ valor: 'carteira', texto: 'Minha carteira' }, { valor: 'mercado', texto: 'Mercado' }]} selecionado={area} onSelecionar={setArea} />
+                    </View>
+                    {area === 'carteira' && <>
                     <View style={styles.container_elementos}>
                         <Text style={styles.subtitle}>{avaliacaoAproximada ? 'Valor de referência da carteira' : 'Valor de mercado da carteira'}</Text>
                         <Text style={styles.title}>{oculto ? 'Valores ocultos' : carteira ? formatarReais(carteira.valorAtual) : 'Indisponível'}</Text>
@@ -188,8 +226,11 @@ export default function Investimentos() {
                         ) : null}
                     </View>
 
-                    <View style={[styles.container_elementos, styles.bloco]} onLayout={(evento) => { carteiraY.current = evento.nativeEvent.layout.y; }}>
-                        <Text style={styles.title}>Minha carteira {filtro === 'FIXED_INCOME' ? '— Renda fixa' : filtro === 'VARIABLE_INCOME' ? '— Renda variável' : '— Todos (inclui legados)'}</Text>
+                    <View style={[styles.container_elementos, styles.bloco]}>
+                        <Field label="Buscar na carteira" value={buscaCarteira} onChangeText={setBuscaCarteira} returnKeyType="search" />
+                        <Opcoes rotulo="Tipo de posição" opcoes={[{ valor: 'TODOS', texto: 'Todos' }, { valor: 'FIXED_INCOME', texto: 'Renda fixa' }, { valor: 'VARIABLE_INCOME', texto: 'Renda variável' }, { valor: 'LEGACY', texto: 'Legado' }]} selecionado={filtro} onSelecionar={setFiltro} />
+                        {(filtro !== 'TODOS' || buscaCarteira) && <Pressable accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => { setFiltro('TODOS'); setBuscaCarteira(''); }}><Text style={styles.tentarNovamente}>Limpar filtros</Text></Pressable>}
+                        <BotaoPrimario titulo="Adicionar investimento" onPress={() => setModalAdicionarVisivel(true)} />
                         {carregandoCarteira && !carteira ? <ActivityIndicator color={colors.primary} /> : null}
                         {erroCarteira ? <Pressable accessibilityRole="button" onPress={recarregarCarteira}><Text style={styles.erro}>{erroCarteira} Toque para tentar novamente.</Text></Pressable> : null}
                         {carteira && ativosFiltrados.length === 0 ? (
@@ -229,37 +270,17 @@ export default function Investimentos() {
                             </Pressable>
                         ))}
                     </View>
-
-
-                    <View style={styles.acoes}>
-                        <Botao
-                            titulo={'Adicionar\nInvestimentos'}
-                            onPress={() => setModalAdicionarVisivel(true)}
-                            icone="add" />
-                        <Botao
-                            titulo={'Renda\nvariável'}
-                            onPress={() => mostrarCarteira('VARIABLE_INCOME')}
-                            icone="trending-up" />
-                        <Botao
-                            titulo={'Renda\nfixa'}
-                            onPress={() => mostrarCarteira('FIXED_INCOME')}
-                            icone="home" />
-                        <Botao
-                            titulo={'Assessoria'}
-                            onPress={() => navigation.getParent()?.navigate('AI' as never)}
-                            icone="chatbubbles" />
-                        <Botao
-                            titulo={'Meus\ninvestimentos'}
-                            onPress={() => mostrarCarteira('TODOS')}
-                            icone="wallet" />
-                    </View>
-
-                    <View style={styles.container_elementos}>
-                        <Text style={styles.title}>Renda Variável</Text>
-                        {carregando && ativos.length === 0 ? (
+                    </>}
+                    {area === 'mercado' && <View style={styles.container_elementos}>
+                        <Text accessibilityRole="header" style={styles.title}>Mercado</Text>
+                        <Field label="Buscar ativo por nome ou ticker" value={buscaMercado} onChangeText={setBuscaMercado} returnKeyType="search" />
+                        {buscandoMercado && <ActivityIndicator color={colors.primary} accessibilityLabel="Buscando ativos" />}
+                        {erroMercado && <Pressable accessibilityRole="button" onPress={() => setTentativaMercado(v => v + 1)} style={{ minHeight: 48 }}><Text style={styles.erro}>{erroMercado} Tentar novamente</Text></Pressable>}
+                        {buscaMercado.trim().length >= 2 && !buscandoMercado && !erroMercado && !achadosMercado.length && <Text style={styles.mensagemVazia}>Nenhum ativo encontrado.</Text>}
+                        {buscaMercado.trim().length < 2 && carregando && ativos.length === 0 ? (
                             <ActivityIndicator color={colors.primary} style={styles.estado} />
                         ) : null}
-                        {erro ? (
+                        {buscaMercado.trim().length < 2 && erro ? (
                             <View style={styles.estado}>
                                 <Text style={styles.erro}>{erro}</Text>
                                 <Pressable
@@ -270,13 +291,13 @@ export default function Investimentos() {
                                 </Pressable>
                             </View>
                         ) : null}
-                        {!carregando && !erro && indisponiveis.length > 0 ? (
+                        {buscaMercado.trim().length < 2 && !carregando && !erro && indisponiveis.length > 0 ? (
                             <Text style={styles.mensagemVazia}>Cotações indisponíveis para {indisponiveis.join(', ')}.</Text>
                         ) : null}
-                        {!carregando && !erro && ativos.length === 0 && indisponiveis.length === 0 ? (
+                        {buscaMercado.trim().length < 2 && !carregando && !erro && ativos.length === 0 && indisponiveis.length === 0 ? (
                             <Text style={styles.mensagemVazia}>Nenhuma cotação encontrada.</Text>
                         ) : null}
-                        {ativos.map((ativo) => (
+                        {(buscaMercado.trim().length < 2 ? ativos : achadosMercado.map(item => ativos.find(quote => quote.symbol === item.simbolo) ?? { symbol: item.simbolo, shortName: item.nome } as Cotacao)).map((ativo) => (
                             <CardAtivo
                                 key={ativo.symbol}
                                 ticker={ativo.symbol}
@@ -284,9 +305,11 @@ export default function Investimentos() {
                                 preco={formatarPreco(ativo.regularMarketPrice)}
                                 variacao={formatarVariacao(ativo.regularMarketChangePercent)}
                                 logo={ativo.logoUrl ?? ativo.logourl ?? ''}
+                                dataCotacao={ativo.regularMarketTime ? formatarDataCotacao(ativo.regularMarketTime) : undefined}
+                                onAdicionar={() => adicionarSelecionado({ simbolo: ativo.symbol, nome: ativo.shortName ?? ativo.symbol })}
                             />
                         ))}
-                    </View>
+                    </View>}
                 </View>
 
             </ScrollView>
@@ -295,14 +318,14 @@ export default function Investimentos() {
                 animationType="fade"
                 transparent
                 visible={modalAdicionarVisivel || ativoEditando !== null}
-                onRequestClose={fecharModal}
+                onRequestClose={solicitarFechamento}
             >
                 <View style={styles.modalContainer}>
                     <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Fechar opções de investimento"
                         style={styles.modalBackdrop}
-                        onPress={fecharModal}
+                        onPress={solicitarFechamento}
                     />
                     <ScrollView
                         accessibilityViewIsModal
@@ -314,18 +337,23 @@ export default function Investimentos() {
                                 key={ativoEditando.id}
                                 tipo="Editar investimento"
                                 ativo={ativoEditando}
-                                onCancelar={fecharModal}
+                                onCancelar={solicitarFechamento}
+                                onAlterado={setFormAlterado}
                                 onSalvo={() => {
                                     fecharModal();
+                                    setArea('carteira');
                                     recarregarCarteira();
                                 }}
                             />
                         ) : tipoEscolhido ? (
                             <FormNovoAtivo
                                 tipo={tipoEscolhido}
-                                onCancelar={fecharModal}
+                                ativoInicial={ativoInicial}
+                                onCancelar={solicitarFechamento}
+                                onAlterado={setFormAlterado}
                                 onSalvo={() => {
                                     fecharModal();
+                                    setArea('carteira');
                                     recarregarCarteira();
                                 }}
                             />
@@ -401,11 +429,6 @@ const styles = StyleSheet.create({
         maxWidth: '42%',
         alignItems: 'flex-end',
         gap: 2,
-    },
-    acoes: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        padding: 15,
     },
     estado: {
         alignItems: 'center',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -48,13 +48,17 @@ export default function Questionario() {
     const navigation = useNavigation<NativeStackNavigationProp<AIStackParamList>>();
     const [objetivo, setObjetivo] = useState<string>(objetivos[1].valor);
     const [oscilacao, setOscilacao] = useState<string>(oscilacoes[1].valor);
-    const [reacao, setReacao] = useState<string>(reacoes[1].valor);
-    const [experiencia, setExperiencia] = useState<string>(experiencias[0].valor);
+    const [reacao, setReacao] = useState<string>('');
+    const [experiencia, setExperiencia] = useState<string>('');
+    const ocupado = useRef(false);
     const [horizonte, setHorizonte] = useState<string>(horizontes[1].valor);
     const [enviando, setEnviando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
 
     async function enviar() {
+        if (ocupado.current) return;
+        if (!reacao || !experiencia) return setErro('Selecione sua experiência e como reage a uma queda.');
+        ocupado.current = true;
         setEnviando(true);
         setErro(null);
         try {
@@ -68,21 +72,22 @@ export default function Questionario() {
         } catch (falha) {
             setErro(mensagemDeErro(falha));
         } finally {
+            ocupado.current = false;
             setEnviando(false);
         }
     }
 
     return (
-        <Layout titulo="Análise de perfil" subtitulo="Responda 5 perguntas rápidas" voltar>
+        <Layout titulo="Análise de perfil" subtitulo="A classificação atual considera experiência e reação a quedas." voltar>
             <Card>
-                <Opcoes rotulo="1. Qual é o seu principal objetivo?" opcoes={objetivos} selecionado={objetivo} onSelecionar={setObjetivo} />
-                <Opcoes rotulo="2. Quanto você aceita ver seu dinheiro oscilar?" opcoes={oscilacoes} selecionado={oscilacao} onSelecionar={setOscilacao} />
+                <Opcoes rotulo="1. Qual é o seu principal objetivo? (contexto)" opcoes={objetivos} selecionado={objetivo} onSelecionar={setObjetivo} />
+                <Opcoes rotulo="2. Quanto você aceita ver seu dinheiro oscilar? (contexto)" opcoes={oscilacoes} selecionado={oscilacao} onSelecionar={setOscilacao} />
                 <Opcoes rotulo="3. Se o mercado cair forte, o que você faz?" opcoes={reacoes} selecionado={reacao} onSelecionar={setReacao} />
                 <Opcoes rotulo="4. Há quanto tempo você investe?" opcoes={experiencias} selecionado={experiencia} onSelecionar={setExperiencia} />
-                <Opcoes rotulo="5. Por quanto tempo pretende manter o investimento?" opcoes={horizontes} selecionado={horizonte} onSelecionar={setHorizonte} />
+                <Opcoes rotulo="5. Por quanto tempo pretende manter o investimento? (contexto)" opcoes={horizontes} selecionado={horizonte} onSelecionar={setHorizonte} />
             </Card>
 
-            {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+            {erro ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erro}</Text> : null}
             <BotaoPrimario titulo="Ver meu perfil" onPress={enviar} carregando={enviando} />
         </Layout>
     );

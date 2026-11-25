@@ -15,7 +15,7 @@ export default function AI() {
     const { dados: perfil, carregando, erro, recarregar } = useCarregar(obterPerfilInvestidor);
 
     return (
-        <Layout titulo="Acessoria">
+        <Layout titulo="Assessoria">
             <Card rotulo="ANÁLISE DE PERFIL">
                 <Text style={styles.texto}>
                     Responda um questionário rápido e descubra qual perfil de investidor combina com
@@ -25,19 +25,13 @@ export default function AI() {
             </Card>
 
             <Estado carregando={carregando} erro={erro} temDados={perfil !== null} onTentarNovamente={recarregar}>
-                <Card rotulo="SEU PERFIL ATUAL" onPress={() => navigation.navigate('PerfilInvestidor')}>
+                <Card rotulo="PERFIL DE REFERÊNCIA" onPress={() => navigation.navigate('PerfilInvestidor')}>
                     <Text style={styles.destaque}>{perfil?.perfil}</Text>
                     <Text style={styles.apoio}>Toque para ver detalhes do seu perfil</Text>
                 </Card>
             </Estado>
 
-            <Card rotulo="CHATBOT">
-                <Text style={styles.texto}>Converse com a IA sobre suas dúvidas de investimento.</Text>
-                <Text style={styles.exemplo}>
-                    “Qual o melhor investimento para reserva de emergência?”
-                </Text>
-                <Text style={styles.emBreve}>Em breve</Text>
-            </Card>
+            <Botao titulo="Ver exemplos educativos" onPress={() => navigation.navigate('Recomendacoes')} />
         </Layout>
     );
 }
@@ -56,17 +50,5 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.textMuted,
         marginTop: 4,
-    },
-    emBreve: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: colors.primary,
-        marginTop: 12,
-    },
-    exemplo: {
-        fontSize: 11,
-        fontStyle: 'italic',
-        color: colors.textMuted,
-        marginTop: 8,
     },
 });

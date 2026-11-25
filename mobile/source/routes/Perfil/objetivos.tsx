@@ -1,12 +1,14 @@
+import { avisarSucesso } from '../../shared/avisoDeSucesso';
 import MarcadorCor from '../../shared/marcadorCor';
 import { corDaConta } from '../../styles/coresDaConta';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { obterCarteira } from '../../services/carteira';
 import { Ionicons } from '@expo/vector-icons';
+import { confirmarDescarte, useConfirmarSaida } from '../../shared/useConfirmarSaida';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import Field from '../../shared/field';
@@ -18,7 +20,7 @@ import { decimalParaCampo, formatarReais, lerDecimal } from '../../shared/curren
 import { usePrivacidade } from '../../shared/privacidade';
 import { brParaIso, isoParaBr } from '../../shared/datas';
 import { useCarregar } from '../../shared/useCarregar';
-import { mensagemDeErro } from '../../services/api';
+import { mensagemDeErroDeGravacao } from '../../services/api';
 import {
     atualizarObjetivo,
     criarObjetivo,
@@ -42,7 +44,7 @@ function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (o
             style={styles.item}
             onPress={() => onEditar(objetivo)}
             accessibilityRole="button"
-            accessibilityLabel={`Editar objetivo ${objetivo.titulo}`}
+            accessibilityLabel={`${objetivo.valuationStatus === 'UNLINKED' ? 'Vincular posições a' : 'Editar objetivo'} ${objetivo.titulo}`}
         >
             <Text style={styles.texto}>{objetivo.titulo}</Text>
             {!oculto && <View style={styles.trilho}>
@@ -59,6 +61,8 @@ function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (o
 
 export default function Objetivos() {
     const navigation = useNavigation();
+    const scroll = useRef<import('react').ComponentRef<typeof ScrollView>>(null);
+    const moverAteFormulario = useRef(false);
     const { dados, carregando, erro, recarregar } = useCarregar(listarObjetivos);
     const [criando, setCriando] = useState(false);
     const [editando, setEditando] = useState<Objetivo | null>(null);
@@ -74,6 +78,15 @@ export default function Objetivos() {
     const { oculto } = usePrivacidade();
     const [prazo, setPrazo] = useState('');
     const [salvando, setSalvando] = useState(false);
+    const [buscaPosicao, setBuscaPosicao] = useState('');
+    const ocupado = useRef(false);
+    const dadosAtuais = JSON.stringify([titulo, tipo, alvo, atual, mode, selected, prazo]);
+    const inicial = useRef(dadosAtuais);
+    const inicializar = useRef(false);
+    useEffect(() => { if (inicializar.current) { inicial.current = dadosAtuais; inicializar.current = false; } }, [dadosAtuais]);
+    const alterado = criando && !inicializar.current && dadosAtuais !== inicial.current;
+    useConfirmarSaida(alterado);
+    const posicoesVisiveis = (holdings.dados ?? []).filter(item => (item.nome + ' ' + item.simbolo).toLowerCase().includes(buscaPosicao.trim().toLowerCase()));
     const [erroForm, setErroForm] = useState<string | null>(null);
 
     const objetivos = dados ?? [];
@@ -88,6 +101,7 @@ export default function Objetivos() {
         : [...tiposDeObjetivo, { valor: tipo, texto: tipo || 'Sem categoria' }];
 
     function limparFormulario() {
+        setBuscaPosicao('');
         setTitulo('');
         setTipo('Investimentos');
         setAlvo('');
@@ -100,7 +114,15 @@ export default function Objetivos() {
         setCriando(false);
     }
 
+    function abrirEdicao(objetivo: Objetivo) {
+        if (alterado) confirmarDescarte(() => editar(objetivo));
+        else editar(objetivo);
+    }
+
     function editar(objetivo: Objetivo) {
+        moverAteFormulario.current = true;
+        inicializar.current = true;
+        setBuscaPosicao('');
         setEditando(objetivo);
         setTitulo(objetivo.titulo);
         setTipo(objetivo.categoria);
@@ -114,21 +136,25 @@ export default function Objetivos() {
     }
 
     async function excluir() {
-        if (!editando) return;
+        if (!editando || ocupado.current) return;
+        ocupado.current = true;
         setExcluindo(true);
         setErroForm(null);
         try {
             await excluirObjetivo(editando.id);
+            avisarSucesso('Meta excluída.');
             limparFormulario();
             await recarregar();
         } catch (falha) {
-            setErroForm(mensagemDeErro(falha));
+            setErroForm(mensagemDeErroDeGravacao(falha));
         } finally {
+            ocupado.current = false;
             setExcluindo(false);
         }
     }
 
     async function salvar() {
+        if (ocupado.current) return;
         const valorAlvo = lerDecimal(alvo, 17, 2);
         const progressMode = linking ? 'PORTFOLIO' as const : 'MANUAL' as const;
         if (linking && !selected.length && editando?.valuationStatus !== 'UNLINKED') return setErroForm('Selecione pelo menos uma posição.');
@@ -141,6 +167,7 @@ export default function Objetivos() {
         if (valorAtual === null) return setErroForm('Informe um valor atual não negativo com até 17 dígitos inteiros e 2 casas decimais.');
         if (prazo.trim() && !prazoIso) return setErroForm('Informe um prazo válido (DD/MM/AAAA).');
 
+        ocupado.current = true;
         setSalvando(true);
         setErroForm(null);
         try {
@@ -158,11 +185,13 @@ export default function Objetivos() {
                 atual: editando.progressMode === 'MANUAL' && atual === decimalParaCampo(editando.valorAtualExato),
             });
             else await criarObjetivo(dadosDoObjetivo);
+            avisarSucesso('Meta salva.');
             limparFormulario();
             await recarregar();
         } catch (falha) {
-            setErroForm(mensagemDeErro(falha));
+            setErroForm(mensagemDeErroDeGravacao(falha));
         } finally {
+            ocupado.current = false;
             setSalvando(false);
         }
     }
@@ -172,7 +201,7 @@ export default function Objetivos() {
         return (
             <Card rotulo={rotulo}>
                 {itens.map((objetivo) => (
-                    <ItemObjetivo key={objetivo.id} objetivo={objetivo} onEditar={editar} />
+                    <ItemObjetivo key={objetivo.id} objetivo={objetivo} onEditar={abrirEdicao} />
                 ))}
             </Card>
         );
@@ -193,7 +222,8 @@ export default function Objetivos() {
                 <View style={styles.espacoTopo} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scroll} contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
+                {!criando && <BotaoPrimario titulo="Nova meta" onPress={() => { inicial.current = dadosAtuais; moverAteFormulario.current = true; setCriando(true); }} />}
                 <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                     {objetivos.length === 0 ? (
                         <Card>
@@ -206,15 +236,24 @@ export default function Objetivos() {
                 </Estado>
 
                 {criando ? (
+                    <View onLayout={() => {
+                        if (moverAteFormulario.current) {
+                            moverAteFormulario.current = false;
+                            scroll.current?.scrollToEnd({ animated: true });
+                        }
+                    }}>
                     <Card rotulo={editando ? 'EDITAR OBJETIVO' : 'NOVO OBJETIVO'}>
                         <Opcoes rotulo="Tipo" opcoes={opcoesDeTipo} selecionado={tipo} onSelecionar={setTipo} />
                         <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
                         <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
                         {tipo === 'Investimentos' && <Opcoes rotulo="Progresso" opcoes={[{ valor: 'MANUAL', texto: 'Manual' }, { valor: 'PORTFOLIO', texto: 'Vincular posições' }]} selecionado={mode} onSelecionar={setMode} />}
+                        {tipo === 'Investimentos' && <Text style={styles.apoio}>{linking ? 'O progresso acompanha o valor das posições selecionadas.' : 'No modo manual, atualize o valor acumulado quando quiser.'}</Text>}
                         {!linking ? <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} /> :
                             <Estado carregando={holdings.carregando} erro={holdings.erro} temDados={Boolean(holdings.dados?.length)}
                                 onTentarNovamente={holdings.recarregar}>
-                                {holdings.dados?.length ? holdings.dados.map(holding => {
+                                <Field label="Buscar posições" value={buscaPosicao} onChangeText={setBuscaPosicao} />
+                                <Text accessibilityLiveRegion="polite" style={styles.apoio}>{selected.length} posições selecionadas</Text>
+                                {posicoesVisiveis.length ? posicoesVisiveis.map(holding => {
                                     const checked = selected.includes(holding.id);
                                     return <TouchableOpacity key={holding.id} accessibilityRole="checkbox" accessibilityState={{ checked }}
                                         style={styles.posicao} onPress={() => setSelected(ids => checked ? ids.filter(id => id !== holding.id) : [...ids, holding.id])}>
@@ -222,7 +261,7 @@ export default function Objetivos() {
                                         <MarcadorCor cor={corDaConta(holding.id)} />
                                         <Text style={styles.texto}>{holding.nome}{oculto ? '' : ' · ' + formatarReais(holding.valorAtual)}</Text>
                                     </TouchableOpacity>;
-                                }) : <Text style={styles.apoio}>Adicione uma posição na carteira para vinculá-la.</Text>}
+                                }) : <Text style={styles.apoio}>{holdings.dados?.length ? 'Nenhuma posição encontrada.' : 'Adicione uma posição na carteira para vinculá-la.'}</Text>}
                             </Estado>}
                         <CampoData
                             label="Prazo (opcional)"
@@ -230,7 +269,7 @@ export default function Objetivos() {
                             onChange={setPrazo}
                             opcional
                         />
-                        {erroForm ? <Text style={styles.erro}>{erroForm}</Text> : null}
+                        {erroForm ? <Text accessibilityLiveRegion="polite" style={styles.erro}>{erroForm}</Text> : null}
                         <BotaoPrimario
                             titulo={editando ? 'Salvar alterações' : 'Salvar objetivo'}
                             onPress={salvar}
@@ -238,15 +277,14 @@ export default function Objetivos() {
                             desabilitado={excluindo}
                         />
                         {editando ? (
-                            <BotaoExcluir rotulo="Excluir objetivo" onConfirmar={excluir} carregando={excluindo} />
+                            <BotaoExcluir rotulo="Excluir objetivo" detalhe={`Excluir a meta ${editando.titulo}? As posições da carteira permanecem.`} onConfirmar={excluir} carregando={excluindo} />
                         ) : null}
-                        <TouchableOpacity style={styles.cancelar} onPress={limparFormulario}>
+                        <TouchableOpacity style={styles.cancelar} accessibilityRole="button" onPress={() => alterado ? confirmarDescarte(limparFormulario) : limparFormulario()}>
                             <Text style={styles.apoio}>Cancelar</Text>
                         </TouchableOpacity>
                     </Card>
-                ) : (
-                    <BotaoPrimario titulo="Novo objetivo" onPress={() => setCriando(true)} />
-                )}
+                    </View>
+                ) : null}
             </ScrollView>
         </SafeAreaView>
     );
@@ -292,7 +330,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginTop: 8,
     },
-    posicao: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+    posicao: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
     preenchimento: {
         height: 6,
         borderRadius: 3,

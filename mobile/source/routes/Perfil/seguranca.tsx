@@ -1,81 +1,60 @@
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, Text } from 'react-native';
 import Layout from '../../shared/layout';
-import { mensagemDeErro } from '../../services/api';
+import Field from '../../shared/field';
+import BotaoPrimario from '../../shared/botaoPrimario';
+import { avisarSucesso } from '../../shared/avisoDeSucesso';
+import { useConfirmarSaida } from '../../shared/useConfirmarSaida';
+import { ApiError, mensagemDeErroDeGravacao } from '../../services/api';
 import { alterarSenha } from '../../services/senha';
-import { colors } from '../../styles/colors';
-import ListaPesquisavel from './components/listaPesquisavel';
+import { colors, ui } from '../../styles/colors';
 
 export default function Seguranca() {
-    const [editando, setEditando] = useState(false);
     const [atual, setAtual] = useState('');
     const [nova, setNova] = useState('');
     const [confirmacao, setConfirmacao] = useState('');
+    const [mostrar, setMostrar] = useState(false);
     const [salvando, setSalvando] = useState(false);
-
-    function fechar() {
-        setAtual('');
-        setNova('');
-        setConfirmacao('');
-        setEditando(false);
-    }
+    const [erro, setErro] = useState<{ atual?: string; nova?: string; confirmacao?: string; geral?: string }>({});
+    const emEnvio = useRef(false);
+    useConfirmarSaida(Boolean(atual || nova || confirmacao));
 
     async function salvar() {
-        if (salvando) return;
-        if (!atual.trim() || !nova.trim() || nova.length < 8 || nova !== confirmacao) {
-            Alert.alert('Confira os dados', 'Informe a senha atual e uma nova senha de pelo menos 8 caracteres, com confirmação igual.');
-            return;
-        }
+        if (emEnvio.current) return;
+        if (!atual.trim()) return setErro({ atual: 'Informe sua senha atual.' });
+        if (!nova.trim() || nova.length < 8) return setErro({ nova: 'Use pelo menos 8 caracteres.' });
+        if (nova !== confirmacao) return setErro({ confirmacao: 'As senhas devem ser iguais.' });
+        emEnvio.current = true;
         setSalvando(true);
+        setErro({});
         try {
             await alterarSenha(atual, nova);
-            fechar();
-            Alert.alert('Senha alterada', 'Sua senha foi alterada. Sessões existentes permanecem ativas.');
-        } catch (erro) {
-            const mensagem = erro instanceof Error && (erro.message === 'HTTP 400' || erro.message === 'Bad Request')
-                ? 'Confira a senha atual e use uma nova senha de até 72 bytes.' : mensagemDeErro(erro);
-            Alert.alert('Não foi possível alterar a senha', mensagem);
+            setAtual('');
+            setNova('');
+            setConfirmacao('');
+            setMostrar(false);
+            avisarSucesso('Senha alterada. Sessões existentes permanecem ativas.');
+        } catch (falha) {
+            setErro({ geral: falha instanceof ApiError && falha.status === 400
+                ? 'Confira a senha atual e use uma nova senha de até 72 bytes.'
+                : mensagemDeErroDeGravacao(falha) });
         } finally {
+            emEnvio.current = false;
             setSalvando(false);
         }
     }
 
-    if (editando) {
-        return (
-            <Layout comHeader={false}>
-                <Text style={styles.titulo}>Alterar senha</Text>
-                {[
-                    { label: 'Senha atual', value: atual, change: setAtual },
-                    { label: 'Nova senha', value: nova, change: setNova },
-                    { label: 'Confirmar nova senha', value: confirmacao, change: setConfirmacao },
-                ].map((campo) => (
-                    <TextInput key={campo.label} style={styles.campo} placeholder={campo.label}
-                        placeholderTextColor={colors.textMuted} accessibilityLabel={campo.label}
-                        secureTextEntry autoCapitalize="none" autoCorrect={false} value={campo.value}
-                        onChangeText={campo.change} editable={!salvando} />
-                ))}
-                <TouchableOpacity style={styles.botao} onPress={salvar} disabled={salvando} accessibilityRole="button">
-                    <Text style={styles.botaoTexto}>{salvando ? 'Salvando...' : 'Salvar'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={fechar} disabled={salvando} accessibilityRole="button">
-                    <Text style={styles.cancelar}>Cancelar</Text>
-                </TouchableOpacity>
-            </Layout>
-        );
-    }
-
-    return <ListaPesquisavel titulo="Segurança" itens={[
-        { rotulo: 'Alterar senha', onPress: () => setEditando(true) },
-        { rotulo: 'Alterar email', indisponivel: true },
-        { rotulo: 'Alterar número', indisponivel: true },
-        { rotulo: 'Políticas de privacidade' },
-    ]} />;
+    return <Layout titulo="Alterar senha" voltar>
+        <Field label="Senha atual" erro={erro.atual} autoComplete="current-password" secureTextEntry={!mostrar}
+            value={atual} onChangeText={setAtual} editable={!salvando} />
+        <Field label="Nova senha" erro={erro.nova} autoComplete="new-password" secureTextEntry={!mostrar}
+            value={nova} onChangeText={setNova} editable={!salvando} />
+        <Field label="Confirmar nova senha" erro={erro.confirmacao} autoComplete="new-password" secureTextEntry={!mostrar}
+            value={confirmacao} onChangeText={setConfirmacao} editable={!salvando} onSubmitEditing={salvar} />
+        <Pressable accessibilityRole="button" onPress={() => setMostrar(v => !v)} style={{ minHeight: ui.touch, justifyContent: 'center' }}>
+            <Text style={{ color: colors.primary }}>{mostrar ? 'Ocultar senhas' : 'Mostrar senhas'}</Text>
+        </Pressable>
+        {erro.geral && <Text accessibilityLiveRegion="polite" style={{ color: colors.negative }}>{erro.geral}</Text>}
+        <BotaoPrimario titulo="Salvar senha" onPress={salvar} carregando={salvando} />
+    </Layout>;
 }
-
-const styles = StyleSheet.create({
-    titulo: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginBottom: 16 },
-    campo: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, padding: 12, marginBottom: 12 },
-    botao: { backgroundColor: colors.primary, borderRadius: 8, padding: 12, alignItems: 'center' },
-    botaoTexto: { color: colors.onPrimary, fontWeight: 'bold' },
-    cancelar: { color: colors.primary, textAlign: 'center', padding: 12 },
-});

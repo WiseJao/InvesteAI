@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  ScrollView,
   Modal,
   useWindowDimensions,
 } from 'react-native';
@@ -101,7 +102,9 @@ type CardAtivoProps = {
   empresa: string;
   preco: string;
   variacao: string;
-  logo: string
+  logo: string;
+  dataCotacao?: string;
+  onAdicionar?: () => void;
 };
 
 export default function CardAtivo({
@@ -110,9 +113,37 @@ export default function CardAtivo({
   preco,
   variacao,
   logo,
+  dataCotacao,
+  onAdicionar,
 }: CardAtivoProps) {
   const { oculto } = usePrivacidade();
+  const [reconsulta, setReconsulta] = useState(0);
+  const [mostrarLista, setMostrarLista] = useState(false);
   const [modalDetalhesVisivel, setModalDetalhesVisivel] = useState(false);
+  const [cotacao, setCotacao] = useState<{ preco: number; horario?: string } | null>(null);
+  const [carregandoCotacao, setCarregandoCotacao] = useState(false);
+  const [reconsultarCotacao, setReconsultarCotacao] = useState(0);
+  useEffect(() => {
+    if (!modalDetalhesVisivel || dataCotacao) return;
+    const controller = new AbortController();
+    setCarregandoCotacao(true);
+    void fetch(API_URL + '/investments/quotes?symbols=' + encodeURIComponent(ticker), { signal: controller.signal })
+      .then(async resposta => {
+        if (!resposta.ok) return;
+        const dados = await resposta.json();
+        const item = Array.isArray(dados.results) ? dados.results.find((entry: { symbol?: string }) => entry.symbol === ticker) : null;
+        if (!controller.signal.aborted && typeof item?.regularMarketPrice === 'number') {
+          setCotacao({ preco: item.regularMarketPrice, horario: item.regularMarketTime });
+        }
+      }).catch(() => {}).finally(() => {
+        if (!controller.signal.aborted) setCarregandoCotacao(false);
+      });
+    return () => controller.abort();
+  }, [modalDetalhesVisivel, dataCotacao, ticker, reconsultarCotacao]);
+  const horarioCotacao = cotacao?.horario ? new Date(cotacao.horario) : null;
+  const dataAtual = dataCotacao ?? (horarioCotacao && Number.isFinite(horarioCotacao.getTime())
+    ? horarioCotacao.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : undefined);
+  const precoAtual = cotacao ? cotacao.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : preco;
   const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
   const [pontosHistoricos, setPontosHistoricos] = useState<PontoGrafico[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
@@ -121,7 +152,7 @@ export default function CardAtivo({
   const larguraGrafico = Math.min(larguraTela - 76, 420);
 
   useEffect(() => {
-    if (!modalDetalhesVisivel) {
+    if (!modalDetalhesVisivel || oculto) {
       return;
     }
 
@@ -170,7 +201,7 @@ export default function CardAtivo({
     return () => {
       ativo = false;
     };
-  }, [modalDetalhesVisivel, periodoSelecionado, ticker]);
+  }, [modalDetalhesVisivel, periodoSelecionado, ticker, reconsulta, oculto]);
 
   return (
     <>
@@ -216,7 +247,7 @@ export default function CardAtivo({
             onPress={() => setModalDetalhesVisivel(false)}
           />
           <SafeAreaView style={styles.modalSafeArea} edges={['top', 'bottom']}>
-            <View accessibilityViewIsModal style={styles.modalConteudo}>
+            <ScrollView accessibilityViewIsModal style={styles.modalConteudo} contentContainerStyle={{ padding: 18 }}>
               <View style={styles.modalCabecalho}>
                 <Text style={styles.modalTitulo}>Detalhes do investimento</Text>
                 <Pressable
@@ -239,7 +270,7 @@ export default function CardAtivo({
               <View style={styles.modalIndicadores}>
                 <View>
                   <Text style={styles.modalRotulo}>Preço atual</Text>
-                  <Text style={styles.modalPreco}>{oculto ? 'Valor oculto' : preco}</Text>
+                  <Text style={styles.modalPreco}>{oculto ? 'Valor oculto' : carregandoCotacao ? 'Atualizando…' : precoAtual}</Text>
                 </View>
                 <View style={styles.modalVariacaoContainer}>
                   <Text style={styles.modalRotulo}>Variação</Text>
@@ -252,6 +283,9 @@ export default function CardAtivo({
                 </View>
               </View>
 
+              <Text style={styles.modalNota}>BRAPI{dataAtual ? ' · ' + dataAtual : ' · horário indisponível'}</Text>
+              {!dataAtual && !carregandoCotacao && <Pressable accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => setReconsultarCotacao(v => v + 1)}><Text style={styles.modalFechar}>Atualizar cotação</Text></Pressable>}
+              {onAdicionar && <Pressable accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => { setModalDetalhesVisivel(false); onAdicionar(); }}><Text style={styles.modalFechar}>Adicionar à carteira</Text></Pressable>}
               <Text style={styles.modalGraficoTitulo}>Variação no período</Text>
               <View style={styles.filtrosPeriodo}>
                 {PERIODOS.map((periodo) => (
@@ -280,7 +314,7 @@ export default function CardAtivo({
                 {oculto ? <Text style={styles.estadoGrafico}>Gráfico oculto</Text> : carregandoHistorico ? (
                   <ActivityIndicator color={colors.primary} style={styles.estadoGrafico} />
                 ) : erroHistorico ? (
-                  <Text style={[styles.estadoGrafico, styles.erroGrafico]}>{erroHistorico}</Text>
+                  <Pressable accessibilityRole="button" style={{ minHeight: 48 }} onPress={() => setReconsulta(v => v + 1)}><Text style={[styles.estadoGrafico, styles.erroGrafico]}>{erroHistorico} Tentar novamente</Text></Pressable>
                 ) : pontosHistoricos.length < 2 ? (
                   <Text style={styles.estadoGrafico}>
                     Não há dados suficientes para exibir esse período.
@@ -293,12 +327,14 @@ export default function CardAtivo({
                   />
                 )}
               </View>
+              {!oculto && pontosHistoricos.length > 0 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: mostrarLista }} style={{ minHeight: 48 }} onPress={() => setMostrarLista(v => !v)}><Text style={styles.modalFechar}>{mostrarLista ? 'Ocultar lista de preços' : 'Ver lista de preços'}</Text></Pressable>}
+              {!oculto && mostrarLista && <ScrollView style={{ maxHeight: 140 }} nestedScrollEnabled>{pontosHistoricos.map((ponto, i) => <Text key={i} style={styles.modalNota}>{ponto.label} · {ponto.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</Text>)}</ScrollView>}
               <Text style={styles.modalNota}>
                 {periodoSelecionado === '1d'
                   ? 'Dados diários: abertura e fechamento (plano gratuito).'
                   : 'Histórico de preços fornecido pela brapi.dev.'}
               </Text>
-            </View>
+            </ScrollView>
           </SafeAreaView>
         </View>
       </Modal>
@@ -401,7 +437,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
-    padding: 18,
+    maxHeight: '94%',
+    flexGrow: 0,
   },
 
   modalCabecalho: {

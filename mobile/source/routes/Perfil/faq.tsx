@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../../shared/layout';
 import { colors } from '../../styles/colors';
@@ -83,6 +84,7 @@ const topicos: Topico[] = [
 ];
 
 export default function FAQ() {
+    const navigation = useNavigation();
     const [aberto, setAberto] = useState(false);
     const [termo, setTermo] = useState('');
     const [expandidas, setExpandidas] = useState<string[]>([]);
@@ -122,6 +124,7 @@ export default function FAQ() {
                 onChangeTermo={setTermo}
             />
 
+            {termo.length > 0 && <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} onPress={() => setTermo('')}><Text style={{ color: colors.primary }}>Limpar busca</Text></TouchableOpacity>}
             <View style={styles.aviso}>
                 <Text accessibilityRole="header" style={styles.avisoTitulo}>Informação para apoiar suas decisões</Text>
                 <Text style={styles.avisoTexto}>
@@ -153,7 +156,14 @@ export default function FAQ() {
                                         color={colors.primary}
                                     />
                                 </TouchableOpacity>
-                                {aberta ? <Text style={styles.resposta}>{item.resposta}</Text> : null}
+                                {aberta ? <>
+                                    <Text style={styles.resposta}>{item.resposta}</Text>
+                                    {['Como o app calcula o valor da carteira?', 'O que são bolsa, ticker e cotação?', 'Qual é a diferença entre renda fixa e renda variável?'].includes(item.pergunta) && (
+                                        <TouchableOpacity accessibilityRole="button" style={styles.atalho} onPress={() => navigation.getParent()?.dispatch(
+                                            CommonActions.navigate({ name: 'Investimentos', params: { screen: 'Investimentos', params: { abrirCarteira: Date.now() } } })
+                                        )}><Text style={{ color: colors.primary }}>Abrir Investimentos</Text></TouchableOpacity>
+                                    )}
+                                </> : null}
                             </View>
                         );
                     })}
@@ -217,6 +227,7 @@ const styles = StyleSheet.create({
         color: colors.text,
         paddingRight: 8,
     },
+    atalho: { minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
     resposta: {
         fontSize: 12,
         color: colors.textMuted,

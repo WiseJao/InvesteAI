@@ -24,16 +24,16 @@ import { colors } from '../../styles/colors';
 
 type Cotacao = {
     symbol: string;
-    data: {
-        shortName?: string;
-        regularMarketPrice?: number;
-        regularMarketChangePercent?: number;
-        logourl?: string;
-    };
+    shortName?: string;
+    regularMarketPrice?: number;
+    regularMarketChangePercent?: number;
+    regularMarketTime?: string;
+    logourl?: string;
 };
 
 type RespostaCotacoes = {
     results?: Cotacao[];
+    unavailableSymbols?: string[];
 };
 
 const API_URL = (
@@ -61,9 +61,14 @@ function formatarVariacao(variacao?: number) {
     return `${variacao > 0 ? '+' : ''}${variacao.toFixed(2)}%`;
 }
 
+function formatarDataCotacao(data: string) {
+    return new Date(data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' });
+}
+
 export default function Investimentos() {
     const { oculto } = usePrivacidade();
     const [ativos, setAtivos] = useState<Cotacao[]>([]);
+    const [indisponiveis, setIndisponiveis] = useState<string[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
     const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState(false);
@@ -76,6 +81,8 @@ export default function Investimentos() {
     const route = useRoute<{ key: string; name: string; params?: { adicionar?: number } }>();
     const { dados: carteira, carregando: carregandoCarteira, erro: erroCarteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
     const ativosFiltrados = (carteira?.ativos ?? []).filter((ativo) => filtro === 'TODOS' || ativo.investmentType === filtro);
+
+    const avaliacaoAproximada = carteira?.ativos.some((ativo) => ativo.priceStatus !== 'MARKET');
 
     function mostrarCarteira(tipo: TipoInvestimento | 'TODOS') {
         setFiltro(tipo);
@@ -129,6 +136,7 @@ export default function Investimentos() {
             }
 
             setAtivos(dados.results);
+            setIndisponiveis(dados.unavailableSymbols ?? []);
         } catch (erroRequest) {
             setErro(
                 erroRequest instanceof Error
@@ -167,11 +175,11 @@ export default function Investimentos() {
             >
                 <View style={styles.container}>
                     <View style={styles.container_elementos}>
-                        <Text style={styles.subtitle}>Saldo Investido: </Text>
+                        <Text style={styles.subtitle}>{avaliacaoAproximada ? 'Valor de referência da carteira' : 'Valor de mercado da carteira'}</Text>
                         <Text style={styles.title}>{oculto ? 'Valores ocultos' : carteira ? formatarReais(carteira.valorAtual) : 'Indisponível'}</Text>
                         {carteira ? (
                             <Text style={styles.subtitle}>
-                                {oculto ? 'Valores ocultos' : `Investido: ${formatarReais(carteira.totalInvestido)} · Resultado: ${formatarReais(carteira.lucro)}`}
+                                {oculto ? 'Valores ocultos' : `Investido: ${formatarReais(carteira.totalInvestido)} · ${avaliacaoAproximada ? 'Resultado de referência' : 'Resultado'}: ${formatarReais(carteira.lucro)}`}
                             </Text>
                         ) : null}
                     </View>
@@ -199,7 +207,8 @@ export default function Investimentos() {
                                 <View style={styles.linhaCarteiraValor}>
                                     <Text style={styles.title}>{oculto ? 'Valores ocultos' : formatarReais(ativo.valorAtual)}</Text>
                                     {ativo.investmentType === 'FIXED_INCOME' ? <Text style={styles.subtitle}>Valor estimado</Text> : null}
-                                    {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>Cotação indisponível</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>Cotação possivelmente desatualizada</Text> : null}
+                                    {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>Cotação indisponível · valor pelo custo de compra</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>Cotação possivelmente desatualizada</Text> : null}
+                                    {ativo.quotedAt ? <Text style={styles.subtitle}>Cotação de {formatarDataCotacao(ativo.quotedAt)}</Text> : null}
                                     <Text
                                         style={[
                                             styles.subtitle,
@@ -253,17 +262,20 @@ export default function Investimentos() {
                                 </Pressable>
                             </View>
                         ) : null}
-                        {!carregando && !erro && ativos.length === 0 ? (
+                        {!carregando && !erro && indisponiveis.length > 0 ? (
+                            <Text style={styles.mensagemVazia}>Cotações indisponíveis para {indisponiveis.join(', ')}.</Text>
+                        ) : null}
+                        {!carregando && !erro && ativos.length === 0 && indisponiveis.length === 0 ? (
                             <Text style={styles.mensagemVazia}>Nenhuma cotação encontrada.</Text>
                         ) : null}
                         {ativos.map((ativo) => (
                             <CardAtivo
                                 key={ativo.symbol}
                                 ticker={ativo.symbol}
-                                empresa={ativo.data.shortName ?? ativo.symbol}
-                                preco={formatarPreco(ativo.data.regularMarketPrice)}
-                                variacao={formatarVariacao(ativo.data.regularMarketChangePercent)}
-                                logo={ativo.data.logourl ?? ''}
+                                empresa={ativo.shortName ?? ativo.symbol}
+                                preco={formatarPreco(ativo.regularMarketPrice)}
+                                variacao={formatarVariacao(ativo.regularMarketChangePercent)}
+                                logo={ativo.logourl ?? ''}
                             />
                         ))}
                     </View>

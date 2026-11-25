@@ -43,13 +43,12 @@ class InvestmentControllerTest {
                     "logourl": "https://s3-symbol-logo.tradingview.com/petrobras--big.svg"
                 }
                 """);
-        when(brapiService.getQuotes(List.of("PETR4"))).thenReturn(List.of(petr4));
+        when(brapiService.getQuotes(List.of("PETR4", "VALE3"))).thenReturn(List.of(petr4));
 
-        Map<String, List<JsonNode>> response = investmentController.getQuotes("PETR4");
+        Map<String, Object> response = investmentController.getQuotes("petr4,VALE3,PETR4");
 
-        assertNotNull(response.get("results"));
-        assertEquals(1, response.get("results").size());
-        assertEquals("PETR4", response.get("results").get(0).path("symbol").asText());
+        assertEquals(List.of(petr4), response.get("results"));
+        assertEquals(List.of("VALE3"), response.get("unavailableSymbols"));
     }
 
     @Test

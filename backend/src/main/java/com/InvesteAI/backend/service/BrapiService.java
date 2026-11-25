@@ -11,6 +11,10 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.math.BigDecimal;
@@ -51,7 +55,14 @@ public class BrapiService {
      */
     @Autowired
     public BrapiService(@Value("${brapi.api-key:}") String apiKey) {
-        this(apiKey, RestClient.builder());
+        this(apiKey, quoteClientBuilder());
+    }
+
+    private static RestClient.Builder quoteClientBuilder() {
+        var factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(2));
+        factory.setReadTimeout(Duration.ofSeconds(2));
+        return RestClient.builder().requestFactory(factory);
     }
 
     BrapiService(String apiKey, RestClient.Builder builder) {
@@ -76,8 +87,8 @@ public class BrapiService {
         List<String> missingSymbols = new ArrayList<>();
 
         for (String symbol : symbols) {
-            String upper = symbol.trim().toUpperCase();
-            if (upper.isBlank()) continue;
+            String upper = symbol.trim().toUpperCase(Locale.ROOT);
+            if (!upper.matches("[A-Z0-9.-]{1,15}")) continue;
 
             CacheEntry<List<JsonNode>> cached = quoteCache.get(upper);
             if (cached != null && cached.isValid()) {
@@ -109,6 +120,7 @@ public class BrapiService {
                                 symbolResults.add(quote);
                             }
                         });
+                        symbolResults.removeIf(quote -> !isUsableQuote(quote, symbol));
                         if (symbolResults.isEmpty()) {
                             throw new IllegalStateException("A BRAPI não retornou cotação para o ativo.");
                         }
@@ -130,6 +142,8 @@ public class BrapiService {
                         if (response != null && response.path("results").isArray()) {
                             List<JsonNode> symbolResults = new ArrayList<>();
                             response.path("results").forEach(symbolResults::add);
+                            symbolResults.removeIf(quote -> !isUsableQuote(quote, symbol));
+                            if (symbolResults.isEmpty()) continue;
                             quoteCache.put(symbol, new CacheEntry<>(symbolResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
                             quotes.addAll(symbolResults);
                         }
@@ -141,6 +155,27 @@ public class BrapiService {
         }
 
         return quotes;
+    }
+
+    private static boolean isUsableQuote(JsonNode quote, String symbol) {
+        JsonNode price = quote.path("regularMarketPrice");
+        return symbol.equalsIgnoreCase(quote.path("symbol").asText())
+                && price.isNumber() && price.decimalValue().signum() > 0;
+    }
+
+    public record MarketPrice(BigDecimal price, Instant quotedAt) {
+        public static MarketPrice from(JsonNode quote) {
+            JsonNode time = quote.path("regularMarketTime");
+            Instant quotedAt = null;
+            if (time.isTextual()) {
+                try {
+                    quotedAt = Instant.parse(time.asText());
+                } catch (DateTimeParseException ignored) {
+                    // A price without a valid timestamp is treated as stale.
+                }
+            }
+            return new MarketPrice(quote.path("regularMarketPrice").decimalValue(), quotedAt);
+        }
     }
 
     /**

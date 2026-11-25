@@ -42,6 +42,7 @@ export type Ativo = {
     investmentType: TipoInvestimento;
     annualRate: number | null;
     priceStatus: string | null;
+    quotedAt?: string | null;
 };
 
 export type Carteira = {
@@ -68,6 +69,7 @@ type AtivoApi = {
     investmentType?: TipoInvestimento | null;
     annualRate?: string | null;
     priceStatus?: string | null;
+    quotedAt?: string | null;
 };
 
 type CarteiraApi = {
@@ -105,6 +107,7 @@ export async function obterCarteira(): Promise<Carteira> {
             investmentType: ativo.investmentType ?? 'LEGACY',
             annualRate: ativo.annualRate == null ? null : Number(ativo.annualRate),
             priceStatus: ativo.priceStatus ?? null,
+            quotedAt: ativo.quotedAt ?? null,
         })),
     };
 }

@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.Duration;
+import com.InvesteAI.backend.service.BrapiService.MarketPrice;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
@@ -43,7 +46,8 @@ public record HoldingResponse(
         LocalDate purchaseDate,
         InvestmentType investmentType,
         BigDecimal annualRate,
-        String priceStatus
+        String priceStatus,
+        Instant quotedAt
 ) {
     /**
      * Converts an {@link Investment} entity to a {@link HoldingResponse} calculating valuations and profit.
@@ -56,9 +60,14 @@ public record HoldingResponse(
     }
 
     public static HoldingResponse from(Investment entity, LocalDate valuationDate) {
+        return from(entity, valuationDate, null, Instant.now());
+    }
+
+    public static HoldingResponse from(Investment entity, LocalDate valuationDate, MarketPrice quote, Instant now) {
         BigDecimal qty = entity.getRemainingQuantity() != null ? entity.getRemainingQuantity() : entity.getOriginalQuantity();
         BigDecimal buyPrice = entity.getPurchaseUnitPrice();
-        BigDecimal currPrice = entity.getCurrentPrice() != null ? entity.getCurrentPrice() : buyPrice;
+        BigDecimal currPrice = quote == null ? entity.getCurrentPrice() : quote.price();
+        Instant quotedAt = quote == null ? null : quote.quotedAt();
 
         BigDecimal totalInvested = buyPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
         BigDecimal currentTotal;
@@ -70,8 +79,15 @@ public record HoldingResponse(
             currPrice = qty.signum() == 0 ? buyPrice : currentTotal.divide(qty, 10, RoundingMode.HALF_UP);
             priceStatus = "ESTIMATED";
         } else {
-            currentTotal = currPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
-            priceStatus = entity.getCurrentPrice() == null ? "UNAVAILABLE" : "STALE";
+            BigDecimal valuationPrice = currPrice == null ? buyPrice : currPrice;
+            currentTotal = valuationPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            if (currPrice == null) {
+                priceStatus = "UNAVAILABLE";
+            } else if (quotedAt == null || quotedAt.isAfter(now) || quotedAt.isBefore(now.minus(Duration.ofHours(24)))) {
+                priceStatus = "STALE";
+            } else {
+                priceStatus = "MARKET";
+            }
         }
         BigDecimal profit = currentTotal.subtract(totalInvested);
 
@@ -90,7 +106,7 @@ public record HoldingResponse(
                 entity.getOriginalQuantity(),
                 entity.getRemainingQuantity(),
                 entity.getPurchaseUnitPrice(),
-                entity.getInvestmentType() == InvestmentType.FIXED_INCOME ? currPrice : entity.getCurrentPrice(),
+                currPrice,
                 totalInvested,
                 currentTotal,
                 profit,
@@ -98,7 +114,8 @@ public record HoldingResponse(
                 entity.getPurchaseDate(),
                 entity.getInvestmentType(),
                 entity.getAnnualRate(),
-                priceStatus
+                priceStatus,
+                quotedAt
         );
     }
 

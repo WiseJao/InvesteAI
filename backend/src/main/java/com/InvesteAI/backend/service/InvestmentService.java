@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 
 /**
@@ -31,6 +33,7 @@ import java.util.*;
 public class InvestmentService {
 
     private final InvestmentInterface investmentRepository;
+    private final BrapiService brapiService;
 
     /**
      * Adds a new investment holding to a user's portfolio.
@@ -66,11 +69,7 @@ public class InvestmentService {
      */
     @Transactional(readOnly = true)
     public List<HoldingResponse> listHoldings(UUID userId) {
-        LocalDate valuationDate = LocalDate.now();
-        return investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId)
-                .stream()
-                .map(investment -> HoldingResponse.from(investment, valuationDate))
-                .toList();
+        return valueHoldings(investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId));
     }
 
     /**
@@ -85,7 +84,7 @@ public class InvestmentService {
     public HoldingResponse getHolding(UUID userId, UUID id) {
         Investment investment = investmentRepository.findByInvestmentIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Ativo de investimento não encontrado"));
-        return HoldingResponse.from(investment);
+        return valueHoldings(List.of(investment)).getFirst();
     }
 
     /**
@@ -161,16 +160,13 @@ public class InvestmentService {
 
         Map<String, BigDecimal> categoryMap = new HashMap<>();
 
-        List<HoldingResponse> holdingResponses = new ArrayList<>();
-        LocalDate valuationDate = LocalDate.now();
-        for (Investment inv : holdings) {
-            HoldingResponse hr = HoldingResponse.from(inv, valuationDate);
-            holdingResponses.add(hr);
+        List<HoldingResponse> holdingResponses = valueHoldings(holdings);
+        for (HoldingResponse hr : holdingResponses) {
 
             totalInvested = totalInvested.add(hr.totalInvested());
             currentTotalValue = currentTotalValue.add(hr.currentTotalValue());
 
-            String category = switch (inv.getInvestmentType()) {
+            String category = switch (hr.investmentType()) {
                 case FIXED_INCOME -> "Renda Fixa";
                 case VARIABLE_INCOME -> "Renda Variável";
                 case LEGACY -> "Legado";
@@ -207,6 +203,24 @@ public class InvestmentService {
                 distribution,
                 holdingResponses
         );
+    }
+
+    private List<HoldingResponse> valueHoldings(List<Investment> holdings) {
+        List<String> tickers = holdings.stream()
+                .filter(holding -> holding.getInvestmentType() == InvestmentType.VARIABLE_INCOME)
+                .map(holding -> holding.getSymbol().toUpperCase(Locale.ROOT))
+                .distinct().sorted().toList();
+        Map<String, BrapiService.MarketPrice> quotes = new HashMap<>();
+        if (!tickers.isEmpty()) {
+            for (var quote : brapiService.getQuotes(tickers)) {
+                quotes.put(quote.path("symbol").asText().toUpperCase(Locale.ROOT), BrapiService.MarketPrice.from(quote));
+            }
+        }
+        Instant now = Instant.now();
+        LocalDate valuationDate = now.atZone(ZoneId.of("America/Sao_Paulo")).toLocalDate();
+        return holdings.stream().map(holding -> HoldingResponse.from(holding, valuationDate,
+                holding.getInvestmentType() == InvestmentType.VARIABLE_INCOME
+                        ? quotes.get(holding.getSymbol().toUpperCase(Locale.ROOT)) : null, now)).toList();
     }
 
     private void validate(Investment inv) {

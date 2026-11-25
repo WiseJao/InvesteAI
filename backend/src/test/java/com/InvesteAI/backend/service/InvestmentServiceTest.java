@@ -13,6 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
+import tools.jackson.databind.json.JsonMapper;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +28,9 @@ class InvestmentServiceTest {
 
     @Mock
     private InvestmentInterface investmentRepository;
+
+    @Mock
+    private BrapiService brapiService;
 
     @InjectMocks
     private InvestmentService investmentService;
@@ -58,6 +63,28 @@ class InvestmentServiceTest {
         assertEquals(new BigDecimal("3850.00"), response.currentTotalValue());
         assertEquals(new BigDecimal("350.00"), response.profit());
         assertEquals(10.0, response.profitPercentage());
+    }
+
+    @Test
+    void valuesVariableIncomeFromMarketQuote() {
+        UUID userId = UUID.randomUUID();
+        Investment holding = new Investment();
+        holding.setSymbol("PETR4");
+        holding.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME);
+        holding.setOriginalQuantity(BigDecimal.TEN);
+        holding.setPurchaseUnitPrice(new BigDecimal("30"));
+        Instant now = Instant.now().minusSeconds(60);
+        var quote = JsonMapper.builder().build().readTree("""
+                {"symbol":"PETR4","regularMarketPrice":38.50,"regularMarketTime":"%s"}
+                """.formatted(now));
+        when(investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId)).thenReturn(List.of(holding));
+        when(brapiService.getQuotes(List.of("PETR4"))).thenReturn(List.of(quote));
+
+        var portfolio = investmentService.getPortfolioSummary(userId);
+
+        assertEquals(new BigDecimal("385.00"), portfolio.currentTotalValue());
+        assertEquals("MARKET", portfolio.holdings().getFirst().priceStatus());
+        assertEquals(now, portfolio.holdings().getFirst().quotedAt());
     }
 
     @Test

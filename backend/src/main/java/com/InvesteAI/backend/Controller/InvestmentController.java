@@ -11,6 +11,8 @@ import java.util.Arrays;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,16 +40,22 @@ public class InvestmentController {
      * @return map containing the list of market quote objects under the {@code "results"} key
      */
     @GetMapping("/quotes")
-    public Map<String, List<JsonNode>> getQuotes(@RequestParam(required = false) String symbols) {
+    public Map<String, Object> getQuotes(@RequestParam(required = false) String symbols) {
         if (symbols == null || symbols.isBlank()) {
-            return Map.of("results", Collections.emptyList());
+            return Map.of("results", List.of(), "unavailableSymbols", List.of());
         }
         List<String> tickers = Arrays.stream(symbols.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
+                .filter(s -> !s.isBlank())
+                .map(this::validateTicker)
+                .distinct()
                 .toList();
 
-        return Map.of("results", brapiService.getQuotes(tickers));
+        List<JsonNode> quotes = brapiService.getQuotes(tickers);
+        Set<String> available = quotes.stream()
+                .map(quote -> quote.path("symbol").asText().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        return Map.of("results", quotes, "unavailableSymbols",
+                tickers.stream().filter(ticker -> !available.contains(ticker)).toList());
     }
 
     @GetMapping("/history")

@@ -2,9 +2,6 @@ spring:
   application:
     name: investeai-backend
 
-  config:
-    import: optional:file:./.env[.properties]
-
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/investeai}
     username: ${SPRING_DATASOURCE_USERNAME:investeai}

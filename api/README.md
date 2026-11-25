@@ -18,20 +18,14 @@ docker info
 
 ## 1. Criar o arquivo de configuração
 
-Na raiz do repositório, ao lado de `compose.yaml`, crie um arquivo chamado `.env` com os seguintes campos:
-
-```dotenv
-POSTGRES_DB=investeai
-POSTGRES_USER=investeai
-POSTGRES_PASSWORD=substitua-por-uma-senha-local
-JWT_SECRET=substitua-pelo-segredo-gerado
-BRAPI_API_KEY=
-```
+Na raiz do repositório, copie [`.env.example`](../.env.example) para `.env` se o arquivo ainda estiver ausente. Use `cp .env.example .env` no macOS ou Linux e `Copy-Item .env.example .env` no PowerShell.
 
 - Troque a senha de exemplo. Use uma senha simples de inserir em configuração local, sem espaços ou quebras de linha.
 - Gere um segredo JWT aleatório com pelo menos 32 bytes. Use o resultado de `openssl rand -hex 32` no macOS ou Linux. No PowerShell 7, use `[Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))`.
 - Preencha `BRAPI_API_KEY` com sua chave do [painel da BRAPI](https://brapi.dev/) para usar a cobertura de mercado disponível no seu plano. A API inicializa com o campo vazio. Consultas de mercado sem uma chave válida podem retornar dados limitados ou indisponíveis. Guarde a chave apenas na API.
-- Mantenha o arquivo `.env` local. A configuração `EXPO_PUBLIC_API_URL` pertence ao aplicativo e usa somente a URL da API.
+- Mantenha o `.env` local. `EXPO_PUBLIC_API_URL` será incluída no app. A senha do banco, o segredo JWT e a chave BRAPI pertencem à configuração privada.
+- Use linhas `NOME=valor`. Envolva valores que contenham `$` ou `#` literais em aspas simples. Use valores literais no arquivo para que o Compose e o inicializador Node façam a mesma leitura. Variáveis do processo têm precedência.
+- Se já existir `api/.env`, transfira as opções específicas do Maven para a raiz. Use os mesmos valores de banco em Compose e Maven quando os dois apontarem para o mesmo PostgreSQL. Confira o funcionamento antes de remover o arquivo antigo.
 
 O Compose também aceita estas opções no mesmo arquivo:
 
@@ -87,31 +81,15 @@ docker compose up -d db
 docker compose ps db
 ```
 
-O Spring executado diretamente em `api/` usa `api/.env` ou variáveis de ambiente do processo. Crie `api/.env` para este modo. Preencha a senha conforme o arquivo da raiz e gere um segredo para o ambiente local:
-
-```dotenv
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/investeai
-SPRING_DATASOURCE_USERNAME=investeai
-SPRING_DATASOURCE_PASSWORD=mesma-senha-configurada-no-postgres
-JWT_SECRET=substitua-pelo-segredo-gerado
-BRAPI_API_KEY=
-```
-
-Caso tenha escolhido outro banco, porta ou usuário, ajuste esses campos. Configure o JDK 21 no terminal e confirme com `java -version`. Rode os comandos a partir de `api/`:
+Instale o JDK 21 e a mesma versão de Node.js exigida pelo [aplicativo](../mobile/README.md). Na raiz, execute o comando abaixo no PowerShell ou no terminal do macOS/Linux.
 
 ```bash
-cd api
-./mvnw spring-boot:run
+node scripts/dev-env.mjs api
 ```
 
-No PowerShell:
+O inicializador executa o Maven Wrapper em `api/` e conecta a API ao PostgreSQL em `localhost:5432`. A conexão usa `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` da raiz. Para um banco diferente no modo Maven, configure `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` ou `SPRING_DATASOURCE_PASSWORD`. Variáveis definidas no terminal prevalecem. Inicie somente uma instância da API por porta.
 
-```powershell
-cd api
-.\mvnw.cmd spring-boot:run
-```
-
-Confirme novamente `/actuator/health`. Para depurar na IDE, importe `api/pom.xml`, selecione JDK 21 e use `api/` como diretório de trabalho.
+Confirme `/actuator/health` após iniciar. Para executar diretamente pela IDE, importe `api/pom.xml`, selecione JDK 21 e forneça as variáveis da API no ambiente da configuração de execução.
 
 ## Testes e diagnóstico
 

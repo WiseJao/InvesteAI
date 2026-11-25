@@ -19,11 +19,11 @@ cd mobile
 npm ci
 ```
 
-Execute os demais comandos de Expo a partir desta pasta. O `npm ci` usa o `package-lock.json` e prepara as dependências do projeto.
+Execute os scripts npm do Expo a partir desta pasta. O `npm ci` usa o `package-lock.json` e prepara as dependências do projeto.
 
 ## 2. Apontar o aplicativo para a API
 
-Crie `mobile/.env.local` com uma única URL base. O exemplo abaixo serve para o navegador no mesmo computador:
+No `.env` da raiz do repositório, configure a URL base da API. Se você já usava `mobile/.env.local`, copie apenas a URL para a raiz. Os scripts npm ignoram o arquivo antigo.
 
 ```dotenv
 EXPO_PUBLIC_API_URL=http://localhost:8080
@@ -41,7 +41,7 @@ Escolha o endereço conforme o dispositivo:
 
 No Windows, execute `ipconfig` e procure o endereço IPv4 no adaptador Ethernet ou Wi-Fi usado pelo computador. Por exemplo, se o IP do computador for `192.168.1.25`, a URL do celular será `http://192.168.1.25:8080`. A partir do celular, abra essa URL com `/actuator/health` no navegador para conferir a conexão antes de abrir o app.
 
-Reinicie o Expo após trocar a URL. Variáveis com o prefixo `EXPO_PUBLIC_` ficam disponíveis no aplicativo. O segredo de assinatura dos tokens (`JWT_SECRET`), a senha do banco e a chave da BRAPI pertencem às configurações privadas da API.
+Reinicie o Expo após trocar a URL. Os scripts npm repassam `EXPO_PUBLIC_API_URL` para o bundle. Uma URL definida no terminal tem precedência. Se a variável estiver ausente, o padrão é `http://localhost:8080`. Use HTTP ou HTTPS e uma URL sem usuário, senha, consulta ou fragmento.
 
 ## 3. Abrir na plataforma desejada
 
@@ -58,11 +58,11 @@ Abra o endereço exibido no terminal, normalmente `http://localhost:8081`. Caso 
 ### Celular físico
 
 1. Conecte computador e celular à mesma rede local.
-2. Em `mobile/`, rode `npx expo start`.
+2. Em `mobile/`, rode `npm start`.
 3. No Android, leia o QR code com o Expo Go. No iOS, use a câmera ou o fluxo indicado pelo Expo Go.
 4. Aguarde o carregamento do bundle e teste o login.
 
-Se o QR code não conectar ao Metro, teste `npx expo start --tunnel`. O túnel cobre o servidor de desenvolvimento do Expo. A API precisa continuar acessível na URL definida em `EXPO_PUBLIC_API_URL`.
+Se o QR code não conectar ao Metro, teste `npm start -- --tunnel`. O túnel cobre o servidor de desenvolvimento do Expo. A API precisa continuar acessível na URL definida em `EXPO_PUBLIC_API_URL`.
 
 ### Emulador Android ou simulador iOS
 
@@ -89,9 +89,15 @@ Para validar o TypeScript localmente:
 npx tsc --noEmit
 ```
 
+Para exportar os bundles usando a mesma configuração:
+
+```bash
+npm run export -- --platform all
+```
+
 ## Problemas comuns
 
-- **Carregamento do bundle ou cache antigo:** pare o Expo com `Ctrl+C` e reinicie com `npx expo start --clear`.
+- **Carregamento do bundle ou cache antigo:** pare o Expo com `Ctrl+C` e reinicie com `npm start -- --clear`.
 - **Falha de conexão no celular:** abra `/actuator/health` no navegador do próprio aparelho. Confira a URL, a rede local e as permissões de rede privada do firewall do computador. Use o IP do computador para um aparelho físico.
 - **Erro de CORS na web:** confira o protocolo, host e porta da origem e ajuste `CORS_ORIGINS` na API.
 - **Expo Go incompatível:** confira a versão do SDK em `package.json` e use uma versão do cliente que a suporte. Você pode validar os fluxos básicos pelo navegador enquanto configura o ambiente nativo.

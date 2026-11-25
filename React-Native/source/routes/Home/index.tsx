@@ -56,12 +56,13 @@ function corDoDetalhe(item: Item) {
 
 type ResumoProps = {
     titulo: string;
+    subtitulo?: string;
     total: string;
     itens: Item[];
     vazio: string;
 };
 
-function Resumo({ titulo, total, itens, vazio }: ResumoProps) {
+function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
     const { oculto } = usePrivacidade();
     return (
         <View style={styles.secao}>
@@ -70,6 +71,7 @@ function Resumo({ titulo, total, itens, vazio }: ResumoProps) {
                 <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : `R$ ${total}`}</Text>
             </View>
 
+            {subtitulo && <Text style={styles.resumoApoio}>{subtitulo}</Text>}
             <View>
                 {itens.length === 0 ? <Text style={styles.linhaNome}>{vazio}</Text> : null}
                 {itens.map((item) => (
@@ -125,6 +127,9 @@ export default function Home() {
 
     const gastos = dados?.periodo.mes === mes && dados.periodo.ano === ano ? dados.gastos : undefined;
     const carteira = dados?.carteira;
+    const fimDoMes = `${ano}-${String(mes).padStart(2, '0')}-${new Date(ano, mes, 0).getDate()}`;
+    const posicoes = (carteira?.ativos ?? []).filter(ativo => ativo.dataCompra ? ativo.dataCompra <= fimDoMes : mesesAtras === 0);
+    const totalDaCarteira = posicoes.reduce((total, ativo) => total + ativo.valorAtual, 0);
     const objetivos = dados?.objetivos ?? [];
     const objetivoPrincipal = objetivos[0];
     const objetivoInvestimento = objetivos.find((objetivo) => objetivo.categoria === 'Investimentos');
@@ -133,7 +138,7 @@ export default function Home() {
     const percentualUsado =
         gastos && gastos.orcamentoMensal > 0 ? Math.round((gastos.totalGasto / gastos.orcamentoMensal) * 100) : 0;
 
-    const itensInvestimento: Item[] = [...(carteira?.ativos ?? [])]
+    const itensInvestimento: Item[] = [...posicoes]
         .sort((a, b) => b.valorAtual - a.valorAtual)
         .slice(0, 5)
         .map((ativo, indice) => ({
@@ -141,7 +146,7 @@ export default function Home() {
             valor: numeroBr(ativo.valorAtual),
             detalhe: percentualComSinal(ativo.lucroPercentual),
             positivo: ativo.lucroPercentual >= 0,
-            participacao: carteira && carteira.valorAtual > 0 ? ativo.valorAtual / carteira.valorAtual * 100 : 0,
+            participacao: totalDaCarteira > 0 ? ativo.valorAtual / totalDaCarteira * 100 : 0,
         }));
 
     const itensGasto: Item[] = (gastos?.categorias ?? []).slice(0, 5).map((categoria, indice) => ({
@@ -191,7 +196,7 @@ export default function Home() {
                     </View>
 
                     <View style={styles.secao}>
-                        <Text style={styles.secaoTitulo}>Meus objetivos</Text>
+                        <Text style={styles.secaoTitulo}>{mesesAtras > 0 ? 'Meus objetivos atuais' : 'Meus objetivos'}</Text>
                         <View style={styles.objetivos}>
                             <View style={styles.objetivoColuna}>
                                 <Text style={styles.objetivoTitulo}>Investimentos</Text>
@@ -224,10 +229,11 @@ export default function Home() {
                     </View>
 
                     <Resumo
-                        titulo={carteira?.ativos.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
-                        total={numeroBr(carteira?.valorAtual ?? 0)}
+                        titulo={posicoes.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
+                        subtitulo={mesesAtras > 0 ? 'Posições registradas até o fim do mês · valores atuais' : undefined}
+                        total={numeroBr(totalDaCarteira)}
                         itens={itensInvestimento}
-                        vazio="Você ainda não tem investimentos."
+                        vazio={mesesAtras > 0 ? 'Nenhuma posição registrada até este mês.' : 'Você ainda não tem investimentos.'}
                     />
                     {gastos ? <Resumo
                         titulo="Gastos"
@@ -319,6 +325,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: colors.textMuted,
     },
+    resumoApoio: { color: colors.textMuted, fontSize: 12, marginBottom: 12 },
     resumoTotal: {
         fontSize: 15,
         fontWeight: 'bold',

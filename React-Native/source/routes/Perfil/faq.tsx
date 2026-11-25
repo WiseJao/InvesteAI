@@ -15,7 +15,6 @@ type Topico = {
     perguntas: Pergunta[];
 };
 
-// TODO: textos provisórios, o grupo precisa revisar o conteúdo
 const topicos: Topico[] = [
     {
         titulo: 'Conta e acesso',
@@ -35,12 +34,49 @@ const topicos: Topico[] = [
         titulo: 'Investimentos e gastos',
         perguntas: [
             {
-                pergunta: 'Como o saldo geral é calculado?',
-                resposta: 'Resposta provisória: soma dos investimentos cadastrados no aplicativo.',
+                pergunta: 'Como o saldo do mês é calculado?',
+                resposta: 'O saldo é o orçamento do mês menos os gastos registrados. Se você lançar uma receita na categoria Salário, ela substitui a renda mensal prevista no perfil naquele mês.',
             },
             {
-                pergunta: 'De onde vêm as recomendações?',
-                resposta: 'Resposta provisória: são geradas a partir do seu perfil de investidor.',
+                pergunta: 'Como o app calcula o valor da carteira?',
+                resposta: 'O app estima o valor das posições com as cotações disponíveis e as condições cadastradas para renda fixa. Quando a cotação ou a estimativa está indisponível, o app sinaliza a situação e usa o custo de compra como referência.',
+            },
+            {
+                pergunta: 'Como devo interpretar as sugestões da Assessoria?',
+                resposta: 'Considere as sugestões como exemplos para estudar o mercado. Elas têm finalidade educativa e não constituem recomendação financeira personalizada. Antes de decidir, verifique as informações e considere seus objetivos, seu prazo e os riscos que pode assumir.',
+            },
+        ],
+    },
+    {
+        titulo: 'Ações e mercado financeiro',
+        perguntas: [
+            {
+                pergunta: 'O que é uma ação?',
+                resposta: 'Uma ação representa uma parte do capital de uma empresa. Ao comprar ações, você se torna acionista. O valor investido pode subir ou cair conforme a cotação.',
+            },
+            {
+                pergunta: 'O que são bolsa, ticker e cotação?',
+                resposta: 'A bolsa é um ambiente de negociação de ativos. O ticker é o código que identifica um ativo na negociação. A cotação é o preço registrado em um determinado momento e pode mudar ao longo do pregão.',
+            },
+            {
+                pergunta: 'Por que o preço de uma ação sobe ou cai?',
+                resposta: 'O preço muda conforme as ofertas de compra e venda. Resultados da empresa, notícias, juros e expectativas sobre a economia podem influenciar essas ofertas. A intensidade dessas oscilações é chamada de volatilidade.',
+            },
+            {
+                pergunta: 'O que são dividendos?',
+                resposta: 'Dividendos são uma forma de distribuir parte dos lucros da empresa aos acionistas. O histórico de pagamentos ajuda a entender o que já aconteceu. Os próximos pagamentos dependem dos resultados e das decisões da empresa.',
+            },
+            {
+                pergunta: 'O que são o Ibovespa e um ETF?',
+                resposta: 'O Ibovespa é um índice que acompanha uma carteira teórica de ações negociadas na B3. Um ETF é um fundo negociado em bolsa. Alguns ETFs buscam acompanhar um índice, e suas cotas podem ganhar ou perder valor.',
+            },
+            {
+                pergunta: 'O que são liquidez e diversificação?',
+                resposta: 'Liquidez é a facilidade de negociar um ativo sem causar grande impacto no preço. Diversificar é distribuir os investimentos entre ativos, emissores ou classes diferentes. Isso pode reduzir o risco de concentração, e a carteira ainda pode ter perdas.',
+            },
+            {
+                pergunta: 'Qual é a diferença entre renda fixa e renda variável?',
+                resposta: 'Na renda fixa, a forma de calcular a remuneração é definida na aplicação. O resultado pode depender de um índice, como o CDI, e há riscos que variam conforme o produto. Na renda variável, como em ações, o retorno depende do desempenho e dos preços de mercado.',
             },
         ],
     },
@@ -51,15 +87,16 @@ export default function FAQ() {
     const [termo, setTermo] = useState('');
     const [expandidas, setExpandidas] = useState<string[]>([]);
 
-    const busca = termo.trim().toLowerCase();
+    const busca = normalizarBusca(termo);
 
     const visiveis = topicos
         .map((topico) => ({
             ...topico,
             perguntas: topico.perguntas.filter(
                 (item) =>
-                    item.pergunta.toLowerCase().includes(busca) ||
-                    item.resposta.toLowerCase().includes(busca),
+                    normalizarBusca(topico.titulo).includes(busca) ||
+                    normalizarBusca(item.pergunta).includes(busca) ||
+                    normalizarBusca(item.resposta).includes(busca),
             ),
         }))
         .filter((topico) => topico.perguntas.length > 0);
@@ -85,9 +122,18 @@ export default function FAQ() {
                 onChangeTermo={setTermo}
             />
 
+            <View style={styles.aviso}>
+                <Text accessibilityRole="header" style={styles.avisoTitulo}>Informação para apoiar suas decisões</Text>
+                <Text style={styles.avisoTexto}>
+                    O InvesteAI é uma ferramenta de acompanhamento e educação financeira. As cotações,
+                    estimativas e sugestões do app não constituem recomendação de compra, venda ou manutenção
+                    de ativos. Podem ocorrer perdas, e rentabilidade passada não garante resultados futuros.
+                </Text>
+            </View>
+
             {visiveis.map((topico) => (
                 <View key={topico.titulo} style={styles.topico}>
-                    <Text style={styles.topicoTitulo}>{topico.titulo}</Text>
+                    <Text accessibilityRole="header" style={styles.topicoTitulo}>{topico.titulo}</Text>
                     {topico.perguntas.map((item) => {
                         const aberta = expandidas.includes(item.pergunta);
 
@@ -96,6 +142,9 @@ export default function FAQ() {
                                 <TouchableOpacity
                                     style={styles.perguntaTopo}
                                     onPress={() => alternarPergunta(item.pergunta)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={item.pergunta}
+                                    accessibilityState={{ expanded: aberta }}
                                 >
                                     <Text style={styles.perguntaTexto}>{item.pergunta}</Text>
                                     <Ionicons
@@ -115,7 +164,30 @@ export default function FAQ() {
     );
 }
 
+function normalizarBusca(texto: string) {
+    return texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 const styles = StyleSheet.create({
+    aviso: {
+        backgroundColor: colors.surface,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.warning,
+        borderRadius: 8,
+        padding: 14,
+        marginBottom: 20,
+    },
+    avisoTitulo: {
+        color: colors.warning,
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginBottom: 6,
+    },
+    avisoTexto: {
+        color: colors.text,
+        fontSize: 13,
+        lineHeight: 19,
+    },
     topico: {
         marginBottom: 16,
     },
@@ -137,6 +209,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 12,
+        minHeight: 44,
     },
     perguntaTexto: {
         flex: 1,

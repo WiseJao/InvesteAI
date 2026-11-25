@@ -240,7 +240,7 @@ export default function Investimentos() {
                             onPress={() => mostrarCarteira('FIXED_INCOME')}
                             icone="home" />
                         <Botao
-                            titulo={'Acessoria'}
+                            titulo={'Assessoria'}
                             onPress={() => navigation.getParent()?.navigate('AI' as never)}
                             icone="chatbubbles" />
                         <Botao
@@ -334,6 +334,7 @@ export default function Investimentos() {
                                     <Pressable
                                         key={opcao}
                                         accessibilityRole="button"
+                                        accessibilityLabel={opcao}
                                         style={styles.opcaoInvestimento}
                                         onPress={() => setTipoEscolhido(opcao)}
                                     >

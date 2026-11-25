@@ -21,14 +21,17 @@ export default function Estado({ carregando, erro, temDados, onTentarNovamente, 
         );
     }
 
-    if (erro && !temDados) {
+    if (erro) {
         return (
-            <View style={styles.centro}>
-                <Text style={styles.erro}>{erro}</Text>
-                <TouchableOpacity onPress={onTentarNovamente}>
-                    <Text style={styles.tentar}>Tentar novamente</Text>
-                </TouchableOpacity>
-            </View>
+            <>
+                <View style={styles.centro}>
+                    <Text accessibilityLiveRegion="polite" style={styles.erro}>{erro}</Text>
+                    <TouchableOpacity accessibilityRole="button" style={styles.botao} onPress={onTentarNovamente}>
+                        <Text style={styles.tentar}>Tentar novamente</Text>
+                    </TouchableOpacity>
+                </View>
+                {temDados ? children : null}
+            </>
         );
     }
 
@@ -46,6 +49,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 12,
     },
+    botao: { minHeight: 44, justifyContent: 'center' },
     tentar: {
         color: colors.primary,
         fontSize: 13,

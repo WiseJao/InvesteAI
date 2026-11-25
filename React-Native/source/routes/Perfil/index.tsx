@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Layout from '../../shared/layout';
+import Estado from '../../shared/estado';
+import { useCarregar } from '../../shared/useCarregar';
 import { clearAuthTokens, getAvatar, logout, uploadAvatar } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { limparPerfil } from '../../services/assessoria';
@@ -42,33 +44,30 @@ function montarItens(usuario: Usuario | null): Item[] {
     ];
 }
 
+async function carregarPerfil() {
+    const [usuario, carteira, objetivos] = await Promise.all([obterUsuario(), obterCarteira(), listarObjetivos()]);
+    return { usuario, totalInvestimentos: carteira.ativos.length, totalObjetivos: objetivos.length };
+}
+
 export default function Perfil() {
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
     const [aberto, setAberto] = useState(false);
     const [termo, setTermo] = useState('');
     const [avatar, setAvatar] = useState<string | null>(null);
     const [enviando, setEnviando] = useState(false);
-    const [usuario, setUsuario] = useState<Usuario | null>(null);
-    const [totalInvestimentos, setTotalInvestimentos] = useState(0);
-    const [totalObjetivos, setTotalObjetivos] = useState(0);
+    const { dados, erro, carregando, recarregar } = useCarregar(carregarPerfil);
+    const [erroAvatar, setErroAvatar] = useState(false);
     const versao = useRef(0);
+    const usuario = dados?.usuario ?? null;
 
     useFocusEffect(useCallback(() => {
         let ativo = true;
-        obterUsuario().then((dados) => {
-            if (ativo) setUsuario(dados);
-        }).catch(() => {});
-        obterCarteira().then((carteira) => {
-            if (ativo) setTotalInvestimentos(carteira.ativos.length);
-        }).catch(() => {});
-        listarObjetivos().then((objetivos) => {
-            if (ativo) setTotalObjetivos(objetivos.length);
-        }).catch(() => {});
+        setErroAvatar(false);
         const atual = ++versao.current;
         getAvatar().then((imagem) => {
             if (ativo && atual === versao.current) setAvatar(imagem);
         }).catch(() => {
-            if (ativo && atual === versao.current) setAvatar(null);
+            if (ativo && atual === versao.current) setErroAvatar(true);
         });
         return () => { ativo = false; };
     }, []));
@@ -101,6 +100,7 @@ export default function Perfil() {
             });
             ++versao.current;
             setAvatar(await getAvatar());
+            setErroAvatar(false);
         } catch {
             Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
         } finally {
@@ -135,28 +135,31 @@ export default function Perfil() {
                 onChangeTermo={setTermo}
             />
 
-            <View style={styles.identidade}>
-                <TouchableOpacity style={styles.avatar} onPress={alterarFoto} disabled={enviando}
-                    accessibilityRole="button" accessibilityLabel="Alterar foto de perfil">
-                    {enviando ? <ActivityIndicator color={colors.primary} /> : avatar ? (
-                        <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setAvatar(null)} />
-                    ) : <Ionicons name="person" size={56} color={colors.primary} />}
-                </TouchableOpacity>
-                <Text style={styles.alterarFoto}>Alterar foto</Text>
-                <Text style={styles.nome}>{usuario?.nome || 'Carregando...'}</Text>
-                <View style={styles.contadores}>
-                    <View style={styles.contador}>
-                        <Text style={styles.contadorValor}>{totalInvestimentos}</Text>
-                        <Text style={styles.contadorRotulo}>investimentos</Text>
-                    </View>
-                    <View style={styles.divisor} />
-                    <View style={styles.contador}>
-                        <Text style={styles.contadorValor}>{totalObjetivos}</Text>
-                        <Text style={styles.contadorRotulo}>objetivos</Text>
+            <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
+                <View style={styles.identidade}>
+                    <TouchableOpacity style={styles.avatar} onPress={alterarFoto} disabled={enviando}
+                        accessibilityRole="button" accessibilityLabel="Alterar foto de perfil">
+                        {enviando ? <ActivityIndicator color={colors.primary} /> : avatar ? (
+                            <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setAvatar(null)} />
+                        ) : <Ionicons name="person" size={56} color={colors.primary} />}
+                    </TouchableOpacity>
+                    <Text style={styles.alterarFoto}>Alterar foto</Text>
+                    <Text style={styles.nome}>{usuario?.nome ?? '—'}</Text>
+                    {erroAvatar ? <Text style={styles.alterarFoto}>Foto indisponível.</Text> : null}
+                    <View style={styles.contadores}>
+                        <View style={styles.contador}>
+                            <Text style={styles.contadorValor}>{dados?.totalInvestimentos ?? '—'}</Text>
+                            <Text style={styles.contadorRotulo}>investimentos</Text>
+                        </View>
+                        <View style={styles.divisor} />
+                        <View style={styles.contador}>
+                            <Text style={styles.contadorValor}>{dados?.totalObjetivos ?? '—'}</Text>
+                            <Text style={styles.contadorRotulo}>objetivos</Text>
+                        </View>
                     </View>
                 </View>
-            </View>
 
+            </Estado>
             {filtrados.map((item) => (
                 <ItemLista
                     key={item.rotulo}

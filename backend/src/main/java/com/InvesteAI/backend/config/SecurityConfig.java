@@ -2,6 +2,7 @@ package com.InvesteAI.backend.config;
 
 import com.InvesteAI.backend.filter.RateLimitFilter;
 import com.InvesteAI.backend.filter.JwtAuthFilter;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +53,7 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> {
                     auth
+                            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                             // ── CORS preflight ────────────────────────────────────────
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             // ── Public auth endpoints ─────────────────────────────────

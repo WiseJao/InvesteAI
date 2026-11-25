@@ -4,6 +4,6 @@ export type GastosStackParamList = {
     Gastos: undefined;
     GastosFixos: undefined;
     GastosVariaveis: undefined;
-    HistoricoGastos: undefined;
+    HistoricoGastos: { periodo?: string; consulta?: number } | undefined;
     NovoGasto: { gasto?: Movimentacao; regra?: Recorrencia; novoFixo?: boolean | undefined } | undefined;
 };

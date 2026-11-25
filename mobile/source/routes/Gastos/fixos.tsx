@@ -29,6 +29,8 @@ export default function GastosFixos() {
         <Layout titulo="Gastos fixos" subtitulo="Recorrências e lançamentos do mês" voltar>
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                 <BotaoPrimario titulo="Novo gasto fixo" onPress={() => navigation.navigate('NovoGasto', { novoFixo: true })} />
+                <Text accessibilityRole="header" style={{ color: colors.text, marginTop: 16 }}>Regras mensais</Text>
+                {dados?.regras.length === 0 && <Text style={{ color: colors.textMuted }}>Nenhuma recorrência cadastrada.</Text>}
                 {dados?.regras.map(regra => <Pressable key={regra.id} accessibilityRole="button" disabled={regra.ended} onPress={() => navigation.navigate('NovoGasto', { regra })} style={{ minHeight: 48, justifyContent: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <MarcadorCor cor={corDaConta(regra.id)} />
@@ -37,6 +39,7 @@ export default function GastosFixos() {
                     </View>
                     <Text style={{ color: colors.textMuted, marginLeft: 16 }}>{regra.ended ? 'Encerrada' : 'Mensal'}</Text>
                 </Pressable>)}
+                <Text accessibilityRole="header" style={{ color: colors.text, marginVertical: 12 }}>Lançamentos do mês</Text>
                 <ListaGastos
                     onSelecionar={(id) => {
                         const gasto = (dados?.gastos ?? []).find((item) => item.id === id);

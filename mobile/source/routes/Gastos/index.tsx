@@ -23,7 +23,7 @@ const atalhos: Atalho[] = [
     { label: 'Adicionar gasto ou receita', rota: 'NovoGasto' },
     { label: 'Gastos fixos', rota: 'GastosFixos' },
     { label: 'Gastos variáveis', rota: 'GastosVariaveis' },
-    { label: 'Histórico de gastos', rota: 'HistoricoGastos' },
+    { label: 'Lançamentos', rota: 'HistoricoGastos' },
 ];
 
 export default function Gastos() {

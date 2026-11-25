@@ -8,7 +8,6 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../../shared/header';
-import BalanceDivider from './components/balanceDivider';
 import Estado from '../../shared/estado';
 import { formatarReais } from '../../shared/currency';
 import { usePrivacidade } from '../../shared/privacidade';
@@ -56,12 +55,13 @@ function corDoDetalhe(item: Item) {
 type ResumoProps = {
     titulo: string;
     subtitulo?: string;
+    onVerTodos?: () => void;
     total: string;
     itens: Item[];
     vazio: string;
 };
 
-function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
+function Resumo({ titulo, subtitulo, total, itens, vazio, onVerTodos }: ResumoProps) {
     const { oculto } = usePrivacidade();
     return (
         <View style={styles.secao}>
@@ -70,6 +70,7 @@ function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
                 <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : total}</Text>
             </View>
 
+            {onVerTodos && <TouchableOpacity accessibilityRole="button" style={styles.botaoPeriodo} onPress={onVerTodos}><Text style={styles.link}>Ver todos · {titulo}</Text></TouchableOpacity>}
             {subtitulo && <Text style={styles.resumoApoio}>{subtitulo}</Text>}
             <View>
                 {itens.length === 0 ? <Text style={styles.linhaNome}>{vazio}</Text> : null}
@@ -93,15 +94,6 @@ function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
     );
 }
 
-async function carregarHome(periodo: { mes: number; ano: number }) {
-    const [gastos, carteira, objetivos] = await Promise.all([
-        obterResumoGastos(periodo),
-        obterCarteira(),
-        listarObjetivos(),
-    ]);
-    return { gastos, carteira, objetivos, periodo };
-}
-
 export default function Home() {
     const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -110,7 +102,18 @@ export default function Home() {
     const data = new Date(agora.getFullYear(), agora.getMonth() - mesesAtras, 1);
     const mes = data.getMonth() + 1;
     const ano = data.getFullYear();
-    const { dados, carregando, erro, recarregar } = useCarregar(() => carregarHome({ mes, ano }), [mes, ano]);
+    const [escolherMes, setEscolherMes] = useState(false);
+    const [anoSelecao, setAnoSelecao] = useState(ano);
+    const chavePeriodo = ano * 12 + mes;
+    const estadoGastos = useCarregar(async () => ({ periodo: chavePeriodo, resumo: await obterResumoGastos({ mes, ano }) }), [chavePeriodo]);
+    const estadoCarteira = useCarregar(obterCarteira);
+    const estadoObjetivos = useCarregar(listarObjetivos);
+    const atualizar = async () => { await Promise.all([estadoGastos.recarregar(), estadoCarteira.recarregar(), estadoObjetivos.recarregar()]); };
+
+    function verLancamentos() {
+        navigation.getParent<BottomTabNavigationProp<Record<string, object | undefined>>>()
+            ?.navigate('Gastos', { screen: 'HistoricoGastos', params: { periodo: String(ano) + '-' + String(mes).padStart(2, '0'), consulta: Date.now() } });
+    }
 
     function abrir(destino: Atalho['destino']) {
         if (destino === 'NovoGasto') {
@@ -125,13 +128,12 @@ export default function Home() {
         }
     }
 
-    const gastos = dados?.periodo.mes === mes && dados.periodo.ano === ano ? dados.gastos : undefined;
-    const carteira = dados?.carteira;
+    const gastos = estadoGastos.dados?.periodo === chavePeriodo ? estadoGastos.dados.resumo : undefined;
+    const carteira = estadoCarteira.dados;
     const fimDoMes = `${ano}-${String(mes).padStart(2, '0')}-${new Date(ano, mes, 0).getDate()}`;
     const posicoes = (carteira?.ativos ?? []).filter(ativo => ativo.dataCompra ? ativo.dataCompra <= fimDoMes : mesesAtras === 0);
     const totalDaCarteira = posicoes.reduce((total, ativo) => total + ativo.valorAtual, 0);
-    const objetivos = dados?.objetivos ?? [];
-    const objetivoPrincipal = objetivos[0];
+    const objetivos = estadoObjetivos.dados ?? [];
     const objetivoInvestimento = objetivos.find((objetivo) => objetivo.categoria === 'Investimentos');
     const objetivoGasto = objetivos.find((objetivo) => objetivo.categoria === 'Gastos');
 
@@ -163,26 +165,47 @@ export default function Home() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <Header />
-            <ScrollView refreshControl={<RefreshControl refreshing={carregando} onRefresh={recarregar} tintColor={colors.primary} />}>
+            <ScrollView refreshControl={<RefreshControl refreshing={estadoGastos.carregando || estadoCarteira.carregando || estadoObjetivos.carregando} onRefresh={atualizar} tintColor={colors.primary} />}>
                 <View style={styles.periodo}>
                     <TouchableOpacity style={styles.botaoPeriodo} accessibilityRole="button" accessibilityLabel="Mês anterior" onPress={() => setMesesAtras((valor) => valor + 1)}>
                         <Ionicons name="chevron-back" color={colors.primary} size={22} />
                     </TouchableOpacity>
-                    <Text style={styles.resumoTitulo}>Gastos de {data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
+                    <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: escolherMes }}
+                        onPress={() => { setAnoSelecao(ano); setEscolherMes(v => !v); }} style={styles.botaoPeriodo}>
+                        <Text style={styles.resumoTitulo}>Gastos de {data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.botaoPeriodo} accessibilityRole="button" accessibilityLabel="Mês seguinte" disabled={mesesAtras === 0} onPress={() => setMesesAtras((valor) => Math.max(0, valor - 1))}>
                         <Ionicons name="chevron-forward" color={mesesAtras === 0 ? colors.textMuted : colors.primary} size={22} />
                     </TouchableOpacity>
                 </View>
-                <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
-                    <BalanceDivider
-                        saldo={oculto ? 'Valores ocultos' : gastos ? formatarReais(gastos.saldo) : '—'}
-                        saldoDestaque={oculto ? 'Percentual oculto' : gastos ? `${percentualUsado}% do orçamento usado` : 'Orçamento indisponível'}
-                        objetivo={objetivoPrincipal ? objetivoPrincipal.titulo : 'Nenhum objetivo'}
-                        objetivoDestaque={
-                            objetivoPrincipal ? (oculto ? 'Percentual oculto' : `${Math.round(objetivoPrincipal.progresso)}% concluído`) : 'Crie um objetivo'
-                        }
-                    />
-
+                {escolherMes && <View style={styles.secao}>
+                    <View style={styles.periodo}>
+                        <TouchableOpacity accessibilityRole="button" style={styles.botaoPeriodo} accessibilityLabel="Ano anterior" onPress={() => setAnoSelecao(v => v - 1)}><Text style={styles.link}>‹</Text></TouchableOpacity>
+                        <Text style={styles.secaoTitulo}>{anoSelecao}</Text>
+                        <TouchableOpacity accessibilityRole="button" style={styles.botaoPeriodo} accessibilityLabel="Ano seguinte" disabled={anoSelecao >= agora.getFullYear()} onPress={() => setAnoSelecao(v => v + 1)}><Text style={styles.link}>›</Text></TouchableOpacity>
+                    </View>
+                    <View style={styles.meses}>
+                        {Array.from({ length: 12 }, (_, i) => {
+                            const deslocamento = (agora.getFullYear() - anoSelecao) * 12 + agora.getMonth() - i;
+                            if (deslocamento < 0) return null;
+                            const nome = new Date(anoSelecao, i, 1).toLocaleDateString('pt-BR', { month: 'long' });
+                            return <TouchableOpacity key={i} accessibilityRole="button" accessibilityState={{ selected: deslocamento === mesesAtras }}
+                                style={[styles.botaoPeriodo, deslocamento === mesesAtras && styles.mesAtivo]} onPress={() => { setMesesAtras(deslocamento); setEscolherMes(false); }}>
+                                <Text style={styles.link}>{nome}</Text>
+                            </TouchableOpacity>;
+                        })}
+                    </View>
+                </View>}
+                {mesesAtras > 0 && <TouchableOpacity accessibilityRole="button" style={styles.botaoPeriodo} onPress={() => { setMesesAtras(0); setEscolherMes(false); }}>
+                    <Text style={styles.link}>Voltar ao mês atual</Text>
+                </TouchableOpacity>}
+                <Estado {...estadoGastos} temDados={gastos !== undefined} onTentarNovamente={estadoGastos.recarregar}>
+                    {gastos && <View style={styles.secao}>
+                        <Text style={styles.secaoTitulo}>Saldo do mês</Text>
+                        <Text style={styles.resumoTotal}>{oculto ? 'Valor oculto' : formatarReais(gastos.saldo)}</Text>
+                        <Text style={styles.resumoApoio}>{oculto ? 'Percentual oculto' : gastos.orcamentoMensal > 0 ? percentualUsado + '% do orçamento usado' : 'Orçamento sem renda prevista ou receitas'}</Text>
+                    </View>}
+                </Estado>
                     <View style={styles.atalhos}>
                         {atalhos.map((atalho) => (
                             <TouchableOpacity
@@ -199,8 +222,10 @@ export default function Home() {
                         ))}
                     </View>
 
+                <Estado {...estadoObjetivos} temDados={estadoObjetivos.dados !== null} onTentarNovamente={estadoObjetivos.recarregar}>
                     <View style={styles.secao}>
                         <Text style={styles.secaoTitulo}>{mesesAtras > 0 ? 'Meus objetivos atuais' : 'Meus objetivos'}</Text>
+                        <TouchableOpacity accessibilityRole="button" style={styles.botaoPeriodo} onPress={() => abrir('Objetivos')}><Text style={styles.link}>Ver todas as metas</Text></TouchableOpacity>
                         <View style={styles.objetivos}>
                             <View style={styles.objetivoColuna}>
                                 <Text style={styles.objetivoTitulo}>Investimentos</Text>
@@ -232,26 +257,33 @@ export default function Home() {
                         </View>
                     </View>
 
+                </Estado>
+                <Estado {...estadoCarteira} temDados={carteira !== null} onTentarNovamente={estadoCarteira.recarregar}>
                     <Resumo
                         titulo={posicoes.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
+                        onVerTodos={() => navigation.getParent<BottomTabNavigationProp<Record<string, object | undefined>>>()?.navigate('Investimentos', { screen: 'Investimentos', params: { abrirCarteira: Date.now() } })}
                         subtitulo={mesesAtras > 0 ? 'Posições registradas até o fim do mês · valores atuais' : undefined}
                         total={formatarReais(totalDaCarteira)}
                         itens={itensInvestimento}
                         vazio={mesesAtras > 0 ? 'Nenhuma posição registrada até este mês.' : 'Você ainda não tem investimentos.'}
                     />
+                </Estado>
                     {gastos ? <Resumo
                         titulo="Gastos"
+                        onVerTodos={verLancamentos}
                         total={formatarReais(gastos.totalGasto)}
                         itens={itensGasto}
                         vazio="Nenhum gasto registrado neste mês."
                     /> : null}
-                </Estado>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    meses: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    mesAtivo: { backgroundColor: colors.surface, borderRadius: 8 },
+    link: { color: colors.primary, paddingHorizontal: 6 },
     container: {
         flex: 1,
         backgroundColor: colors.background,

@@ -95,7 +95,7 @@ public class PortfolioController {
     public ResponseEntity<HoldingResponse> updateHolding(
             @CurrentUser UUID userId,
             @PathVariable UUID id,
-            @RequestBody UpdateHoldingRequest request
+            @Valid @RequestBody UpdateHoldingRequest request
     ) {
         return ResponseEntity.ok(investmentService.updateHolding(userId, id, request));
     }

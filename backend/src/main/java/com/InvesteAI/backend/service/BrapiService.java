@@ -2,8 +2,10 @@ package com.InvesteAI.backend.service;
 
 import tools.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -133,7 +135,7 @@ public class BrapiService {
             return cached.data();
         }
 
-        List<JsonNode> searchResults = new ArrayList<>();
+        List<JsonNode> searchResults;
         try {
             JsonNode response = client.get()
                     .uri(uri -> uri
@@ -144,11 +146,7 @@ public class BrapiService {
                     .retrieve()
                     .body(JsonNode.class);
 
-            if (response != null && response.path("results").isArray()) {
-                response.path("results").forEach(searchResults::add);
-            } else if (response != null && response.isArray()) {
-                response.forEach(searchResults::add);
-            }
+            searchResults = parseSearchResults(response);
         } catch (Exception e) {
             try {
                 JsonNode response = client.get()
@@ -160,15 +158,25 @@ public class BrapiService {
                         .retrieve()
                         .body(JsonNode.class);
 
-                if (response != null && response.path("results").isArray()) {
-                    response.path("results").forEach(searchResults::add);
-                }
+                searchResults = parseSearchResults(response);
             } catch (Exception ex) {
-                // Graceful fallback
+                ex.addSuppressed(e);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Falha na busca de ativos da BRAPI", ex);
             }
         }
 
         searchCache.put(q, new CacheEntry<>(searchResults, Instant.now().plusSeconds(CACHE_TTL_SECONDS)));
+        return searchResults;
+    }
+
+    private List<JsonNode> parseSearchResults(JsonNode response) {
+        JsonNode results = response == null ? null : response.isArray() ? response
+                : response.path("results").isArray() ? response.path("results") : response.path("stocks");
+        if (results == null || !results.isArray()) {
+            throw new IllegalStateException("A resposta da BRAPI não contém uma lista de ativos.");
+        }
+        List<JsonNode> searchResults = new ArrayList<>();
+        results.forEach(searchResults::add);
         return searchResults;
     }
 

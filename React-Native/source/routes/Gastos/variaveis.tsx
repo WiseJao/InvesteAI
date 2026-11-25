@@ -10,7 +10,11 @@ import { paraLinhaPorCategoria } from './dados';
 
 export default function GastosVariaveis() {
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
-    const { dados, carregando, erro, recarregar } = useCarregar(() => listarMovimentacoes('EXPENSE_VARIABLE'));
+    const { dados, carregando, erro, recarregar } = useCarregar(async () => {
+        const agora = new Date();
+        const mes = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+        return (await listarMovimentacoes('EXPENSE_VARIABLE')).filter((item) => item.data.startsWith(`${mes}-`));
+    });
 
     return (
         <Layout titulo="Gastos variáveis" subtitulo="Gastos do mês, fora o fixo" voltar>

@@ -10,7 +10,11 @@ import { paraLinhaPorCategoria } from './dados';
 
 export default function GastosFixos() {
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
-    const { dados, carregando, erro, recarregar } = useCarregar(() => listarMovimentacoes('EXPENSE_FIXED'));
+    const { dados, carregando, erro, recarregar } = useCarregar(async () => {
+        const agora = new Date();
+        const mes = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+        return (await listarMovimentacoes('EXPENSE_FIXED')).filter((item) => item.data.startsWith(`${mes}-`));
+    });
 
     return (
         <Layout titulo="Gastos fixos" subtitulo="Recorrentes todo mês" voltar>

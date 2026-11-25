@@ -62,6 +62,7 @@ public class InvestmentController {
         };
 
         return Map.of("results", brapiService.getHistoricalData(ticker, range, interval));
+    };
     /**
      * Searches available tickers and company names on the market for auto-complete.
      *

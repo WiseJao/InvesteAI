@@ -5,9 +5,12 @@ import com.InvesteAI.backend.dto.goal.request.UpdateGoalRequest;
 import com.InvesteAI.backend.dto.goal.response.GoalResponse;
 import com.InvesteAI.backend.interfaces.GoalInterface;
 import com.InvesteAI.backend.model.Goal;
+import com.InvesteAI.backend.validation.PersistedFields;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -43,6 +46,11 @@ public class GoalService {
         goal.setTargetValue(request.resolvedTargetValue());
         goal.setStartDate(request.resolvedStartDate());
         goal.setEndDate(request.resolvedEndDate());
+
+        PersistedFields.text(goal.getName(), 255, "nome");
+        PersistedFields.money(goal.getCurrentValue(), false, "valor atual");
+        PersistedFields.money(goal.getTargetValue(), true, "valor alvo");
+        PersistedFields.dates(goal.getStartDate(), goal.getEndDate());
 
         Goal saved = goalRepository.save(goal);
         return GoalResponse.from(saved);
@@ -91,6 +99,10 @@ public class GoalService {
         Goal goal = goalRepository.findByGoalIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Objetivo financeiro não encontrado"));
 
+        if (Boolean.TRUE.equals(request.clearEndDate()) && (request.endDate() != null || request.deadline() != null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível limpar e definir a data final simultaneamente");
+        }
+
         if (request.resolvedName() != null) {
             goal.setName(request.resolvedName());
         }
@@ -106,8 +118,17 @@ public class GoalService {
         if (request.startDate() != null) {
             goal.setStartDate(request.startDate());
         }
-        if (request.resolvedEndDate() != null) {
+        if (Boolean.TRUE.equals(request.clearEndDate())) {
+            goal.setEndDate(null);
+        } else if (request.resolvedEndDate() != null) {
             goal.setEndDate(request.resolvedEndDate());
+        }
+
+        if (request.resolvedName() != null) PersistedFields.text(goal.getName(), 255, "nome");
+        if (request.resolvedCurrentValue() != null) PersistedFields.money(goal.getCurrentValue(), false, "valor atual");
+        if (request.resolvedTargetValue() != null) PersistedFields.money(goal.getTargetValue(), true, "valor alvo");
+        if (request.startDate() != null || request.resolvedEndDate() != null || Boolean.TRUE.equals(request.clearEndDate())) {
+            PersistedFields.dates(goal.getStartDate(), goal.getEndDate());
         }
 
         Goal saved = goalRepository.save(goal);

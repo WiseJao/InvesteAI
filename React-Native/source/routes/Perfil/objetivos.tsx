@@ -6,11 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import Field from '../../shared/field';
+import CampoData from '../../shared/campoData';
 import Opcoes from '../../shared/opcoes';
 import BotaoPrimario from '../../shared/botaoPrimario';
 import BotaoExcluir from '../../shared/botaoExcluir';
-import { formatarReais, lerValor, valorParaCampo } from '../../shared/currency';
-import { brParaIso, isoParaBr, mascaraData } from '../../shared/datas';
+import { decimalParaCampo, formatarReais, lerDecimal } from '../../shared/currency';
+import { usePrivacidade } from '../../shared/privacidade';
+import { brParaIso, isoParaBr } from '../../shared/datas';
 import { useCarregar } from '../../shared/useCarregar';
 import { mensagemDeErro } from '../../services/api';
 import {
@@ -30,6 +32,7 @@ const tiposDeObjetivo = [
 type TipoDeObjetivo = (typeof tiposDeObjetivo)[number]['valor'];
 
 function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (objetivo: Objetivo) => void }) {
+    const { oculto } = usePrivacidade();
     return (
         <TouchableOpacity
             style={styles.item}
@@ -38,12 +41,11 @@ function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (o
             accessibilityLabel={`Editar objetivo ${objetivo.titulo}`}
         >
             <Text style={styles.texto}>{objetivo.titulo}</Text>
-            <View style={styles.trilho}>
+            {!oculto && <View style={styles.trilho}>
                 <View style={[styles.preenchimento, { width: `${objetivo.progresso}%` }]} />
-            </View>
+            </View>}
             <Text style={styles.apoio}>
-                {formatarReais(objetivo.valorAtual)} / {formatarReais(objetivo.valorAlvo)} (
-                {Math.round(objetivo.progresso)}%)
+                {oculto ? 'Valores ocultos' : `${formatarReais(objetivo.valorAtual)} / ${formatarReais(objetivo.valorAlvo)} (${Math.round(objetivo.progresso)}%)`}
                 {objetivo.prazo ? ` · até ${isoParaBr(objetivo.prazo)}` : ''}
             </Text>
         </TouchableOpacity>
@@ -86,8 +88,8 @@ export default function Objetivos() {
         setEditando(objetivo);
         setTitulo(objetivo.titulo);
         setTipo(objetivo.categoria === 'Gastos' ? 'Gastos' : 'Investimentos');
-        setAlvo(valorParaCampo(objetivo.valorAlvo));
-        setAtual(valorParaCampo(objetivo.valorAtual));
+        setAlvo(decimalParaCampo(objetivo.valorAlvoExato));
+        setAtual(decimalParaCampo(objetivo.valorAtualExato));
         setPrazo(objetivo.prazo ? isoParaBr(objetivo.prazo) : '');
         setErroForm(null);
         setCriando(true);
@@ -109,13 +111,14 @@ export default function Objetivos() {
     }
 
     async function salvar() {
-        const valorAlvo = lerValor(alvo);
-        const valorAtual = atual.trim() ? lerValor(atual) : 0;
+        const valorAlvo = lerDecimal(alvo, 17, 2);
+        const valorAtual = atual.trim() ? lerDecimal(atual, 17, 2) : '0';
         const prazoIso = prazo.trim() ? brParaIso(prazo) : null;
 
         if (!titulo.trim()) return setErroForm('Dê um nome ao objetivo.');
-        if (valorAlvo === null || valorAlvo <= 0) return setErroForm('Informe um valor alvo maior que zero.');
-        if (valorAtual === null || valorAtual < 0) return setErroForm('O valor atual é inválido.');
+        if (Array.from(titulo.trim()).length > 255) return setErroForm('O nome deve ter até 255 caracteres.');
+        if (valorAlvo === null || Number(valorAlvo) <= 0) return setErroForm('Informe um valor alvo positivo com até 17 dígitos inteiros e 2 casas decimais.');
+        if (valorAtual === null) return setErroForm('Informe um valor atual não negativo com até 17 dígitos inteiros e 2 casas decimais.');
         if (prazo.trim() && !prazoIso) return setErroForm('Informe um prazo válido (DD/MM/AAAA).');
 
         setSalvando(true);
@@ -128,7 +131,10 @@ export default function Objetivos() {
                 valorAtual,
                 prazo: prazoIso,
             };
-            if (editando) await atualizarObjetivo(editando.id, dadosDoObjetivo);
+            if (editando) await atualizarObjetivo(editando.id, dadosDoObjetivo, {
+                alvo: alvo === decimalParaCampo(editando.valorAlvoExato),
+                atual: atual === decimalParaCampo(editando.valorAtualExato),
+            });
             else await criarObjetivo(dadosDoObjetivo);
             limparFormulario();
             await recarregar();
@@ -186,15 +192,13 @@ export default function Objetivos() {
                     <Card rotulo={editando ? 'EDITAR OBJETIVO' : 'NOVO OBJETIVO'}>
                         <Opcoes rotulo="Tipo" opcoes={tiposDeObjetivo} selecionado={tipo} onSelecionar={setTipo} />
                         <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
-                        <Field label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
-                        <Field label="Valor atual (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
-                        <Field
+                        <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
+                        <Field financeiro label="Valor atual (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
+                        <CampoData
                             label="Prazo (opcional)"
-                            placeholder="DD/MM/AAAA"
-                            keyboardType="numeric"
-                            maxLength={10}
                             value={prazo}
-                            onChangeText={(texto) => setPrazo(mascaraData(texto))}
+                            onChange={setPrazo}
+                            opcional
                         />
                         {erroForm ? <Text style={styles.erro}>{erroForm}</Text> : null}
                         <BotaoPrimario

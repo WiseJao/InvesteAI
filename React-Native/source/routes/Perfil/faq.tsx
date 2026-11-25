@@ -23,11 +23,11 @@ const topicos: Topico[] = [
             {
                 pergunta: 'Como recupero minha senha?',
                 resposta:
-                    'Na tela de login, toque em "Esqueci minha senha" e informe o CPF ou e-mail cadastrado.',
+                    'A recuperação de senha está indisponível até existir um canal seguro de verificação.',
             },
             {
                 pergunta: 'Como altero meu e-mail?',
-                resposta: 'Acesse Perfil > Central de segurança > Alterar email.',
+                resposta: 'A alteração de e-mail ainda não está disponível.',
             },
         ],
     },
@@ -110,6 +110,7 @@ export default function FAQ() {
                     })}
                 </View>
             ))}
+            {visiveis.length === 0 ? <Text style={styles.resposta}>Nenhum resultado encontrado.</Text> : null}
         </Layout>
     );
 }

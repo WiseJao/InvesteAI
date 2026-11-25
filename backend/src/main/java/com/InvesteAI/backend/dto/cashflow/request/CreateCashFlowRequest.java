@@ -1,8 +1,5 @@
 package com.InvesteAI.backend.dto.cashflow.request;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -25,8 +22,6 @@ public record CreateCashFlowRequest(
         String name,
         String detail,
         String description,
-        @NotNull(message = "O valor é obrigatório")
-        @DecimalMin(value = "0.01", message = "O valor deve ser maior que zero")
         BigDecimal amount,
         BigDecimal value, // Alias for amount
         String direction, // 'IN' or 'OUT'

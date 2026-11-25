@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
     ActivityIndicator,
@@ -17,8 +17,9 @@ import FormNovoAtivo from './components/FormNovoAtivo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../../shared/header';
 import { formatarReais } from '../../shared/currency';
+import { usePrivacidade } from '../../shared/privacidade';
 import { useCarregar } from '../../shared/useCarregar';
-import { obterCarteira, type Ativo } from '../../services/carteira';
+import { obterCarteira, type Ativo, type TipoInvestimento } from '../../services/carteira';
 import { colors } from '../../styles/colors';
 
 type Cotacao = {
@@ -61,15 +62,25 @@ function formatarVariacao(variacao?: number) {
 }
 
 export default function Investimentos() {
+    const { oculto } = usePrivacidade();
     const [ativos, setAtivos] = useState<Cotacao[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
     const [modalAdicionarVisivel, setModalAdicionarVisivel] = useState(false);
     const [tipoEscolhido, setTipoEscolhido] = useState<(typeof OPCOES_INVESTIMENTO)[number] | null>(null);
     const [ativoEditando, setAtivoEditando] = useState<Ativo | null>(null);
+    const [filtro, setFiltro] = useState<TipoInvestimento | 'TODOS'>('TODOS');
+    const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
+    const carteiraY = useRef(0);
     const navigation = useNavigation();
     const route = useRoute<{ key: string; name: string; params?: { adicionar?: number } }>();
-    const { dados: carteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
+    const { dados: carteira, carregando: carregandoCarteira, erro: erroCarteira, recarregar: recarregarCarteira } = useCarregar(obterCarteira);
+    const ativosFiltrados = (carteira?.ativos ?? []).filter((ativo) => filtro === 'TODOS' || ativo.investmentType === filtro);
+
+    function mostrarCarteira(tipo: TipoInvestimento | 'TODOS') {
+        setFiltro(tipo);
+        rolagem.current?.scrollTo({ y: carteiraY.current, animated: true });
+    }
 
     // Atalho "Adicionar Investimento" da Home abre direto o cadastro.
     const pedidoDeAdicionar = route.params?.adicionar;
@@ -141,6 +152,7 @@ export default function Investimentos() {
             <Header />
 
             <ScrollView
+                ref={rolagem}
                 style={{ flex: 1 }}
                 refreshControl={
                     <RefreshControl
@@ -153,24 +165,25 @@ export default function Investimentos() {
                     />
                 }
             >
-                <ScrollView style={styles.container}>
+                <View style={styles.container}>
                     <View style={styles.container_elementos}>
                         <Text style={styles.subtitle}>Saldo Investido: </Text>
-                        <Text style={styles.title}>{formatarReais(carteira?.valorAtual ?? 0)}</Text>
+                        <Text style={styles.title}>{oculto ? 'Valores ocultos' : carteira ? formatarReais(carteira.valorAtual) : 'Indisponível'}</Text>
                         {carteira ? (
                             <Text style={styles.subtitle}>
-                                Investido: {formatarReais(carteira.totalInvestido)} · Resultado:{' '}
-                                {formatarReais(carteira.lucro)}
+                                {oculto ? 'Valores ocultos' : `Investido: ${formatarReais(carteira.totalInvestido)} · Resultado: ${formatarReais(carteira.lucro)}`}
                             </Text>
                         ) : null}
                     </View>
 
-                    <View style={[styles.container_elementos, styles.bloco]}>
-                        <Text style={styles.title}>Minha carteira</Text>
-                        {carteira && carteira.ativos.length === 0 ? (
-                            <Text style={styles.mensagemVazia}>Você ainda não adicionou nenhum investimento.</Text>
+                    <View style={[styles.container_elementos, styles.bloco]} onLayout={(evento) => { carteiraY.current = evento.nativeEvent.layout.y; }}>
+                        <Text style={styles.title}>Minha carteira {filtro === 'FIXED_INCOME' ? '— Renda fixa' : filtro === 'VARIABLE_INCOME' ? '— Renda variável' : '— Todos (inclui legados)'}</Text>
+                        {carregandoCarteira && !carteira ? <ActivityIndicator color={colors.primary} /> : null}
+                        {erroCarteira ? <Pressable accessibilityRole="button" onPress={recarregarCarteira}><Text style={styles.erro}>{erroCarteira} Toque para tentar novamente.</Text></Pressable> : null}
+                        {carteira && ativosFiltrados.length === 0 ? (
+                            <Text style={styles.mensagemVazia}>Nenhum investimento neste filtro.</Text>
                         ) : null}
-                        {(carteira?.ativos ?? []).map((ativo) => (
+                        {ativosFiltrados.map((ativo) => (
                             <Pressable
                                 key={ativo.id}
                                 accessibilityRole="button"
@@ -180,18 +193,20 @@ export default function Investimentos() {
                             >
                                 <View style={styles.linhaCarteiraNome}>
                                     <Text style={styles.title}>{ativo.simbolo}</Text>
-                                    <Text style={styles.subtitle}>{ativo.quantidade} un.</Text>
+                                    <Text style={styles.subtitle}>{oculto ? 'Quantidade oculta' : `${ativo.quantidade} un.`}</Text>
+                                    <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
                                 </View>
                                 <View style={styles.linhaCarteiraValor}>
-                                    <Text style={styles.title}>{formatarReais(ativo.valorAtual)}</Text>
+                                    <Text style={styles.title}>{oculto ? 'Valores ocultos' : formatarReais(ativo.valorAtual)}</Text>
+                                    {ativo.investmentType === 'FIXED_INCOME' ? <Text style={styles.subtitle}>Valor estimado</Text> : null}
+                                    {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>Cotação indisponível</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>Cotação possivelmente desatualizada</Text> : null}
                                     <Text
                                         style={[
                                             styles.subtitle,
-                                            { color: ativo.lucro >= 0 ? colors.positive : colors.negative },
+                                            { color: oculto ? colors.textMuted : ativo.lucro >= 0 ? colors.positive : colors.negative },
                                         ]}
                                     >
-                                        {ativo.lucro >= 0 ? '+' : ''}
-                                        {ativo.lucroPercentual.toFixed(2)}%
+                                        {oculto ? 'Percentual oculto' : `${ativo.lucro >= 0 ? '+' : ''}${ativo.lucroPercentual.toFixed(2)}%`}
                                     </Text>
                                 </View>
                             </Pressable>
@@ -206,11 +221,11 @@ export default function Investimentos() {
                             icone="add" />
                         <Botao
                             titulo={'Renda\nvariável'}
-                            onPress={() => console.log('renda var')}
+                            onPress={() => mostrarCarteira('VARIABLE_INCOME')}
                             icone="trending-up" />
                         <Botao
                             titulo={'Renda\nfixa'}
-                            onPress={() => console.log('renda fixa')} // mudar esse icone depois, n achei nenhum bom
+                            onPress={() => mostrarCarteira('FIXED_INCOME')}
                             icone="home" />
                         <Botao
                             titulo={'Acessoria'}
@@ -218,7 +233,7 @@ export default function Investimentos() {
                             icone="chatbubbles" />
                         <Botao
                             titulo={'Meus\ninvestimentos'}
-                            onPress={() => console.log('meus invests')}
+                            onPress={() => mostrarCarteira('TODOS')}
                             icone="wallet" />
                     </View>
 
@@ -252,7 +267,7 @@ export default function Investimentos() {
                             />
                         ))}
                     </View>
-                </ScrollView>
+                </View>
 
             </ScrollView>
 
@@ -269,9 +284,10 @@ export default function Investimentos() {
                         style={styles.modalBackdrop}
                         onPress={fecharModal}
                     />
-                    <View
+                    <ScrollView
                         accessibilityViewIsModal
                         style={styles.modalConteudo}
+                        keyboardShouldPersistTaps="handled"
                     >
                         {ativoEditando ? (
                             <FormNovoAtivo
@@ -312,7 +328,7 @@ export default function Investimentos() {
                                 ))}
                             </>
                         )}
-                    </View>
+                    </ScrollView>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -398,6 +414,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         borderWidth: 1,
         padding: 20,
+        maxHeight: '90%',
     },
     modalTitulo: {
         color: colors.text,

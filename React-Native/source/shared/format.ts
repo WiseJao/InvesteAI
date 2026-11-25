@@ -1,5 +1,15 @@
 export function formatCPF(value: string): string {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (!/^[\d.\-]*$/.test(value)) return value;
+    const digits = value.replace(/\D/g, '');
+
+    if (/[.\-]/.test(value)) {
+        const formatar = (d: string) => d.length > 9 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+            : d.length > 6 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+                : d.length > 3 ? `${d.slice(0, 3)}.${d.slice(3)}` : d;
+        const expected = formatar(digits);
+        const digitado = formatar(digits.slice(0, -1)) + digits.slice(-1);
+        if (value !== expected && value !== digitado && value !== `${expected}.` && value !== `${expected}-`) return value;
+    }
 
     if (digits.length > 9) {
         return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
@@ -11,6 +21,18 @@ export function formatCPF(value: string): string {
         return `${digits.slice(0, 3)}.${digits.slice(3)}`;
     }
     return digits;
+}
+
+export function cpfValido(value: string): boolean {
+    if (!/^(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/.test(value)) return false;
+    const cpf = value.replace(/\D/g, '');
+    if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+    for (let tamanho = 9; tamanho <= 10; tamanho++) {
+        const soma = cpf.slice(0, tamanho).split('').reduce((total, digito, i) => total + Number(digito) * (tamanho + 1 - i), 0);
+        const resto = soma % 11;
+        if (Number(cpf[tamanho]) !== (resto < 2 ? 0 : 11 - resto)) return false;
+    }
+    return true;
 }
 
 export type PasswordStrength = {

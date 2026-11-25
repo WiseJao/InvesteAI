@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { mensagemDeErro } from '../services/api';
 
@@ -8,18 +8,21 @@ export function useCarregar<T>(carregar: () => Promise<T>, dependencias: unknown
     const [dados, setDados] = useState<T | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState<string | null>(null);
+    const requisicao = useRef(0);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const executar = useCallback(async (ativo: () => boolean = () => true) => {
+        const atual = ++requisicao.current;
+        const podeAtualizar = () => ativo() && atual === requisicao.current;
         setCarregando(true);
         setErro(null);
         try {
             const resultado = await carregar();
-            if (ativo()) setDados(resultado);
+            if (podeAtualizar()) setDados(resultado);
         } catch (falha) {
-            if (ativo()) setErro(mensagemDeErro(falha));
+            if (podeAtualizar()) setErro(mensagemDeErro(falha));
         } finally {
-            if (ativo()) setCarregando(false);
+            if (podeAtualizar()) setCarregando(false);
         }
     }, dependencias);
 
@@ -29,6 +32,7 @@ export function useCarregar<T>(carregar: () => Promise<T>, dependencias: unknown
             void executar(() => ativo);
             return () => {
                 ativo = false;
+                requisicao.current++;
             };
         }, [executar]),
     );

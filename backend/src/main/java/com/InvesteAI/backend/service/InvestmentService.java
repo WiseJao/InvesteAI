@@ -6,12 +6,17 @@ import com.InvesteAI.backend.dto.investment.response.HoldingResponse;
 import com.InvesteAI.backend.dto.investment.response.PortfolioSummaryResponse;
 import com.InvesteAI.backend.interfaces.InvestmentInterface;
 import com.InvesteAI.backend.model.Investment;
+import com.InvesteAI.backend.model.InvestmentType;
+import com.InvesteAI.backend.validation.PersistedFields;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -43,8 +48,11 @@ public class InvestmentService {
         investment.setOriginalQuantity(request.resolvedQuantity());
         investment.setRemainingQuantity(request.resolvedQuantity());
         investment.setPurchaseUnitPrice(request.resolvedPurchasePrice());
-        investment.setCurrentPrice(request.currentPrice() != null ? request.currentPrice() : request.resolvedPurchasePrice());
+        investment.setCurrentPrice(request.currentPrice());
         investment.setPurchaseDate(request.resolvedPurchaseDate());
+        investment.setInvestmentType(request.investmentType() == null ? InvestmentType.LEGACY : request.investmentType());
+        investment.setAnnualRate(request.annualRate());
+        validate(investment);
 
         Investment saved = investmentRepository.save(investment);
         return HoldingResponse.from(saved);
@@ -58,9 +66,10 @@ public class InvestmentService {
      */
     @Transactional(readOnly = true)
     public List<HoldingResponse> listHoldings(UUID userId) {
+        LocalDate valuationDate = LocalDate.now();
         return investmentRepository.findAllByUserIdOrderByPurchaseDateDesc(userId)
                 .stream()
-                .map(HoldingResponse::from)
+                .map(investment -> HoldingResponse.from(investment, valuationDate))
                 .toList();
     }
 
@@ -111,6 +120,12 @@ public class InvestmentService {
         if (request.purchaseDate() != null) {
             investment.setPurchaseDate(request.purchaseDate());
         }
+        if (request.investmentType() != null) {
+            investment.setInvestmentType(request.investmentType());
+            if (request.investmentType() != InvestmentType.FIXED_INCOME) investment.setAnnualRate(null);
+        }
+        if (request.annualRate() != null) investment.setAnnualRate(request.annualRate());
+        validate(investment);
 
         Investment saved = investmentRepository.save(investment);
         return HoldingResponse.from(saved);
@@ -147,14 +162,19 @@ public class InvestmentService {
         Map<String, BigDecimal> categoryMap = new HashMap<>();
 
         List<HoldingResponse> holdingResponses = new ArrayList<>();
+        LocalDate valuationDate = LocalDate.now();
         for (Investment inv : holdings) {
-            HoldingResponse hr = HoldingResponse.from(inv);
+            HoldingResponse hr = HoldingResponse.from(inv, valuationDate);
             holdingResponses.add(hr);
 
             totalInvested = totalInvested.add(hr.totalInvested());
             currentTotalValue = currentTotalValue.add(hr.currentTotalValue());
 
-            String category = classifyAsset(inv.getSymbol());
+            String category = switch (inv.getInvestmentType()) {
+                case FIXED_INCOME -> "Renda Fixa";
+                case VARIABLE_INCOME -> "Renda Variável";
+                case LEGACY -> "Legado";
+            };
             categoryMap.put(category, categoryMap.getOrDefault(category, BigDecimal.ZERO).add(hr.currentTotalValue()));
         }
 
@@ -189,19 +209,39 @@ public class InvestmentService {
         );
     }
 
-    /**
-     * Classifies an asset symbol into an asset category (Ações, Fundos Imobiliários, Renda Fixa, etc.).
-     *
-     * @param symbol the ticker or identifier string
-     * @return category description string
-     */
-    private String classifyAsset(String symbol) {
-        if (symbol == null) return "Outros";
-        String s = symbol.trim().toUpperCase();
-        if (s.endsWith("11")) return "Fundos Imobiliários / ETFs";
-        if (s.endsWith("3") || s.endsWith("4") || s.endsWith("5") || s.endsWith("6")) return "Ações";
-        if (s.startsWith("TESOURO") || s.startsWith("CDB") || s.startsWith("LCI") || s.startsWith("LCA") || s.startsWith("DEB")) return "Renda Fixa";
-        if (s.endsWith("34")) return "BDRs";
-        return "Renda Variável";
+    private void validate(Investment inv) {
+        LocalDate today = LocalDate.now();
+        PersistedFields.text(inv.getSymbol(), 25, "símbolo");
+        PersistedFields.text(inv.getName(), 380, "nome");
+        if (inv.getPurchaseDate() == null || inv.getPurchaseDate().isAfter(today)
+                || inv.getPurchaseDate().isBefore(today.minusYears(100))) {
+            throw badRequest("Símbolo, nome ou data de compra inválidos");
+        }
+        validateNumber(inv.getOriginalQuantity(), true, "quantidade original");
+        validateNumber(inv.getRemainingQuantity(), false, "quantidade restante");
+        validateNumber(inv.getPurchaseUnitPrice(), false, "preço de compra");
+        if (inv.getCurrentPrice() != null) validateNumber(inv.getCurrentPrice(), false, "preço atual");
+        if (inv.getRemainingQuantity().compareTo(inv.getOriginalQuantity()) > 0) {
+            throw badRequest("Quantidade restante excede a quantidade original");
+        }
+        BigDecimal rate = inv.getAnnualRate();
+        if (inv.getInvestmentType() == InvestmentType.FIXED_INCOME) {
+            if (rate == null || rate.signum() < 0 || rate.compareTo(new BigDecimal("1000")) > 0
+                    || rate.stripTrailingZeros().scale() > 4) throw badRequest("Taxa anual inválida");
+        } else if (rate != null) {
+            throw badRequest("Taxa anual permitida apenas para renda fixa");
+        }
+    }
+
+    private void validateNumber(BigDecimal value, boolean positive, String field) {
+        if (value == null || value.signum() < (positive ? 1 : 0)
+                || value.stripTrailingZeros().scale() > 10
+                || value.abs().compareTo(new BigDecimal("100000000000000")) >= 0) {
+            throw badRequest("Valor inválido: " + field);
+        }
+    }
+
+    private ResponseStatusException badRequest(String message) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
 }

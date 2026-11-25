@@ -1,5 +1,7 @@
 package com.InvesteAI.backend.dto.investment.request;
 
+import com.InvesteAI.backend.model.InvestmentType;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -23,8 +25,14 @@ public record UpdateHoldingRequest(
         BigDecimal purchaseUnitPrice,
         BigDecimal price,
         LocalDate purchaseDate,
-        BigDecimal currentPrice
+        BigDecimal currentPrice,
+        InvestmentType investmentType,
+        BigDecimal annualRate
 ) {
+    public UpdateHoldingRequest(String symbol, String name, BigDecimal remainingQuantity, BigDecimal quantity,
+                                BigDecimal purchaseUnitPrice, BigDecimal price, LocalDate purchaseDate, BigDecimal currentPrice) {
+        this(symbol, name, remainingQuantity, quantity, purchaseUnitPrice, price, purchaseDate, currentPrice, null, null);
+    }
     /**
      * Resolves the quantity value if provided.
      *

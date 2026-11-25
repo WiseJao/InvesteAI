@@ -8,6 +8,7 @@ import Header from '../../shared/header';
 import BalanceDivider from './components/balanceDivider';
 import Estado from '../../shared/estado';
 import { formatarReais } from '../../shared/currency';
+import { usePrivacidade } from '../../shared/privacidade';
 import { useCarregar } from '../../shared/useCarregar';
 import { obterResumoGastos } from '../../services/gastos';
 import { obterCarteira } from '../../services/carteira';
@@ -59,11 +60,12 @@ type ResumoProps = {
 };
 
 function Resumo({ titulo, total, itens, vazio }: ResumoProps) {
+    const { oculto } = usePrivacidade();
     return (
         <View style={styles.secao}>
             <View style={styles.resumoTopo}>
                 <Text style={styles.resumoTitulo}>{titulo}</Text>
-                <Text style={styles.resumoTotal}>R$ {total}</Text>
+                <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : `R$ ${total}`}</Text>
             </View>
 
             <View style={styles.resumoCorpo}>
@@ -73,9 +75,9 @@ function Resumo({ titulo, total, itens, vazio }: ResumoProps) {
                     {itens.map((item) => (
                         <View key={item.nome} style={styles.linha}>
                             <Text style={styles.linhaNome}>{item.nome}</Text>
-                            <Text style={styles.linhaValor}>{item.valor}</Text>
-                            <Text style={[styles.linhaDetalhe, { color: corDoDetalhe(item) }]}>
-                                {item.detalhe}
+                            <Text style={styles.linhaValor}>{oculto ? '••••' : item.valor}</Text>
+                            <Text style={[styles.linhaDetalhe, { color: oculto ? colors.textMuted : corDoDetalhe(item) }]}>
+                                {oculto ? '••••' : item.detalhe}
                             </Text>
                         </View>
                     ))}
@@ -95,6 +97,7 @@ async function carregarHome() {
 }
 
 export default function Home() {
+    const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
     const { dados, carregando, erro, recarregar } = useCarregar(carregarHome);
 
@@ -143,11 +146,11 @@ export default function Home() {
             <ScrollView>
                 <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                     <BalanceDivider
-                        saldo={formatarReais(gastos?.saldo ?? 0)}
-                        saldoDestaque={`${percentualUsado}% do orçamento usado`}
+                        saldo={oculto ? 'Valores ocultos' : formatarReais(gastos?.saldo ?? 0)}
+                        saldoDestaque={oculto ? 'Percentual oculto' : `${percentualUsado}% do orçamento usado`}
                         objetivo={objetivoPrincipal ? objetivoPrincipal.titulo : 'Nenhum objetivo'}
                         objetivoDestaque={
-                            objetivoPrincipal ? `${Math.round(objetivoPrincipal.progresso)}% concluído` : 'Crie um objetivo'
+                            objetivoPrincipal ? (oculto ? 'Percentual oculto' : `${Math.round(objetivoPrincipal.progresso)}% concluído`) : 'Crie um objetivo'
                         }
                     />
 
@@ -175,8 +178,7 @@ export default function Home() {
                                     <>
                                         <Text style={styles.objetivoTexto}>1. {objetivoInvestimento.titulo}</Text>
                                         <Text style={styles.objetivoApoio}>
-                                            {formatarReais(objetivoInvestimento.valorAtual)} /{' '}
-                                            {formatarReais(objetivoInvestimento.valorAlvo)}
+                                            {oculto ? 'Valores ocultos' : `${formatarReais(objetivoInvestimento.valorAtual)} / ${formatarReais(objetivoInvestimento.valorAlvo)}`}
                                         </Text>
                                     </>
                                 ) : (
@@ -190,8 +192,7 @@ export default function Home() {
                                     <>
                                         <Text style={styles.objetivoTexto}>1. {objetivoGasto.titulo}</Text>
                                         <Text style={styles.objetivoApoio}>
-                                            {formatarReais(objetivoGasto.valorAtual)} /{' '}
-                                            {formatarReais(objetivoGasto.valorAlvo)}
+                                            {oculto ? 'Valores ocultos' : `${formatarReais(objetivoGasto.valorAtual)} / ${formatarReais(objetivoGasto.valorAlvo)}`}
                                         </Text>
                                     </>
                                 ) : (

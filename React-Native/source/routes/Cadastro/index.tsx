@@ -5,7 +5,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
 import PasswordStrength from '../../shared/passwordStrength';
-import { formatCPF } from '../../shared/format';
+import { cpfValido, formatCPF } from '../../shared/format';
+import { lerDecimal } from '../../shared/currency';
 import { colors } from '../../styles/colors';
 import { registerUnified } from '../../services/api';
 
@@ -62,8 +63,21 @@ export default function Cadastro({ navigation }: Props) {
     const senhasDiferentes = data.repetirSenha.length > 0 && data.senha !== data.repetirSenha;
 
     async function handleProsseguir() {
-        if (step === 1) return setStep(2);
-        if (step === 2) return setStep(3);
+        setErrorMsg(null);
+        if (step === 1) {
+            const nome = `${data.nome.trim()} ${data.sobrenome.trim()}`.trim();
+            if (!nome || nome.length > 255) return setErrorMsg('Informe um nome completo de até 255 caracteres.');
+            if (!data.email.trim() || data.email.trim().length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) return setErrorMsg('Informe um e-mail válido de até 255 caracteres.');
+            if (Array.from(data.nomeExibicao).length > 255) return setErrorMsg('O nome de exibição deve ter até 255 caracteres.');
+            return setStep(2);
+        }
+        if (step === 2) {
+            if (data.renda.trim() && lerDecimal(data.renda, 17, 2) === null) return setErrorMsg('Informe uma renda não negativa com até 17 dígitos inteiros e 2 casas decimais.');
+            return setStep(3);
+        }
+
+        if (!cpfValido(data.cpf)) return setErrorMsg('Informe um CPF válido.');
+        if (!data.senha.trim()) return setErrorMsg('Informe uma senha.');
 
         if (senhasDiferentes || loading) return;
 
@@ -143,7 +157,7 @@ export default function Cadastro({ navigation }: Props) {
                         />
                         <Field
                             label="Sua renda"
-                            keyboardType="numeric"
+                            keyboardType="decimal-pad"
                             value={data.renda}
                             onChangeText={(v) => update('renda', v)}
                         />
@@ -179,7 +193,6 @@ export default function Cadastro({ navigation }: Props) {
                             label="CPF"
                             placeholder="000.000.000-00"
                             keyboardType="numeric"
-                            maxLength={14}
                             value={data.cpf}
                             onChangeText={(v) => update('cpf', formatCPF(v))}
                         />
@@ -197,10 +210,10 @@ export default function Cadastro({ navigation }: Props) {
                         />
                         <PasswordStrength password={data.senha} />
                         {senhasDiferentes && <Text style={styles.error}>As senhas não coincidem.</Text>}
-                        {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
                     </>
                 )}
 
+                {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
                 <TouchableOpacity
                     style={[styles.button, (step === 3 && (senhasDiferentes || loading)) && styles.buttonDisabled]}
                     onPress={handleProsseguir}

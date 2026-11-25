@@ -7,6 +7,7 @@ export type Movimentacao = {
     nome: string;
     categoria: string;
     valor: number;
+    valorExato: string;
     data: string; // AAAA-MM-DD
     entrada: boolean;
     classificacao: 'FIXED' | 'VARIABLE' | null;
@@ -15,7 +16,7 @@ export type Movimentacao = {
 type MovimentacaoApi = {
     id: string;
     flowDate: string;
-    amount: number;
+    amount: string;
     direction: 'IN' | 'OUT';
     description: string | null;
     category: string | null;
@@ -50,6 +51,7 @@ function converter(item: MovimentacaoApi): Movimentacao {
         nome: item.description?.trim() || 'Sem descrição',
         categoria: item.category?.trim() || 'Sem categoria',
         valor: Number(item.amount),
+        valorExato: item.amount,
         data: item.flowDate,
         entrada: item.direction === 'IN',
         classificacao: item.classification,
@@ -59,7 +61,7 @@ function converter(item: MovimentacaoApi): Movimentacao {
 // Todas as movimentações do usuário (mais recentes primeiro), opcionalmente só gastos fixos ou variáveis.
 export async function listarMovimentacoes(tipo?: 'EXPENSE_FIXED' | 'EXPENSE_VARIABLE'): Promise<Movimentacao[]> {
     const consulta = tipo ? `?type=${tipo}` : '';
-    const itens = await apiRequest<MovimentacaoApi[]>(`/cashflow${consulta}`);
+    const itens = await apiRequest<MovimentacaoApi[]>(`/cashflow${consulta}`, {}, true);
     return itens
         .map(converter)
         .sort((a, b) => b.data.localeCompare(a.data));
@@ -82,7 +84,7 @@ export async function obterResumoGastos(): Promise<ResumoGastos> {
 
 export type NovaMovimentacao = {
     nome: string;
-    valor: number;
+    valor: string;
     tipo: TipoMovimentacao;
     categoria: string;
     data: string; // AAAA-MM-DD
@@ -98,14 +100,14 @@ export async function criarMovimentacao(nova: NovaMovimentacao): Promise<Movimen
             category: nova.categoria,
             date: nova.data,
         }),
-    });
+    }, true);
     return converter(criada);
 }
 
-function corpoDaMovimentacao(dados: NovaMovimentacao) {
+function corpoDaMovimentacao(dados: NovaMovimentacao, valorInalterado: boolean) {
     return {
         description: dados.nome,
-        amount: dados.valor,
+        ...(valorInalterado ? {} : { amount: dados.valor }),
         type: dados.tipo,
         // O backend só troca receita por gasto (e vice-versa) quando a direção vem explícita.
         direction: dados.tipo === 'INCOME' ? 'IN' : 'OUT',
@@ -116,11 +118,11 @@ function corpoDaMovimentacao(dados: NovaMovimentacao) {
     };
 }
 
-export async function atualizarMovimentacao(id: string, dados: NovaMovimentacao): Promise<Movimentacao> {
+export async function atualizarMovimentacao(id: string, dados: NovaMovimentacao, valorInalterado = false): Promise<Movimentacao> {
     const atualizada = await apiRequest<MovimentacaoApi>(`/cashflow/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify(corpoDaMovimentacao(dados)),
-    });
+        body: JSON.stringify(corpoDaMovimentacao(dados, valorInalterado)),
+    }, true);
     return converter(atualizada);
 }
 

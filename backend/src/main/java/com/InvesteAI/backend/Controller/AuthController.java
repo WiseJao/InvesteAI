@@ -1,12 +1,9 @@
 package com.InvesteAI.backend.Controller;
 
-import com.InvesteAI.backend.dto.auth.request.ForgotPasswordRequest;
 import com.InvesteAI.backend.dto.auth.request.LoginRequest;
 import com.InvesteAI.backend.dto.auth.request.RefreshTokenRequest;
 import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
-import com.InvesteAI.backend.dto.auth.request.ResetPasswordRequest;
 import com.InvesteAI.backend.dto.auth.response.AuthResponse;
-import com.InvesteAI.backend.dto.auth.response.ForgotPasswordResponse;
 import com.InvesteAI.backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +17,7 @@ import java.util.Map;
  * REST controller managing authentication, registration, session lifecycle, and password recovery.
  * <p>
  * Exposes public endpoints for creating unified user profiles, issuing JWT access and refresh tokens,
- * renewing sessions, and performing secure password resets.
+ * and renewing sessions.
  * </p>
  */
 @RestController
@@ -52,26 +49,9 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    /**
-     * Initiates a password recovery request for the account associated with the given identifier.
-     *
-     * @param request the password recovery payload with email or CPF
-     * @return {@link ResponseEntity} with confirmation message and verification token/code
-     */
-    @PostMapping("/forgot-password")
-    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        return ResponseEntity.ok(authService.forgotPassword(request));
-    }
-
-    /**
-     * Resets a user's password after verifying the submitted recovery verification code.
-     *
-     * @param request the payload containing user identifier, verification code, and new password
-     * @return {@link ResponseEntity} containing a success confirmation message
-     */
-    @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(authService.resetPassword(request));
+    @PostMapping({"/forgot-password", "/reset-password"})
+    public ResponseEntity<Map<String, String>> passwordRecoveryUnavailable() {
+        return ResponseEntity.status(503).body(Map.of("message", "Recuperação de senha indisponível"));
     }
 
     /**

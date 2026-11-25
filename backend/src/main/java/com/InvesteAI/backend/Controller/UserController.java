@@ -18,8 +18,7 @@ import java.io.IOException;
 /**
  * REST controller for authenticated user account and profile management.
  * <p>
- * Provides endpoints to retrieve and update personal profile attributes,
- * as well as administrative lookup and removal operations.
+ * Provides endpoints to retrieve the authenticated user's profile and manage their avatar.
  * </p>
  */
 @RestController 
@@ -75,47 +74,4 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(user));
     }
 
-    /**
-     * Updates personal and financial profile parameters for the authenticated user.
-     *
-     * @param userID the authenticated user ID injected from the JWT token
-     * @param user   the user object containing fields to update (email, profile attributes)
-     * @return {@link ResponseEntity} containing the updated user account and profile
-     */
-    @PatchMapping
-    public ResponseEntity<UserResponse> patchMe(@CurrentUser UUID userID, @RequestBody User user) {
-        User updatedUser = userservice.atualizarUsuario(userID, user);
-        return ResponseEntity.ok(UserResponse.from(updatedUser));
-    }
-
-    /**
-     * Internal endpoint to search a specific user by their unique identifier.
-     *
-     * @param id the unique UUID of the user
-     * @return the {@link User} entity if found
-     */
-    @GetMapping("/{id}")
-    public User buscarUsuario(@PathVariable UUID id){
-        return userservice.buscarUsuario(id);
-    }
-
-    /**
-     * Internal administrative endpoint to list all registered users.
-     *
-     * @return iterable collection of all {@link User} entities
-     */
-    @GetMapping("/all")
-    public Iterable<User> buscarTodosUsuarios(){
-        return userservice.buscarTodosUsuarios();
-    }
-
-    /**
-     * Administrative endpoint to delete a user account by unique identifier.
-     *
-     * @param id the unique UUID of the user to remove
-     */
-    @DeleteMapping 
-    public void deletarUsuario(@RequestBody UUID id){
-        userservice.deletarUsuario(id);
-    }
 }

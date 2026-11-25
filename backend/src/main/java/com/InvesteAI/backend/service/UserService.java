@@ -16,19 +16,9 @@ public class UserService {
     }
 
 
-    public Iterable<User> buscarTodosUsuarios(){
-        return ur.findAll();
-    }
     public User buscarUsuario(UUID id) {
         return ur.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    public void deletarUsuario(UUID id){
-        ur.deleteById(id);
-    }
-
-    public User atualizarUsuario(UUID userID, User user) {
-        return ur.save(user);
-    }
 }

@@ -6,11 +6,13 @@ import Card from '../../shared/card';
 import { colors } from '../../styles/colors';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
+import { usePrivacidade } from '../../shared/privacidade';
 import { obterPerfilInvestidor } from '../../services/assessoria';
 import Botao from './components/botao';
 import type { AIStackParamList } from './types';
 
 export default function PerfilInvestidor() {
+    const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<AIStackParamList>>();
     const { dados: perfil, carregando, erro, recarregar } = useCarregar(obterPerfilInvestidor);
 
@@ -19,7 +21,7 @@ export default function PerfilInvestidor() {
             <Estado carregando={carregando} erro={erro} temDados={perfil !== null} onTentarNovamente={recarregar}>
                 <Card rotulo="SEU PERFIL">
                     <Text style={styles.destaque}>{perfil?.perfil}</Text>
-                    <Text style={styles.texto}>{perfil?.resumo}</Text>
+                    <Text style={styles.texto}>{oculto ? 'Detalhes ocultos' : perfil?.resumo}</Text>
                 </Card>
 
                 <Card rotulo="TOLERÂNCIA A RISCO">
@@ -29,7 +31,7 @@ export default function PerfilInvestidor() {
                 <Card rotulo="OBJETIVOS INFORMADOS">
                     {(perfil?.objetivos ?? []).map((objetivo) => (
                         <Text key={objetivo} style={styles.texto}>
-                            {'•'} {objetivo}
+                            {'•'} {oculto ? 'Objetivo oculto' : objetivo}
                         </Text>
                     ))}
                 </Card>
@@ -38,7 +40,7 @@ export default function PerfilInvestidor() {
                     {(perfil?.alocacao ?? []).map((item) => (
                         <View key={item.nome} style={styles.linha}>
                             <Text style={styles.texto}>{item.nome}</Text>
-                            <Text style={styles.valor}>{item.percentual}%</Text>
+                            <Text style={styles.valor}>{oculto ? 'Percentual oculto' : `${item.percentual}%`}</Text>
                         </View>
                     ))}
                 </Card>

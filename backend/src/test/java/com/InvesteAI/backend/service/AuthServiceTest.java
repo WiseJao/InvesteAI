@@ -1,6 +1,7 @@
 package com.InvesteAI.backend.service;
 
 import com.InvesteAI.backend.dto.auth.request.LoginRequest;
+import com.InvesteAI.backend.Controller.AuthController;
 import com.InvesteAI.backend.dto.auth.request.RegisterRequest;
 import com.InvesteAI.backend.dto.auth.response.AuthResponse;
 import com.InvesteAI.backend.interfaces.UserInterface;
@@ -231,25 +232,10 @@ class AuthServiceTest {
     }
 
     @Test
-    void handlesForgotPasswordAndResetPasswordFlow() {
-        UUID userId = UUID.randomUUID();
-        User user = new User();
-        user.setId(userId);
-        user.setEmail("user@example.com");
-        user.setPasswordHash("old-hash");
-
-        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(passwordEncoder.encode("NewSecurePassword123!")).thenReturn("new-hash");
-
-        var forgotResponse = authService.forgotPassword(
-                new com.InvesteAI.backend.dto.auth.request.ForgotPasswordRequest("user@example.com", null, null));
-        assertEquals("Código de recuperação enviado com sucesso", forgotResponse.message());
-        assertEquals("123456", forgotResponse.code());
-
-        var resetResponse = authService.resetPassword(
-                new com.InvesteAI.backend.dto.auth.request.ResetPasswordRequest("user@example.com", "123456", "NewSecurePassword123!", null));
-        assertEquals("Senha alterada com sucesso", resetResponse.get("message"));
-        assertEquals("new-hash", user.getPasswordHash());
+    void recoveryIsUnavailable() {
+        var response = new AuthController(authService).passwordRecoveryUnavailable();
+        assertEquals(503, response.getStatusCode().value());
+        assertEquals("Recuperação de senha indisponível", response.getBody().get("message"));
+        org.mockito.Mockito.verifyNoInteractions(userRepository, passwordEncoder);
     }
 }

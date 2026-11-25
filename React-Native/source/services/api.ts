@@ -1,3 +1,5 @@
+import { lerDecimal } from '../shared/currency';
+
 export const API_BASE_URL = (
     process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080'
 ).replace(/\/$/, '');
@@ -77,7 +79,8 @@ async function authFetch(
 
 export async function apiRequest<T = any>(
     path: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    decimaisExatos = false,
 ): Promise<T> {
     const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
     const headers: Record<string, string> = {
@@ -104,7 +107,11 @@ export async function apiRequest<T = any>(
         return {} as T;
     }
 
-    return response.json();
+    if (!decimaisExatos) return response.json();
+    const texto = await response.text();
+    JSON.parse(texto);
+    return JSON.parse(texto.replace(/"(?:\\.|[^"\\])*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/g,
+        (token) => token.startsWith('"') ? token : `"${token}"`));
 }
 
 export async function uploadAvatar(file: { uri: string; name: string; type: string; webFile?: File }) {
@@ -185,14 +192,8 @@ export async function registerUnified(data: UnifiedRegisterData) {
     const fullName = `${data.nome.trim()} ${data.sobrenome.trim()}`.trim();
     const cleanCpf = data.cpf.replace(/\D/g, '');
 
-    // Parse salary numeric value
-    let salaryNumber: number | null = null;
-    if (data.renda) {
-        const parsed = parseFloat(data.renda.replace(/[^\d.,]/g, '').replace(',', '.'));
-        if (!isNaN(parsed)) {
-            salaryNumber = parsed;
-        }
-    }
+    const salaryNumber = data.renda?.trim() ? lerDecimal(data.renda, 17, 2) : null;
+    if (data.renda?.trim() && salaryNumber === null) throw new Error('Renda inválida.');
 
     const payload = {
         name: fullName || data.nome,

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../styles/colors';
 import { LineChart } from "react-native-chart-kit/v2";
 import { useEffect, useState } from 'react';
+import { usePrivacidade } from '../../../shared/privacidade';
 
 const API_URL = (
   process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080'
@@ -110,6 +111,7 @@ export default function CardAtivo({
   variacao,
   logo,
 }: CardAtivoProps) {
+  const { oculto } = usePrivacidade();
   const [modalDetalhesVisivel, setModalDetalhesVisivel] = useState(false);
   const [periodoSelecionado, setPeriodoSelecionado] = useState<PeriodoHistorico>('1mo');
   const [pontosHistoricos, setPontosHistoricos] = useState<PontoGrafico[]>([]);
@@ -194,16 +196,16 @@ export default function CardAtivo({
         </View>
 
         <View style={styles.financeiro}>
-          <Text style={styles.preco}>{preco}</Text>
+          <Text style={styles.preco}>{oculto ? 'Valor oculto' : preco}</Text>
 
           <View >
 
           </View>
         </View>
 
-        <View style={[styles.variacao, variacao.startsWith('-') && styles.variacaoNegativa]}>
-          <Text style={[styles.variacaoTexto, variacao.startsWith('-') && styles.variacaoTextoNegativa]}>
-            {variacao}
+        <View style={[styles.variacao, !oculto && variacao.startsWith('-') && styles.variacaoNegativa]}>
+          <Text style={[styles.variacaoTexto, !oculto && variacao.startsWith('-') && styles.variacaoTextoNegativa]}>
+            {oculto ? '••••' : variacao}
           </Text>
         </View>
       </Pressable>
@@ -251,15 +253,15 @@ export default function CardAtivo({
               <View style={styles.modalIndicadores}>
                 <View>
                   <Text style={styles.modalRotulo}>Preço atual</Text>
-                  <Text style={styles.modalPreco}>{preco}</Text>
+                  <Text style={styles.modalPreco}>{oculto ? 'Valor oculto' : preco}</Text>
                 </View>
                 <View style={styles.modalVariacaoContainer}>
                   <Text style={styles.modalRotulo}>Variação</Text>
                   <Text style={[
                     styles.modalVariacao,
-                    variacao.startsWith('-') && styles.modalVariacaoNegativa,
+                    !oculto && variacao.startsWith('-') && styles.modalVariacaoNegativa,
                   ]}>
-                    {variacao}
+                    {oculto ? 'Percentual oculto' : variacao}
                   </Text>
                 </View>
               </View>
@@ -289,7 +291,7 @@ export default function CardAtivo({
                 ))}
               </View>
               <View style={styles.modalGrafico}>
-                {carregandoHistorico ? (
+                {oculto ? <Text style={styles.estadoGrafico}>Gráfico oculto</Text> : carregandoHistorico ? (
                   <ActivityIndicator color={colors.primary} style={styles.estadoGrafico} />
                 ) : erroHistorico ? (
                   <Text style={[styles.estadoGrafico, styles.erroGrafico]}>{erroHistorico}</Text>

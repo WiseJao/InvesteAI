@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Field from '../../../shared/field';
+import CampoData from '../../../shared/campoData';
 import BotaoPrimario from '../../../shared/botaoPrimario';
 import BotaoExcluir from '../../../shared/botaoExcluir';
-import { lerValor, quantidadeParaCampo, valorParaCampo } from '../../../shared/currency';
-import { brParaIso, hojeIso, isoParaBr, mascaraData } from '../../../shared/datas';
+import { compararDecimais, decimalParaCampo, lerDecimal } from '../../../shared/currency';
+import { brParaIso, hojeIso, isoParaBr } from '../../../shared/datas';
 import { mensagemDeErro } from '../../../services/api';
-import { adicionarAtivo, atualizarAtivo, excluirAtivo, type Ativo } from '../../../services/carteira';
+import { adicionarAtivo, atualizarAtivo, buscarAtivos, excluirAtivo, type Ativo, type ResultadoBusca } from '../../../services/carteira';
 import { colors } from '../../../styles/colors';
+import { usePrivacidade } from '../../../shared/privacidade';
 
 type FormNovoAtivoProps = {
     tipo: string;
@@ -17,31 +19,67 @@ type FormNovoAtivoProps = {
 };
 
 export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: FormNovoAtivoProps) {
+    const { oculto } = usePrivacidade();
     const editando = Boolean(ativo);
+    const investmentType = ativo?.investmentType ?? (tipo === 'Renda fixa' ? 'FIXED_INCOME' : 'VARIABLE_INCOME');
     const [simbolo, setSimbolo] = useState(ativo?.simbolo ?? '');
     const [nome, setNome] = useState(ativo && ativo.nome !== ativo.simbolo ? ativo.nome : '');
-    const [quantidade, setQuantidade] = useState(ativo ? quantidadeParaCampo(ativo.quantidade) : '');
-    const [preco, setPreco] = useState(ativo ? valorParaCampo(ativo.precoCompra) : '');
-    const [data, setData] = useState(isoParaBr(ativo?.dataCompra ?? hojeIso()));
+    const [selecionado, setSelecionado] = useState(Boolean(ativo));
+    const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
+    const [buscando, setBuscando] = useState(false);
+    const [erroBusca, setErroBusca] = useState<string | null>(null);
+    const [tentativa, setTentativa] = useState(0);
+    const [taxa, setTaxa] = useState(ativo?.annualRateExata == null ? '' : decimalParaCampo(ativo.annualRateExata));
+    const [quantidade, setQuantidade] = useState(ativo ? decimalParaCampo(ativo.quantidadeExata) : '');
+    const [preco, setPreco] = useState(ativo ? decimalParaCampo(ativo.precoCompraExato) : '');
+    const [data, setData] = useState(ativo ? (ativo.dataCompra ? isoParaBr(ativo.dataCompra) : '') : isoParaBr(hojeIso()));
     const [excluindo, setExcluindo] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
 
+    useEffect(() => {
+        const query = simbolo.trim();
+        setResultados([]);
+        setErroBusca(null);
+        if (investmentType !== 'VARIABLE_INCOME' || selecionado || query.length < 2) {
+            setBuscando(false);
+            return;
+        }
+        let vigente = true;
+        setBuscando(true);
+        const timer = setTimeout(() => {
+            void buscarAtivos(query).then((itens) => {
+                if (vigente) setResultados(itens);
+            }).catch((falha) => {
+                if (vigente) setErroBusca(mensagemDeErro(falha));
+            }).finally(() => {
+                if (vigente) setBuscando(false);
+            });
+        }, 400);
+        return () => { vigente = false; clearTimeout(timer); };
+    }, [simbolo, selecionado, investmentType, tentativa]);
+
     async function salvar() {
-        const quantidadeNumerica = lerValor(quantidade);
-        const precoNumerico = lerValor(preco);
+        const quantidadeNumerica = lerDecimal(quantidade, 14, 10);
+        const precoNumerico = lerDecimal(preco, 14, 10);
         const dataIso = brParaIso(data);
+        const taxaNumerica = lerDecimal(taxa, 4, 4);
 
         if (!simbolo.trim()) return setErro('Informe o código do ativo.');
-        if (quantidadeNumerica === null || quantidadeNumerica <= 0) return setErro('Informe uma quantidade maior que zero.');
-        if (ativo && quantidadeNumerica > ativo.quantidadeOriginal) {
+        if (Array.from(simbolo.trim().toUpperCase()).length > 25) return setErro('O código deve ter no máximo 25 caracteres.');
+        if (Array.from(nome.trim()).length > 380) return setErro('O nome deve ter no máximo 380 caracteres.');
+        if (investmentType === 'VARIABLE_INCOME' && !selecionado) return setErro('Selecione um ativo dos resultados da busca.');
+        if (investmentType === 'FIXED_INCOME' && (taxaNumerica === null || Number(taxaNumerica) > 1000)) return setErro('Informe uma taxa entre 0 e 1000%, com até 4 casas decimais.');
+        if (quantidadeNumerica === null || Number(quantidadeNumerica) <= 0) return setErro('Informe uma quantidade positiva com até 14 dígitos inteiros e 10 casas decimais.');
+        if (ativo && compararDecimais(quantidadeNumerica, ativo.quantidadeOriginalExata) > 0) {
             // O backend só permite reduzir a quantidade de uma compra já registrada.
             return setErro(
-                `Esta compra foi registrada com ${quantidadeParaCampo(ativo.quantidadeOriginal)} un. Para comprar mais, adicione um novo investimento.`,
+                `Esta compra foi registrada com ${decimalParaCampo(ativo.quantidadeOriginalExata)} un. Para comprar mais, adicione um novo investimento.`,
             );
         }
-        if (precoNumerico === null || precoNumerico < 0) return setErro('Informe o preço de compra.');
-        if (!dataIso) return setErro('Informe uma data válida (DD/MM/AAAA).');
+        if (precoNumerico === null) return setErro('Informe um preço não negativo com até 14 dígitos inteiros e 10 casas decimais.');
+        if (!dataIso && (data.trim() || !ativo || investmentType === 'FIXED_INCOME')) return setErro('Informe uma data válida (DD/MM/AAAA).');
+        if (investmentType === 'FIXED_INCOME' && dataIso && dataIso > hojeIso()) return setErro('A data de compra não pode estar no futuro.');
 
         setSalvando(true);
         setErro(null);
@@ -52,8 +90,14 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
                 quantidade: quantidadeNumerica,
                 precoCompra: precoNumerico,
                 data: dataIso,
+                investmentType,
+                annualRate: investmentType === 'FIXED_INCOME' ? taxaNumerica : null,
             };
-            if (ativo) await atualizarAtivo(ativo.id, dadosDoAtivo);
+            if (ativo) await atualizarAtivo(ativo.id, dadosDoAtivo, {
+                quantidade: quantidade === decimalParaCampo(ativo.quantidadeExata),
+                precoCompra: preco === decimalParaCampo(ativo.precoCompraExato),
+                annualRate: taxa === (ativo.annualRateExata == null ? '' : decimalParaCampo(ativo.annualRateExata)),
+            });
             else await adicionarAtivo(dadosDoAtivo);
             onSalvo();
         } catch (falha) {
@@ -81,24 +125,38 @@ export default function FormNovoAtivo({ tipo, ativo, onCancelar, onSalvo }: Form
         <View>
             <Text style={styles.titulo}>{tipo}</Text>
             <Field
-                label={tipo === 'Renda fixa' ? 'Código do título (ex.: CDB110)' : 'Código do ativo (ex.: PETR4)'}
+                label={investmentType === 'FIXED_INCOME' ? 'Código do título (ex.: CDB110)' : investmentType === 'VARIABLE_INCOME' ? 'Buscar ativo por código ou nome' : 'Código do ativo'}
                 autoCapitalize="characters"
                 value={simbolo}
-                onChangeText={setSimbolo}
+                onChangeText={(texto) => { setSimbolo(texto); if (investmentType === 'VARIABLE_INCOME') { setSelecionado(false); setNome(''); } }}
             />
+            {investmentType === 'VARIABLE_INCOME' && !selecionado ? (
+                <View>
+                    {simbolo.trim().length < 2 ? <Text style={styles.info}>Digite ao menos 2 caracteres para buscar.</Text> : null}
+                    {buscando ? <ActivityIndicator color={colors.primary} /> : null}
+                    {erroBusca ? <Pressable accessibilityRole="button" onPress={() => setTentativa((valor) => valor + 1)}><Text style={styles.erro}>{erroBusca} Toque para tentar novamente.</Text></Pressable> : null}
+                    {!buscando && !erroBusca && simbolo.trim().length >= 2 && resultados.length === 0 ? <Text style={styles.info}>Nenhum ativo encontrado.</Text> : null}
+                    {resultados.map((resultado) => (
+                        <Pressable key={resultado.simbolo} accessibilityRole="button" style={styles.resultado} onPress={() => { setSimbolo(resultado.simbolo); setNome(resultado.nome); setSelecionado(true); }}>
+                            <Text style={styles.resultadoTexto}>{resultado.simbolo} — {resultado.nome}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            ) : null}
+            {investmentType === 'VARIABLE_INCOME' && selecionado ? <Text style={styles.info}>Ativo selecionado: {simbolo} {nome ? `— ${nome}` : ''}</Text> : null}
             <Field label="Nome (opcional)" value={nome} onChangeText={setNome} />
-            <Field label="Quantidade" keyboardType="numeric" value={quantidade} onChangeText={setQuantidade} />
-            <Field label="Preço de compra (R$)" keyboardType="numeric" value={preco} onChangeText={setPreco} />
-            <Field
+            {investmentType === 'FIXED_INCOME' ? <Field financeiro label="Taxa anual (%)" keyboardType="decimal-pad" value={taxa} onChangeText={setTaxa} hint="Estimativa por juros compostos, sem impostos ou garantia de rentabilidade." /> : null}
+            <Field financeiro label="Quantidade" keyboardType="decimal-pad" value={quantidade} onChangeText={setQuantidade} />
+            <Field financeiro label="Preço de compra (R$)" keyboardType="decimal-pad" value={preco} onChangeText={setPreco} />
+            <CampoData
                 label="Data da compra"
-                placeholder="DD/MM/AAAA"
-                keyboardType="numeric"
-                maxLength={10}
                 value={data}
-                onChangeText={(texto) => setData(mascaraData(texto))}
+                onChange={setData}
+                opcional={Boolean(ativo) && investmentType !== 'FIXED_INCOME'}
+                impedirLimpeza={Boolean(ativo?.dataCompra) && investmentType !== 'FIXED_INCOME'}
             />
 
-            {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+            {erro ? <Text style={styles.erro}>{oculto ? 'Confira os dados informados.' : erro}</Text> : null}
             <BotaoPrimario
                 titulo={editando ? 'Salvar alterações' : 'Salvar investimento'}
                 onPress={salvar}
@@ -127,6 +185,9 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginBottom: 8,
     },
+    info: { color: colors.textMuted, marginBottom: 8 },
+    resultado: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border },
+    resultadoTexto: { color: colors.text },
     cancelar: {
         alignItems: 'center',
         padding: 12,

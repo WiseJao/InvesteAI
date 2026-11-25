@@ -19,7 +19,11 @@ public final class AuthIdentifiers {
             throw new IllegalArgumentException("CPF inválido");
         }
 
-        String normalized = cpf.trim().replace(".", "").replace("-", "");
+        String input = cpf.trim();
+        if (!input.matches("[0-9]{11}|[0-9]{3}\\.[0-9]{3}\\.[0-9]{3}-[0-9]{2}")) {
+            throw new IllegalArgumentException("CPF inválido");
+        }
+        String normalized = input.replace(".", "").replace("-", "");
         if (!CPF_DIGITS.matcher(normalized).matches()
                 || hasRepeatedDigits(normalized)
                 || calculateCheckDigit(normalized.substring(0, 9)) != normalized.charAt(9) - '0'

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Card from '../../../shared/card';
 import { formatarReais } from '../../../shared/currency';
+import { usePrivacidade } from '../../../shared/privacidade';
 import { colors } from '../../../styles/colors';
 import type { Gasto } from '../dados';
 
@@ -11,6 +12,7 @@ type ListaGastosProps = {
 };
 
 export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqui ainda.', onSelecionar }: ListaGastosProps) {
+    const { oculto } = usePrivacidade();
     if (itens.length === 0) {
         return (
             <Card>
@@ -35,8 +37,7 @@ export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqu
                         <Text style={styles.detalhe}>{item.detalhe}</Text>
                     </View>
                     <Text style={[styles.valor, item.entrada && styles.entrada]}>
-                        {item.entrada ? '+ ' : ''}
-                        {formatarReais(item.valor)}
+                        {oculto ? 'Valores ocultos' : `${item.entrada ? '+ ' : ''}${formatarReais(item.valor)}`}
                     </Text>
                 </TouchableOpacity>
             ))}

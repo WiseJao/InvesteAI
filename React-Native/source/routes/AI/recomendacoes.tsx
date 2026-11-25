@@ -3,6 +3,7 @@ import Layout from '../../shared/layout';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import { useCarregar } from '../../shared/useCarregar';
+import { usePrivacidade } from '../../shared/privacidade';
 import { listarRecomendacoes, obterPerfilInvestidor } from '../../services/assessoria';
 import { colors } from '../../styles/colors';
 
@@ -12,6 +13,7 @@ async function carregar() {
 }
 
 export default function Recomendacoes() {
+    const { oculto } = usePrivacidade();
     const { dados, carregando, erro, recarregar } = useCarregar(carregar);
 
     return (
@@ -24,12 +26,12 @@ export default function Recomendacoes() {
                 {(dados?.itens ?? []).map((item) => (
                     <Card key={item.simbolo}>
                         <Text style={styles.titulo}>{item.titulo}</Text>
-                        <Text style={styles.descricao}>{item.descricao}</Text>
+                        <Text style={styles.descricao}>{oculto ? 'Detalhes ocultos' : item.descricao}</Text>
                         <Text style={styles.detalhe}>
                             {item.categoria} · Risco {item.risco.toLowerCase()}
                         </Text>
                         <Text style={styles.detalhe}>
-                            Retorno esperado: {item.retornoEsperado} · Aporte mínimo: {item.aporteMinimo}
+                            {oculto ? 'Valores ocultos' : `Retorno esperado: ${item.retornoEsperado} · Aporte mínimo: ${item.aporteMinimo}`}
                         </Text>
                     </Card>
                 ))}

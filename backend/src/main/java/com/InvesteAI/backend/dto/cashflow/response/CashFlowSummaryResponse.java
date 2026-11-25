@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Summary metrics response for monthly budget and expenses.
  *
- * @param monthlyBudget   declared monthly budget or salary
+ * @param monthlyBudget   current profile salary (or zero) plus recorded monthly income
  * @param totalSpent      total expenses recorded for the month
  * @param totalIncome     total income recorded for the month
  * @param remainingBudget remaining available budget (monthlyBudget - totalSpent)

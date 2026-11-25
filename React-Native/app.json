@@ -7,7 +7,17 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
-      ["expo-image-picker", { "photosPermission": "Permita o acesso às fotos para escolher sua foto de perfil.", "cameraPermission": false, "microphonePermission": false }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permita o acesso às fotos para escolher sua foto de perfil.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-status-bar",
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "ios": {
       "supportsTablet": true

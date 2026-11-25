@@ -609,8 +609,10 @@ Updates current balance, target value, or deadline of an existing goal.
 }
 ```
 
-- **Response (`200 OK`)**: Updated `GoalResponse` with re-calculated `progressPercentage`.
-- **Error Responses**: `404 Not Found`.
+- To clear the optional end date, send `{"clearEndDate": true}`. Do not send a non-null `endDate` or `deadline` at the same time; that combination returns `400 Bad Request`.
+- To set a date, send `endDate` or `deadline` in `YYYY-MM-DD` format; if both have values, `endDate` takes precedence. Without `clearEndDate: true`, omitted or null dates preserve the existing date.
+- **Response (`200 OK`)**: Updated `GoalResponse` with re-calculated `progressPercentage`; after clearing, `endDate` and `deadline` are null.
+- **Error Responses**: `400 Bad Request`, `404 Not Found`.
 
 ---
 

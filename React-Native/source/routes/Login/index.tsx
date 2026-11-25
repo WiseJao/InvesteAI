@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import Field from '../../shared/field';
-import { formatCPF } from '../../shared/format';
+import { cpfValido, formatCPF } from '../../shared/format';
 import { login } from '../../services/api';
 import { colors } from '../../styles/colors';
 
@@ -28,7 +28,7 @@ export default function Login({ navigation }: Props) {
     async function handleEntrar() {
         const cpfNumeros = cpf.replace(/\D/g, '');
 
-        if (cpfNumeros.length !== 11 || !senha) {
+        if (!cpfValido(cpf) || !senha) {
             setErro('Informe o CPF completo e a senha.');
             return;
         }
@@ -69,7 +69,6 @@ export default function Login({ navigation }: Props) {
                         label="CPF"
                         placeholder="000.000.000-00"
                         keyboardType="numeric"
-                        maxLength={14}
                         value={cpf}
                         onChangeText={(value) => setCpf(formatCPF(value))}
                     />

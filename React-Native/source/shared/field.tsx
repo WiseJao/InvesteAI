@@ -1,21 +1,24 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { colors } from '../styles/colors';
+import { usePrivacidade } from './privacidade';
 
 type FieldProps = TextInputProps & {
     label: string;
     hint?: string;
+    financeiro?: boolean;
 };
 
-export default function Field({ label, hint, style, ...inputProps }: FieldProps) {
+export default function Field({ label, hint, style, financeiro = false, ...inputProps }: FieldProps) {
+    const { oculto } = usePrivacidade();
     return (
         <View style={styles.wrapper}>
             <Text style={styles.label}>{label}</Text>
-            <TextInput
+            {financeiro && oculto ? <Text style={styles.input} accessibilityLabel={`${label}: valor oculto`}>••••</Text> : <TextInput
                 style={[styles.input, style]}
                 placeholderTextColor={colors.textMuted}
                 {...inputProps}
-            />
+            />}
             {hint ? <Text style={styles.hint}>{hint}</Text> : null}
         </View>
     );

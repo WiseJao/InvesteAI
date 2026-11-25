@@ -1,5 +1,21 @@
 import { apiRequest } from './api';
 
+export type TipoInvestimento = 'FIXED_INCOME' | 'VARIABLE_INCOME' | 'LEGACY';
+export type ResultadoBusca = { simbolo: string; nome: string };
+
+export async function buscarAtivos(query: string): Promise<ResultadoBusca[]> {
+    const resposta = await apiRequest<{ results: unknown[] }>(`/investments/market/search?q=${encodeURIComponent(query)}`);
+    if (!Array.isArray(resposta.results)) throw new Error('Resposta de busca inválida.');
+    return resposta.results.flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const registro = item as Record<string, unknown>;
+        const simbolo = registro.stock ?? registro.symbol;
+        const nome = registro.name ?? registro.shortName;
+        if (typeof simbolo !== 'string' || !simbolo.trim()) return [];
+        return [{ simbolo: simbolo.trim(), nome: typeof nome === 'string' && nome.trim() ? nome : simbolo }];
+    }).slice(0, 20);
+}
+
 export type Ativo = {
     id: string;
     simbolo: string;
@@ -7,12 +23,19 @@ export type Ativo = {
     quantidade: number;
     quantidadeOriginal: number;
     precoCompra: number;
+    quantidadeExata: string;
+    quantidadeOriginalExata: string;
+    precoCompraExato: string;
+    annualRateExata: string | null;
     precoAtual: number;
     investido: number;
     valorAtual: number;
     lucro: number;
     lucroPercentual: number;
     dataCompra: string | null; // AAAA-MM-DD
+    investmentType: TipoInvestimento;
+    annualRate: number | null;
+    priceStatus: string | null;
 };
 
 export type Carteira = {
@@ -27,27 +50,30 @@ type AtivoApi = {
     id: string;
     symbol: string;
     name: string | null;
-    originalQuantity?: number | null;
-    remainingQuantity: number;
-    purchaseUnitPrice: number;
-    currentPrice: number | null;
-    totalInvested: number;
-    currentTotalValue: number;
-    profit: number | null;
-    profitPercentage: number | null;
+    originalQuantity?: string | null;
+    remainingQuantity: string;
+    purchaseUnitPrice: string;
+    currentPrice: string | null;
+    totalInvested: string;
+    currentTotalValue: string;
+    profit: string | null;
+    profitPercentage: string | null;
     purchaseDate?: string | null;
+    investmentType?: TipoInvestimento | null;
+    annualRate?: string | null;
+    priceStatus?: string | null;
 };
 
 type CarteiraApi = {
-    totalInvested: number | null;
-    currentTotalValue: number | null;
-    totalProfit: number | null;
-    profitPercentage: number | null;
+    totalInvested: string | null;
+    currentTotalValue: string | null;
+    totalProfit: string | null;
+    profitPercentage: string | null;
     holdings: AtivoApi[] | null;
 };
 
 export async function obterCarteira(): Promise<Carteira> {
-    const carteira = await apiRequest<CarteiraApi>('/portfolio');
+    const carteira = await apiRequest<CarteiraApi>('/portfolio', {}, true);
     return {
         totalInvestido: Number(carteira.totalInvested ?? 0),
         valorAtual: Number(carteira.currentTotalValue ?? 0),
@@ -60,12 +86,19 @@ export async function obterCarteira(): Promise<Carteira> {
             quantidade: Number(ativo.remainingQuantity),
             quantidadeOriginal: Number(ativo.originalQuantity ?? ativo.remainingQuantity),
             precoCompra: Number(ativo.purchaseUnitPrice),
+            quantidadeExata: ativo.remainingQuantity,
+            quantidadeOriginalExata: ativo.originalQuantity ?? ativo.remainingQuantity,
+            precoCompraExato: ativo.purchaseUnitPrice,
+            annualRateExata: ativo.annualRate ?? null,
             precoAtual: Number(ativo.currentPrice ?? ativo.purchaseUnitPrice),
             investido: Number(ativo.totalInvested),
             valorAtual: Number(ativo.currentTotalValue),
             lucro: Number(ativo.profit ?? 0),
             lucroPercentual: Number(ativo.profitPercentage ?? 0),
             dataCompra: ativo.purchaseDate ?? null,
+            investmentType: ativo.investmentType ?? 'LEGACY',
+            annualRate: ativo.annualRate == null ? null : Number(ativo.annualRate),
+            priceStatus: ativo.priceStatus ?? null,
         })),
     };
 }
@@ -73,9 +106,11 @@ export async function obterCarteira(): Promise<Carteira> {
 export type NovoAtivo = {
     simbolo: string;
     nome: string;
-    quantidade: number;
-    precoCompra: number;
-    data: string; // AAAA-MM-DD
+    quantidade: string;
+    precoCompra: string;
+    data: string | null; // AAAA-MM-DD
+    investmentType: TipoInvestimento;
+    annualRate: string | null;
 };
 
 export async function adicionarAtivo(novo: NovoAtivo): Promise<void> {
@@ -87,19 +122,23 @@ export async function adicionarAtivo(novo: NovoAtivo): Promise<void> {
             quantity: novo.quantidade,
             purchaseUnitPrice: novo.precoCompra,
             purchaseDate: novo.data,
+            investmentType: novo.investmentType,
+            annualRate: novo.annualRate,
         }),
     });
 }
 
-export async function atualizarAtivo(id: string, dados: NovoAtivo): Promise<void> {
+export async function atualizarAtivo(id: string, dados: NovoAtivo, inalterados: { quantidade: boolean; precoCompra: boolean; annualRate: boolean }): Promise<void> {
     await apiRequest(`/portfolio/holdings/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({
             symbol: dados.simbolo.toUpperCase(),
             name: dados.nome,
-            quantity: dados.quantidade,
-            purchaseUnitPrice: dados.precoCompra,
+            ...(inalterados.quantidade ? {} : { quantity: dados.quantidade }),
+            ...(inalterados.precoCompra ? {} : { purchaseUnitPrice: dados.precoCompra }),
             purchaseDate: dados.data,
+            investmentType: dados.investmentType,
+            ...(inalterados.annualRate ? {} : { annualRate: dados.annualRate }),
         }),
     });
 }

@@ -17,6 +17,7 @@ import java.time.LocalDate;
  * @param startDate     optional updated start date
  * @param deadline      optional updated deadline
  * @param endDate       alias field for deadline
+ * @param clearEndDate  explicitly clears the optional deadline when true
  */
 public record UpdateGoalRequest(
         String title,
@@ -29,8 +30,15 @@ public record UpdateGoalRequest(
         BigDecimal targetValue,
         LocalDate startDate,
         LocalDate deadline,
-        LocalDate endDate
+        LocalDate endDate,
+        Boolean clearEndDate
 ) {
+    public UpdateGoalRequest(String title, String name, String category, String description,
+                             BigDecimal currentAmount, BigDecimal currentValue, BigDecimal targetAmount,
+                             BigDecimal targetValue, LocalDate startDate, LocalDate deadline, LocalDate endDate) {
+        this(title, name, category, description, currentAmount, currentValue, targetAmount, targetValue,
+                startDate, deadline, endDate, null);
+    }
     /**
      * Resolves the updated name if provided.
      *

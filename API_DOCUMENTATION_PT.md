@@ -587,8 +587,10 @@ Retorna todas as metas cadastradas com cálculo dinâmico da porcentagem de prog
 }
 ```
 
-- **Resposta (`200 OK`)**: `GoalResponse` atualizado com recalculo automático do progresso.
-- **Respostas de Erro**: `404 Not Found`.
+- Para limpar a data final opcional, envie `{"clearEndDate": true}`. Não envie `endDate` ou `deadline` com data nesse caso; a combinação retorna `400 Bad Request`. Os dois campos podem ser omitidos ou nulos.
+- Para definir a data, envie `endDate` ou `deadline` no formato `AAAA-MM-DD`; se ambos tiverem valores, `endDate` prevalece. Sem `clearEndDate: true`, datas omitidas ou nulas preservam a data existente.
+- **Resposta (`200 OK`)**: `GoalResponse` atualizado com recalculo automático do progresso; após a limpeza, `endDate` e `deadline` são nulos.
+- **Respostas de Erro**: `400 Bad Request`, `404 Not Found`.
 
 ---
 

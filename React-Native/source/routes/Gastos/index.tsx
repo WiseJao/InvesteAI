@@ -6,6 +6,7 @@ import Layout from '../../shared/layout';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
 import { formatarReais } from '../../shared/currency';
+import { usePrivacidade } from '../../shared/privacidade';
 import { useCarregar } from '../../shared/useCarregar';
 import { obterResumoGastos } from '../../services/gastos';
 import { colors } from '../../styles/colors';
@@ -24,6 +25,7 @@ const atalhos: Atalho[] = [
 ];
 
 export default function Gastos() {
+    const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<GastosStackParamList>>();
     const { dados: resumo, carregando, erro, recarregar } = useCarregar(obterResumoGastos);
 
@@ -37,14 +39,14 @@ export default function Gastos() {
             <Estado carregando={carregando} erro={erro} temDados={resumo !== null} onTentarNovamente={recarregar}>
                 <Card rotulo="ORÇAMENTO MENSAL">
                     <View style={styles.valores}>
-                        <Text style={styles.total}>{formatarReais(gasto)} gastos</Text>
-                        <Text style={styles.orcamento}>de {formatarReais(orcamento)}</Text>
+                        <Text style={styles.total}>{oculto ? 'Valores ocultos' : `${formatarReais(gasto)} gastos`}</Text>
+                        <Text style={styles.orcamento}>{oculto ? '••••' : `de ${formatarReais(orcamento)}`}</Text>
                     </View>
-                    <View style={styles.trilho}>
+                    {!oculto && <View style={styles.trilho}>
                         <View style={[styles.preenchimento, { width: `${Math.min(percentual, 100)}%` }]} />
-                    </View>
+                    </View>}
                     <Text style={styles.apoio}>
-                        {orcamento > 0
+                        {oculto ? 'Percentual oculto' : orcamento > 0
                             ? `${percentual}% do orçamento utilizado`
                             : 'Informe sua renda no perfil para acompanhar o orçamento'}
                     </Text>
@@ -60,17 +62,17 @@ export default function Gastos() {
                                 <View style={styles.categoriaTopo}>
                                     <Text style={styles.categoriaNome}>{categoria.nome}</Text>
                                     <Text style={styles.categoriaNome}>
-                                        {formatarReais(categoria.gasto)} · {Math.round(categoria.percentual)}%
+                                        {oculto ? 'Valores ocultos' : `${formatarReais(categoria.gasto)} · ${Math.round(categoria.percentual)}%`}
                                     </Text>
                                 </View>
-                                <View style={styles.trilho}>
+                                {!oculto && <View style={styles.trilho}>
                                     <View
                                         style={[
                                             styles.preenchimento,
                                             { width: `${Math.min(categoria.percentual, 100)}%` },
                                         ]}
                                     />
-                                </View>
+                                </View>}
                             </View>
                         ))
                     )}

@@ -1,10 +1,13 @@
 package com.InvesteAI.backend.dto.investment.response;
 
 import com.InvesteAI.backend.model.Investment;
+import com.InvesteAI.backend.model.InvestmentType;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -37,7 +40,10 @@ public record HoldingResponse(
         BigDecimal currentTotalValue,
         BigDecimal profit,
         Double profitPercentage,
-        LocalDate purchaseDate
+        LocalDate purchaseDate,
+        InvestmentType investmentType,
+        BigDecimal annualRate,
+        String priceStatus
 ) {
     /**
      * Converts an {@link Investment} entity to a {@link HoldingResponse} calculating valuations and profit.
@@ -46,12 +52,27 @@ public record HoldingResponse(
      * @return initialized {@link HoldingResponse}
      */
     public static HoldingResponse from(Investment entity) {
+        return from(entity, LocalDate.now());
+    }
+
+    public static HoldingResponse from(Investment entity, LocalDate valuationDate) {
         BigDecimal qty = entity.getRemainingQuantity() != null ? entity.getRemainingQuantity() : entity.getOriginalQuantity();
         BigDecimal buyPrice = entity.getPurchaseUnitPrice();
         BigDecimal currPrice = entity.getCurrentPrice() != null ? entity.getCurrentPrice() : buyPrice;
 
-        BigDecimal totalInvested = buyPrice.multiply(qty);
-        BigDecimal currentTotal = currPrice.multiply(qty);
+        BigDecimal totalInvested = buyPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal currentTotal;
+        String priceStatus;
+        if (entity.getInvestmentType() == InvestmentType.FIXED_INCOME) {
+            long days = ChronoUnit.DAYS.between(entity.getPurchaseDate(), valuationDate);
+            BigDecimal base = BigDecimal.ONE.add(entity.getAnnualRate().movePointLeft(2));
+            currentTotal = compoundValue(buyPrice.multiply(qty), base, days);
+            currPrice = qty.signum() == 0 ? buyPrice : currentTotal.divide(qty, 10, RoundingMode.HALF_UP);
+            priceStatus = "ESTIMATED";
+        } else {
+            currentTotal = currPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            priceStatus = entity.getCurrentPrice() == null ? "UNAVAILABLE" : "STALE";
+        }
         BigDecimal profit = currentTotal.subtract(totalInvested);
 
         Double profitPct = 0.0;
@@ -69,12 +90,55 @@ public record HoldingResponse(
                 entity.getOriginalQuantity(),
                 entity.getRemainingQuantity(),
                 entity.getPurchaseUnitPrice(),
-                entity.getCurrentPrice(),
+                entity.getInvestmentType() == InvestmentType.FIXED_INCOME ? currPrice : entity.getCurrentPrice(),
                 totalInvested,
                 currentTotal,
                 profit,
                 profitPct,
-                entity.getPurchaseDate()
+                entity.getPurchaseDate(),
+                entity.getInvestmentType(),
+                entity.getAnnualRate(),
+                priceStatus
         );
+    }
+
+    private static BigDecimal compoundValue(BigDecimal principal, BigDecimal base, long days) {
+        BigDecimal whole = principal.multiply(base.pow(Math.toIntExact(days / 365)));
+        int remainder = (int) (days % 365);
+        if (remainder == 0 || whole.signum() == 0) return whole.setScale(2, RoundingMode.HALF_UP);
+
+        int scale = Math.max(40, whole.precision() - whole.scale() + 20);
+        BigDecimal normalized = base.stripTrailingZeros();
+        BigInteger numerator = normalized.unscaledValue();
+        int baseScale = normalized.scale();
+        if (baseScale < 0) {
+            numerator = numerator.multiply(BigInteger.TEN.pow(-baseScale));
+            baseScale = 0;
+        }
+        // The integer root bounds the fractional factor to one unit at the chosen decimal scale.
+        BigInteger radicand = numerator.pow(remainder)
+                .multiply(BigInteger.TEN.pow(scale * 365))
+                .divide(BigInteger.TEN.pow(baseScale * remainder));
+        BigInteger root = BigDecimal.valueOf(Math.pow(base.doubleValue(), remainder / 365.0))
+                .add(new BigDecimal("0.00000001")).setScale(8, RoundingMode.CEILING)
+                .movePointRight(scale).toBigIntegerExact();
+        if (root.pow(365).compareTo(radicand) < 0) root = BigInteger.TEN.pow(scale).multiply(BigInteger.valueOf(11));
+        BigInteger degree = BigInteger.valueOf(365);
+        while (true) {
+            BigInteger next = root.multiply(BigInteger.valueOf(364))
+                    .add(radicand.divide(root.pow(364))).divide(degree);
+            if (next.compareTo(root) >= 0) break;
+            root = next;
+        }
+        BigDecimal lower = whole.multiply(new BigDecimal(root, scale));
+        BigDecimal upper = whole.multiply(new BigDecimal(root.add(BigInteger.ONE), scale));
+        BigDecimal roundedLower = lower.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal roundedUpper = upper.setScale(2, RoundingMode.HALF_UP);
+        if (roundedLower.compareTo(roundedUpper) == 0) return roundedLower;
+
+        // Resolve a possible half-cent boundary by comparing exact 365th powers.
+        BigDecimal midpoint = roundedLower.add(new BigDecimal("0.005"));
+        return whole.pow(365).multiply(base.pow(remainder)).compareTo(midpoint.pow(365)) >= 0
+                ? roundedUpper : roundedLower;
     }
 }

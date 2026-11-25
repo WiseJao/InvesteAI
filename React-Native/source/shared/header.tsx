@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
 import { nomeParaExibir, obterUsuario } from '../services/usuario';
+import { usePrivacidade } from './privacidade';
 
 
 type HeaderProps = {
@@ -11,6 +13,8 @@ type HeaderProps = {
 
 export default function Header({ name }: HeaderProps) {
 	const [nomeDoUsuario, setNomeDoUsuario] = useState<string | null>(null);
+	const { oculto, alternar } = usePrivacidade();
+	const navigation = useNavigation();
 
 	useEffect(() => {
 		let ativo = true;
@@ -34,20 +38,20 @@ export default function Header({ name }: HeaderProps) {
 				</View>
 
 				<View style={styles.actions}>
-					<Text accessibilityLabel="Ocultar saldo" style={styles.eye}>
+					<Pressable accessibilityRole="button" accessibilityLabel={oculto ? 'Mostrar valores financeiros' : 'Ocultar valores financeiros'} accessibilityState={{ selected: oculto }} onPress={alternar} style={styles.action}>
 						<Ionicons
 							size={25}
-							name='eye-outline'
+							name={oculto ? 'eye-off-outline' : 'eye-outline'}
 							color={colors.primary}
 						/>
-					</Text>
-					<Text accessibilityLabel="Configurações" style={styles.settings}>
+					</Pressable>
+					<Pressable accessibilityRole="button" accessibilityLabel="Configurações" onPress={() => navigation.getParent()?.dispatch(CommonActions.navigate({ name: 'Home', params: { screen: 'Configuracoes' } }))} style={styles.action}>
 						<Ionicons
 							size={25}
 							name='settings-outline'
 							color={colors.primary}
 						/>
-					</Text>
+					</Pressable>
 				</View>
 			</View>
 
@@ -92,16 +96,11 @@ const styles = StyleSheet.create({
 		gap: 20,
 		paddingTop: 4,
 	},
-	eye: {
-		color: '#50d6ca',
-		fontSize: 24,
-		lineHeight: 58,
-		fontWeight: '300',
-	},
-	settings: {
-		color: '#50d6ca',
-		fontSize: 24,
-		lineHeight: 60,
+	action: {
+		minWidth: 44,
+		minHeight: 44,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	greeting: {
 		marginTop: 12,

@@ -6,6 +6,8 @@ export type Objetivo = {
     categoria: string;
     valorAtual: number;
     valorAlvo: number;
+    valorAtualExato: string;
+    valorAlvoExato: string;
     progresso: number; // 0 a 100
     prazo: string | null; // AAAA-MM-DD
 };
@@ -14,9 +16,9 @@ type ObjetivoApi = {
     id: string;
     name: string;
     category: string | null;
-    currentAmount: number | null;
-    targetAmount: number;
-    progressPercentage: number | null;
+    currentAmount: string | null;
+    targetAmount: string;
+    progressPercentage: string | null;
     deadline: string | null;
 };
 
@@ -31,21 +33,23 @@ function converter(item: ObjetivoApi): Objetivo {
         categoria: item.category ?? '',
         valorAtual,
         valorAlvo,
+        valorAtualExato: item.currentAmount ?? '0',
+        valorAlvoExato: item.targetAmount,
         progresso: Math.max(0, Math.min(100, Number(progresso))),
         prazo: item.deadline,
     };
 }
 
 export async function listarObjetivos(): Promise<Objetivo[]> {
-    const itens = await apiRequest<ObjetivoApi[]>('/goals');
+    const itens = await apiRequest<ObjetivoApi[]>('/goals', {}, true);
     return itens.map(converter);
 }
 
 export type NovoObjetivo = {
     titulo: string;
     categoria: string;
-    valorAlvo: number;
-    valorAtual: number;
+    valorAlvo: string;
+    valorAtual: string;
     prazo: string | null; // AAAA-MM-DD
 };
 
@@ -59,21 +63,21 @@ export async function criarObjetivo(novo: NovoObjetivo): Promise<Objetivo> {
             currentAmount: novo.valorAtual,
             ...(novo.prazo ? { deadline: novo.prazo } : {}),
         }),
-    });
+    }, true);
     return converter(criado);
 }
 
-export async function atualizarObjetivo(id: string, dados: NovoObjetivo): Promise<Objetivo> {
+export async function atualizarObjetivo(id: string, dados: NovoObjetivo, inalterados: { alvo: boolean; atual: boolean }): Promise<Objetivo> {
     const atualizado = await apiRequest<ObjetivoApi>(`/goals/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({
             name: dados.titulo,
             category: dados.categoria,
-            targetAmount: dados.valorAlvo,
-            currentAmount: dados.valorAtual,
-            ...(dados.prazo ? { deadline: dados.prazo } : {}),
+            ...(inalterados.alvo ? {} : { targetAmount: dados.valorAlvo }),
+            ...(inalterados.atual ? {} : { currentAmount: dados.valorAtual }),
+            ...(dados.prazo ? { deadline: dados.prazo } : { clearEndDate: true }),
         }),
-    });
+    }, true);
     return converter(atualizado);
 }
 

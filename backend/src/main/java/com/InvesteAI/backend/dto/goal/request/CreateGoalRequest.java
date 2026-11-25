@@ -1,9 +1,5 @@
 package com.InvesteAI.backend.dto.goal.request;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -23,15 +19,12 @@ import java.time.LocalDate;
  * @param endDate       alias field for deadline
  */
 public record CreateGoalRequest(
-        @NotBlank(message = "O título é obrigatório")
         String title,
         String name, // Alias for title
         String category,
         String description,
         BigDecimal currentAmount,
         BigDecimal currentValue,
-        @NotNull(message = "O valor alvo é obrigatório")
-        @DecimalMin(value = "0.01", message = "O valor alvo deve ser maior que zero")
         BigDecimal targetAmount,
         BigDecimal targetValue,
         LocalDate startDate,

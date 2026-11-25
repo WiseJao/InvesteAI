@@ -3,11 +3,12 @@ import { Text, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Layout from '../../shared/layout';
 import Field from '../../shared/field';
+import CampoData from '../../shared/campoData';
 import Opcoes from '../../shared/opcoes';
 import BotaoPrimario from '../../shared/botaoPrimario';
 import BotaoExcluir from '../../shared/botaoExcluir';
-import { lerValor, valorParaCampo } from '../../shared/currency';
-import { brParaIso, isoParaBr, hojeIso, mascaraData } from '../../shared/datas';
+import { decimalParaCampo, lerDecimal } from '../../shared/currency';
+import { brParaIso, isoParaBr, hojeIso } from '../../shared/datas';
 import { mensagemDeErro } from '../../services/api';
 import {
     atualizarMovimentacao,
@@ -35,7 +36,7 @@ export default function NovoGasto() {
 
     const [tipo, setTipo] = useState<TipoMovimentacao>(gastoEditado ? tipoDaMovimentacao(gastoEditado) : 'EXPENSE_VARIABLE');
     const [nome, setNome] = useState(gastoEditado?.nome ?? '');
-    const [valor, setValor] = useState(gastoEditado ? valorParaCampo(gastoEditado.valor) : '');
+    const [valor, setValor] = useState(gastoEditado ? decimalParaCampo(gastoEditado.valorExato) : '');
     const [categoria, setCategoria] = useState<string>(
         gastoEditado && !gastoEditado.entrada ? gastoEditado.categoria : categoriasDeGasto[0],
     );
@@ -52,11 +53,11 @@ export default function NovoGasto() {
     const ehReceita = tipo === 'INCOME';
 
     async function salvar() {
-        const valorNumerico = lerValor(valor);
+        const valorNumerico = lerDecimal(valor, 17, 2);
         const dataIso = brParaIso(data);
 
         if (!nome.trim()) return setErro('Informe uma descrição.');
-        if (valorNumerico === null || valorNumerico <= 0) return setErro('Informe um valor maior que zero.');
+        if (valorNumerico === null || Number(valorNumerico) <= 0) return setErro('Informe um valor positivo com até 17 dígitos inteiros e 2 casas decimais.');
         if (!dataIso) return setErro('Informe uma data válida (DD/MM/AAAA).');
 
         setSalvando(true);
@@ -69,7 +70,7 @@ export default function NovoGasto() {
                 categoria: ehReceita ? 'Renda' : categoria,
                 data: dataIso,
             };
-            if (gastoEditado) await atualizarMovimentacao(gastoEditado.id, dados);
+            if (gastoEditado) await atualizarMovimentacao(gastoEditado.id, dados, valor === decimalParaCampo(gastoEditado.valorExato));
             else await criarMovimentacao(dados);
             navigation.goBack();
         } catch (falha) {
@@ -100,9 +101,11 @@ export default function NovoGasto() {
             voltar
         >
             <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />
+            {ehReceita ? <Text style={styles.aviso}>O salário informado no perfil já compõe o orçamento. Lançá-lo também como receita fará com que seja contado duas vezes.</Text> : null}
             <Field label="Descrição" placeholder="Ex.: Supermercado" value={nome} onChangeText={setNome} />
             <Field
                 label="Valor (R$)"
+                financeiro
                 placeholder="0,00"
                 keyboardType="decimal-pad"
                 value={valor}
@@ -116,14 +119,7 @@ export default function NovoGasto() {
                     onSelecionar={setCategoria}
                 />
             )}
-            <Field
-                label="Data"
-                placeholder="DD/MM/AAAA"
-                keyboardType="numeric"
-                maxLength={10}
-                value={data}
-                onChangeText={(texto) => setData(mascaraData(texto))}
-            />
+            <CampoData label="Data" value={data} onChange={setData} />
 
             {erro ? <Text style={styles.erro}>{erro}</Text> : null}
             <BotaoPrimario titulo={editando ? 'Salvar alterações' : 'Salvar'} onPress={salvar} carregando={salvando} desabilitado={excluindo} />
@@ -133,6 +129,11 @@ export default function NovoGasto() {
 }
 
 const styles = StyleSheet.create({
+    aviso: {
+        color: colors.textMuted,
+        fontSize: 12,
+        marginBottom: 8,
+    },
     erro: {
         color: colors.negative,
         fontSize: 12,

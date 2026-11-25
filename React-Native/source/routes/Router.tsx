@@ -6,13 +6,14 @@ import Investimentos from './Investimentos';
 import HomeStack from './Home/stack';
 import GastosStack from './Gastos/stack';
 import AIStack from './AI/stack';
+import { PrivacidadeProvider } from '../shared/privacidade';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 export default function TabRouter() {
     return (
-        <Tab.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
+        <PrivacidadeProvider><Tab.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
             <Tab.Screen name="Home" component={HomeStack} options={{
                 tabBarIcon: () =>(
                     <Ionicons
@@ -45,7 +46,7 @@ export default function TabRouter() {
                     />
                 )
             }} />
-        </Tab.Navigator>
+        </Tab.Navigator></PrivacidadeProvider>
     );
 }
 

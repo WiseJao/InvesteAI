@@ -8,6 +8,7 @@ import com.InvesteAI.backend.interfaces.CashFlowInterface;
 import com.InvesteAI.backend.interfaces.UserInterface;
 import com.InvesteAI.backend.model.CashFlow;
 import com.InvesteAI.backend.model.User;
+import com.InvesteAI.backend.validation.PersistedFields;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,8 @@ public class CashFlowService {
         cashFlow.setDescription(request.resolvedDescription());
         cashFlow.setCategory(request.category() != null ? request.category().trim() : "Outros");
         cashFlow.setClassification(request.resolvedClassification());
+
+        validate(cashFlow, true, true, true);
 
         CashFlow saved = cashFlowRepository.save(cashFlow);
         return CashFlowResponse.from(saved);
@@ -144,6 +147,9 @@ public class CashFlowService {
             cashFlow.setClassification(request.resolvedClassification());
         }
 
+        validate(cashFlow, request.resolvedAmount() != null, request.category() != null,
+                request.resolvedDirection() != null || request.resolvedClassification() != null);
+
         CashFlow saved = cashFlowRepository.save(cashFlow);
         return CashFlowResponse.from(saved);
     }
@@ -160,6 +166,17 @@ public class CashFlowService {
         CashFlow cashFlow = cashFlowRepository.findByCashFlowIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Lançamento de fluxo de caixa não encontrado"));
         cashFlowRepository.delete(cashFlow);
+    }
+
+    private void validate(CashFlow flow, boolean amount, boolean category, boolean direction) {
+        if (amount) PersistedFields.money(flow.getAmount(), true, "valor");
+        if (category) PersistedFields.optionalText(flow.getCategory(), 100, "categoria");
+        if (direction && (!("IN".equals(flow.getDirection()) || "OUT".equals(flow.getDirection()))
+                || (flow.getClassification() != null && !("FIXED".equals(flow.getClassification())
+                || "VARIABLE".equals(flow.getClassification())))
+                || ("OUT".equals(flow.getDirection()) && flow.getClassification() == null))) {
+            throw PersistedFields.invalid("direção ou classificação");
+        }
     }
 
     /**
@@ -194,14 +211,10 @@ public class CashFlowService {
             }
         }
 
-        BigDecimal monthlyBudget = BigDecimal.ZERO;
+        BigDecimal monthlyBudget = totalIncome;
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isPresent() && userOpt.get().getProfile() != null && userOpt.get().getProfile().getSalary() != null) {
-            monthlyBudget = userOpt.get().getProfile().getSalary();
-        } else if (totalIncome.compareTo(BigDecimal.ZERO) > 0) {
-            monthlyBudget = totalIncome;
-        } else {
-            monthlyBudget = totalSpent;
+            monthlyBudget = monthlyBudget.add(userOpt.get().getProfile().getSalary());
         }
 
         BigDecimal remainingBudget = monthlyBudget.subtract(totalSpent);

@@ -980,3 +980,10 @@ Ambos os endpoints exigem `Authorization: Bearer <accessToken>` e acessam apenas
 curl -X POST "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -F 'file=@avatar.png;type=image/png'
 curl "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -o avatar.png
 ```
+
+### Perfil, recorrências e posições vinculadas
+
+- `PATCH /user/me` edita `name`, `nickname`, `occupation` e `salary`. Envie `salary: null` para limpar a previsão. Campos omitidos mantêm seus valores.
+- `GET /cashflow/recurrences` lista regras. `POST /cashflow/recurrences` aceita `description`, `category`, `amount`, `firstDate`, `lastDate` (opcional) e `existingCashFlowId` (para converter gasto fixo). `PUT /cashflow/recurrences/{id}` altera os valores futuros mantendo a primeira data. `DELETE /cashflow/recurrences/{id}` encerra os próximos vencimentos. A exclusão de um lançamento gerado afeta só aquela ocorrência.
+- Em `/portfolio/holdings`, envie `fixedIncome` com `product` (`CDB`, `CAIXINHA`, `OTHER`), `institution`, `maturityDate` e `cdiPercentage`. Use `annualRate` para prefixados ou `fixedIncome.cdiPercentage` para CDI. A resposta informa `valuationThrough` quando há uma data-base e `logoUrl` quando há uma imagem.
+- Em `/goals`, `progressMode` aceita `MANUAL` ou `PORTFOLIO`. Para vincular uma meta de investimento, envie `holdingIds` com ao menos uma posição da conta. A resposta informa `valuationStatus`. `UNLINKED` indica que a meta perdeu todas as posições vinculadas.

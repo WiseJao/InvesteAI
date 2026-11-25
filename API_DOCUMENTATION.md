@@ -986,3 +986,10 @@ Both endpoints require `Authorization: Bearer <accessToken>` and operate only on
 curl -X POST "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -F 'file=@avatar.png;type=image/png'
 curl "$BASE_URL/user/me/avatar" -H "Authorization: Bearer $TOKEN" -o avatar.png
 ```
+
+### Profile, recurring expenses, and linked holdings
+
+- `PATCH /user/me` edits `name`, `nickname`, `occupation`, and `salary`. Send `salary: null` to clear the forecast. Omitted fields retain their values.
+- `GET /cashflow/recurrences` lists rules. `POST /cashflow/recurrences` accepts `description`, `category`, `amount`, `firstDate`, optional `lastDate`, and optional `existingCashFlowId` to convert an existing fixed expense. `PUT /cashflow/recurrences/{id}` changes future occurrences and keeps the first date. `DELETE /cashflow/recurrences/{id}` ends future occurrences. Deleting a generated expense skips that occurrence.
+- For `/portfolio/holdings`, `fixedIncome` contains `product` (`CDB`, `CAIXINHA`, `OTHER`), `institution`, `maturityDate`, and `cdiPercentage`. Use `annualRate` for a fixed annual rate or `fixedIncome.cdiPercentage` for CDI. The response includes `valuationThrough` when a valuation date is available and `logoUrl` when an image is available.
+- In `/goals`, `progressMode` accepts `MANUAL` or `PORTFOLIO`. Send `holdingIds` with at least one holding belonging to the account when linking an investment goal. The response includes `valuationStatus`. `UNLINKED` means every linked holding was removed.

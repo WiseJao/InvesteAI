@@ -72,7 +72,7 @@ export async function atualizarObjetivo(id: string, dados: NovoObjetivo, inalter
         method: 'PATCH',
         body: JSON.stringify({
             name: dados.titulo,
-            category: dados.categoria,
+            ...(dados.categoria ? { category: dados.categoria } : {}),
             ...(inalterados.alvo ? {} : { targetAmount: dados.valorAlvo }),
             ...(inalterados.atual ? {} : { currentAmount: dados.valorAtual }),
             ...(dados.prazo ? { deadline: dados.prazo } : { clearEndDate: true }),

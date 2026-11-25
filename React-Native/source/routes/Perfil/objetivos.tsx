@@ -29,8 +29,6 @@ const tiposDeObjetivo = [
     { valor: 'Gastos', texto: 'Gastos' },
 ] as const;
 
-type TipoDeObjetivo = (typeof tiposDeObjetivo)[number]['valor'];
-
 function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (objetivo: Objetivo) => void }) {
     const { oculto } = usePrivacidade();
     return (
@@ -59,7 +57,7 @@ export default function Objetivos() {
     const [editando, setEditando] = useState<Objetivo | null>(null);
     const [excluindo, setExcluindo] = useState(false);
     const [titulo, setTitulo] = useState('');
-    const [tipo, setTipo] = useState<TipoDeObjetivo>('Investimentos');
+    const [tipo, setTipo] = useState<string>('Investimentos');
     const [alvo, setAlvo] = useState('');
     const [atual, setAtual] = useState('');
     const [prazo, setPrazo] = useState('');
@@ -72,6 +70,10 @@ export default function Objetivos() {
     const outros = objetivos.filter(
         (objetivo) => objetivo.categoria !== 'Investimentos' && objetivo.categoria !== 'Gastos',
     );
+
+    const opcoesDeTipo = tiposDeObjetivo.some((opcao) => opcao.valor === tipo)
+        ? tiposDeObjetivo
+        : [...tiposDeObjetivo, { valor: tipo, texto: tipo || 'Sem categoria' }];
 
     function limparFormulario() {
         setTitulo('');
@@ -87,7 +89,7 @@ export default function Objetivos() {
     function editar(objetivo: Objetivo) {
         setEditando(objetivo);
         setTitulo(objetivo.titulo);
-        setTipo(objetivo.categoria === 'Gastos' ? 'Gastos' : 'Investimentos');
+        setTipo(objetivo.categoria);
         setAlvo(decimalParaCampo(objetivo.valorAlvoExato));
         setAtual(decimalParaCampo(objetivo.valorAtualExato));
         setPrazo(objetivo.prazo ? isoParaBr(objetivo.prazo) : '');
@@ -162,18 +164,13 @@ export default function Objetivos() {
                 <TouchableOpacity
                     style={styles.botaoFechar}
                     onPress={() => navigation.goBack()}
+                    accessibilityRole="button"
                     accessibilityLabel="Fechar"
                 >
                     <Ionicons name="close" size={20} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.titulo}>Objetivos</Text>
-                <TouchableOpacity
-                    style={styles.botaoConfirmar}
-                    onPress={() => navigation.goBack()}
-                    accessibilityLabel="Confirmar"
-                >
-                    <Ionicons name="checkmark" size={20} color={colors.onPrimary} />
-                </TouchableOpacity>
+                <View style={styles.espacoTopo} />
             </View>
 
             <ScrollView contentContainerStyle={styles.conteudo} keyboardShouldPersistTaps="handled">
@@ -190,10 +187,10 @@ export default function Objetivos() {
 
                 {criando ? (
                     <Card rotulo={editando ? 'EDITAR OBJETIVO' : 'NOVO OBJETIVO'}>
-                        <Opcoes rotulo="Tipo" opcoes={tiposDeObjetivo} selecionado={tipo} onSelecionar={setTipo} />
+                        <Opcoes rotulo="Tipo" opcoes={opcoesDeTipo} selecionado={tipo} onSelecionar={setTipo} />
                         <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
                         <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
-                        <Field financeiro label="Valor atual (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
+                        <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
                         <CampoData
                             label="Prazo (opcional)"
                             value={prazo}
@@ -240,21 +237,14 @@ const styles = StyleSheet.create({
         color: colors.text,
     },
     botaoFechar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    botaoConfirmar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    espacoTopo: { width: 44 },
     conteudo: {
         paddingHorizontal: 20,
         paddingBottom: 40,

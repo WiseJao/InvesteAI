@@ -16,6 +16,7 @@ export default function Field({ label, hint, style, financeiro = false, ...input
             <Text style={styles.label}>{label}</Text>
             {financeiro && oculto ? <Text style={styles.input} accessibilityLabel={`${label}: valor oculto`}>••••</Text> : <TextInput
                 style={[styles.input, style]}
+                accessibilityLabel={label}
                 placeholderTextColor={colors.textMuted}
                 {...inputProps}
             />}

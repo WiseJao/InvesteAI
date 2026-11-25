@@ -6,6 +6,7 @@ import com.InvesteAI.backend.dto.cashflow.response.CashFlowResponse;
 import com.InvesteAI.backend.dto.cashflow.response.CashFlowSummaryResponse;
 import com.InvesteAI.backend.security.CurrentUser;
 import com.InvesteAI.backend.service.CashFlowService;
+import com.InvesteAI.backend.service.CashFlowRecurrenceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class CashFlowController {
 
     private final CashFlowService cashFlowService;
+    private final CashFlowRecurrenceService recurrences;
 
     /**
      * Lists cash flow entries for the authenticated user with optional date range and type filtering.
@@ -45,6 +47,7 @@ public class CashFlowController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) String type
     ) {
+        recurrences.materialize(userId);
         return ResponseEntity.ok(cashFlowService.list(userId, month, year, type));
     }
 
@@ -78,6 +81,7 @@ public class CashFlowController {
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year
     ) {
+        recurrences.materialize(userId);
         return ResponseEntity.ok(cashFlowService.getSummary(userId, month, year));
     }
 

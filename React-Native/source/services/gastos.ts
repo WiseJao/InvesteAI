@@ -135,3 +135,27 @@ export function tipoDaMovimentacao(item: Movimentacao): TipoMovimentacao {
     if (item.entrada) return 'INCOME';
     return item.classificacao === 'FIXED' ? 'EXPENSE_FIXED' : 'EXPENSE_VARIABLE';
 }
+
+export type Recorrencia = {
+    id: string;
+    description: string;
+    category: string;
+    amount: string;
+    firstDate: string;
+    lastDate: string | null;
+    ended: boolean;
+};
+
+export function listarRecorrencias() {
+    return apiRequest<Recorrencia[]>('/cashflow/recurrences', {}, true);
+}
+
+export function salvarRecorrencia(data: Omit<Recorrencia, 'id' | 'ended'> & { existingCashFlowId?: string }, id?: string) {
+    return apiRequest<Recorrencia>(id ? '/cashflow/recurrences/' + id : '/cashflow/recurrences', {
+        method: id ? 'PUT' : 'POST', body: JSON.stringify(data),
+    }, true);
+}
+
+export function encerrarRecorrencia(id: string) {
+    return apiRequest('/cashflow/recurrences/' + id, { method: 'DELETE' });
+}

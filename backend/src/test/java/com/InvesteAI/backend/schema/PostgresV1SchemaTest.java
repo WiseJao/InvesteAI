@@ -144,7 +144,7 @@ class PostgresV1SchemaTest {
                     "SELL", BigDecimal.ONE, new BigDecimal("12.00"), new BigDecimal("-0.01")));
             assertEquals(2, countTransactions(connection, investmentId));
             assertEquals(2, countTransactions(connection, secondInvestmentId));
-            assertConstraintViolation("23503", () -> deletePurchase(connection, investmentId));
+            assertConstraintViolation("23001", () -> deletePurchase(connection, investmentId));
             assertEquals(2, countTransactions(connection, investmentId));
         }
     }
@@ -259,12 +259,49 @@ class PostgresV1SchemaTest {
             new MetadataSources(registry)
                     .addAnnotatedClass(User.class)
                     .addAnnotatedClass(Profile.class)
+                    .addAnnotatedClass(com.InvesteAI.backend.model.Form.class)
                     .buildMetadata()
                     .buildSessionFactory()
                     .close();
         } finally {
             StandardServiceRegistryBuilder.destroy(registry);
         }
+    }
+
+    @Test
+    void materializesMonthlyOccurrencesOnceAndRetainsDeletedOccurrence() throws Exception {
+        var source = new org.springframework.jdbc.datasource.DriverManagerDataSource(
+                jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "currentSchema=" + schemaName, username, password);
+        var jdbc = org.springframework.jdbc.core.simple.JdbcClient.create(source);
+        var transactions = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(source));
+        var service = new com.InvesteAI.backend.service.CashFlowRecurrenceService(jdbc);
+        UUID user;
+        try (var connection = connection()) {
+            user = createUser(connection, "56789012341");
+        }
+        var currentMonth = java.time.YearMonth.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        var first = currentMonth.minusMonths(3).atDay(1);
+        var input = new com.InvesteAI.backend.service.CashFlowRecurrenceService.Input(
+                "Aluguel", "Moradia", new BigDecimal("1200"), first, currentMonth.minusMonths(1).atEndOfMonth(), null);
+        var rule = transactions.execute(status -> service.create(user, input));
+        try (var workers = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var firstRead = workers.submit(() -> transactions.executeWithoutResult(status -> service.materialize(user)));
+            var secondRead = workers.submit(() -> transactions.executeWithoutResult(status -> service.materialize(user)));
+            firstRead.get();
+            secondRead.get();
+        }
+        var flows = jdbc.sql("SELECT cash_flow_id FROM cash_flow_occurrence WHERE recurrence_id = :id ORDER BY period")
+                .param("id", rule.id()).query(UUID.class).list();
+        assertEquals(3, flows.size());
+        jdbc.sql("DELETE FROM cash_flow WHERE cash_flow_id = :id").param("id", flows.getFirst()).update();
+        transactions.executeWithoutResult(status -> service.materialize(user));
+        assertEquals(2L, jdbc.sql("SELECT COUNT(*) FROM cash_flow WHERE user_id = :id")
+                .param("id", user).query(Long.class).single());
+        assertEquals(LocalDate.of(2024, 2, 29),
+                com.InvesteAI.backend.service.CashFlowRecurrenceService.dueDate(java.time.YearMonth.of(2024, 2), 31));
+        assertEquals(LocalDate.of(2024, 3, 31),
+                com.InvesteAI.backend.service.CashFlowRecurrenceService.dueDate(java.time.YearMonth.of(2024, 3), 31));
     }
 
     private static Connection connection() throws SQLException {

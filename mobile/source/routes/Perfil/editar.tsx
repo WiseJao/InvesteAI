@@ -1,3 +1,4 @@
+import FotoDePerfil from './components/fotoDePerfil';
 import { avisarSucesso } from '../../shared/avisoDeSucesso';
 import { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
@@ -65,7 +66,10 @@ export default function EditarPerfil() {
     const { dados, erro, carregando, recarregar } = useCarregar(obterUsuario);
     return <Layout titulo="Editar perfil" voltar>
         {oculto ? <Text style={{ color: colors.text }}>Perfil oculto. Use o botão de privacidade para exibi-lo.</Text> : <Estado temDados={dados !== null} erro={erro} carregando={carregando} onTentarNovamente={recarregar}>
-            {dados && <Form usuario={dados} />}
+            {dados && <>
+                <FotoDePerfil />
+                <Form usuario={dados} />
+            </>}
         </Estado>}
     </Layout>;
 }

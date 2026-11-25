@@ -1,16 +1,12 @@
-import { avisarSucesso } from '../../shared/avisoDeSucesso';
-import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import * as ImagePicker from 'expo-image-picker';
 import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
-import BotaoExcluir from '../../shared/botaoExcluir';
 import { useCarregar } from '../../shared/useCarregar';
-import { deleteAvatar, getAvatar, mensagemDeErro, logout, uploadAvatar } from '../../services/api';
+import { getAvatar, logout } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
@@ -51,86 +47,11 @@ export default function Perfil() {
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
     const [aberto, setAberto] = useState(false);
     const [termo, setTermo] = useState('');
-    const [avatar, setAvatar] = useState<string | null>(null);
-    const [fotoPendente, setFotoPendente] = useState<ImagePicker.ImagePickerAsset | null>(null);
-    const [fotoErro, setFotoErro] = useState<string | null>(null);
-    const [enviando, setEnviando] = useState(false);
-    const { dados, erro, carregando, recarregar } = useCarregar(obterUsuario);
+    const { dados: usuario, erro, carregando, recarregar } = useCarregar(obterUsuario);
     const carteira = useCarregar(obterCarteira);
     const objetivos = useCarregar(listarObjetivos);
-    const [erroAvatar, setErroAvatar] = useState(false);
-    const versao = useRef(0);
-    const usuario = dados;
-
-    useFocusEffect(useCallback(() => {
-        let ativo = true;
-        setErroAvatar(false);
-        const atual = ++versao.current;
-        getAvatar().then((imagem) => {
-            if (ativo && atual === versao.current) setAvatar(imagem);
-        }).catch(() => {
-            if (ativo && atual === versao.current) setErroAvatar(true);
-        });
-        return () => { ativo = false; };
-    }, []));
-
-    async function enviarFoto(imagem: ImagePicker.ImagePickerAsset) {
-        setFotoErro(null);
-        setEnviando(true);
-        setFotoPendente(imagem);
-        try {
-            const context = ImageManipulator.manipulate(imagem.uri);
-            context.resize(imagem.width >= imagem.height ? { width: Math.min(1024, imagem.width) } : { height: Math.min(1024, imagem.height) });
-            const rendered = await context.renderAsync();
-            try {
-                const normalized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
-                await uploadAvatar(normalized.uri);
-                avisarSucesso('Foto atualizada.');
-            } finally {
-                rendered.release();
-                context.release();
-            }
-            ++versao.current;
-            setFotoPendente(null);
-            setAvatar(await getAvatar());
-            setErroAvatar(false);
-        } catch (failure) {
-            setFotoErro(mensagemDeErro(failure));
-        } finally {
-            setEnviando(false);
-        }
-    }
-
-    async function alterarFoto(camera = false) {
-        if (enviando) return;
-        try {
-            if (camera && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
-                setFotoErro('A câmera está sem permissão. Escolha uma foto da galeria ou permita o acesso nas configurações do dispositivo.');
-                return;
-            }
-            const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1] };
-            const result = await (camera ? ImagePicker.launchCameraAsync(options) : ImagePicker.launchImageLibraryAsync(options));
-            if (!result.canceled) await enviarFoto(result.assets[0]);
-        } catch (failure) {
-            Alert.alert('Foto indisponível', mensagemDeErro(failure));
-        }
-    }
-
-    async function removerFoto() {
-        if (enviando) return;
-        setEnviando(true);
-        try {
-            await deleteAvatar();
-            avisarSucesso('Foto removida.');
-            ++versao.current;
-            setAvatar(null);
-            setErroAvatar(false);
-        } catch {
-            Alert.alert('Erro', 'Não foi possível remover a foto. Tente novamente.');
-        } finally {
-            setEnviando(false);
-        }
-    }
+    const { dados: avatar, erro: erroAvatar } = useCarregar(getAvatar);
+    const [imagemComErro, setImagemComErro] = useState<string | null>(null);
 
     async function sair() {
         await logout();
@@ -156,22 +77,15 @@ export default function Perfil() {
                 onChangeTermo={setTermo}
             />
 
-            <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
+            <Estado carregando={carregando} erro={erro} temDados={usuario !== null} onTentarNovamente={recarregar}>
                 <View style={styles.identidade}>
-                    <TouchableOpacity style={styles.avatar} onPress={() => void alterarFoto()} disabled={enviando}
-                        accessibilityRole="button" accessibilityLabel="Alterar foto de perfil">
-                        {enviando ? <ActivityIndicator color={colors.primary} /> : avatar ? (
-                            <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setAvatar(null)} />
-                        ) : <Ionicons name="person" size={56} color={colors.primary} />}
-                    </TouchableOpacity>
-                    <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} disabled={enviando} onPress={() => void alterarFoto()}><Text style={styles.alterarFoto}>Escolher da galeria</Text></TouchableOpacity>
-                    {enviando && <Text accessibilityLiveRegion="polite" style={styles.alterarFoto}>Atualizando foto…</Text>}
-                    {fotoErro && <Text accessibilityLiveRegion="polite" style={styles.alterarFoto}>{fotoErro}</Text>}
-                    {Platform.OS !== 'web' && <TouchableOpacity accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center' }} disabled={enviando} onPress={() => void alterarFoto(true)}><Text style={styles.alterarFoto}>Tirar foto</Text></TouchableOpacity>}
-                    {fotoPendente && !enviando && <TouchableOpacity accessibilityRole="button" onPress={() => void enviarFoto(fotoPendente)}><Text style={styles.alterarFoto}>Tentar envio novamente</Text></TouchableOpacity>}
-                    {avatar && !enviando ? <BotaoExcluir rotulo="Remover foto" onConfirmar={removerFoto} /> : null}
+                    <View style={styles.avatar}>
+                        {avatar && imagemComErro !== avatar ? (
+                            <Image source={{ uri: avatar }} style={styles.avatarImagem} onError={() => setImagemComErro(avatar)} />
+                        ) : <Ionicons name="person" size={56} color={colors.textMuted} />}
+                    </View>
                     <Text style={styles.nome}>{usuario?.nome ?? '—'}</Text>
-                    {erroAvatar ? <Text style={styles.alterarFoto}>Foto indisponível.</Text> : null}
+                    {erroAvatar ? <Text style={styles.avisoFoto}>Foto indisponível.</Text> : null}
                     <View style={styles.contadores}>
                         <View style={styles.contador}>
                             <Text style={styles.contadorValor}>{carteira.dados?.ativos.length ?? '—'}</Text>
@@ -217,9 +131,9 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    alterarFoto: {
-        color: colors.primary,
-        fontSize: 12,
+    avisoFoto: {
+        color: colors.textMuted,
+        fontSize: 13,
         marginTop: 6,
     },
     nome: {

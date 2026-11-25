@@ -1,3 +1,4 @@
+import { File as NativeFile } from 'expo-file-system';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { lerDecimal } from '../shared/currency';
@@ -161,13 +162,17 @@ export async function apiRequest<T = any>(
         (token) => token.startsWith('"') ? token : `"${token}"`));
 }
 
-export async function uploadAvatar(file: { uri: string; name: string; type: string; webFile?: File }) {
-    const form = new FormData();
-    if (file.webFile) {
-        form.append('file', file.webFile, file.name);
-    } else {
-        form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+export async function uploadAvatar(uri: string) {
+    const image = Platform.OS === 'web'
+        ? new File([await (await fetch(uri)).blob()], 'avatar.jpg', { type: 'image/jpeg' })
+        : new NativeFile(uri);
+    if (!image.size || image.size > 2 * 1024 * 1024) {
+        throw new Error('Selecione uma foto válida de até 2 MiB.');
     }
+
+    const form = new FormData();
+    // O File nativo fornece os bytes ao codificador multipart do Expo.
+    form.append('file', image as Blob);
     await apiRequest('/user/me/avatar', { method: 'POST', body: form });
 }
 

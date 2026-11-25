@@ -10,6 +10,7 @@
     "@react-navigation/native": "^7.3.18",
     "@react-navigation/native-stack": "^7.18.10",
     "expo": "^58.0.26",
+    "expo-file-system": "~58.0.14",
     "expo-font": "~58.0.12",
     "expo-glass-effect": "~58.0.5",
     "expo-image-manipulator": "~58.0.16",

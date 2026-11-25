@@ -83,14 +83,8 @@ export default function Perfil() {
             context.resize(imagem.width >= imagem.height ? { width: Math.min(1024, imagem.width) } : { height: Math.min(1024, imagem.height) });
             const rendered = await context.renderAsync();
             try {
-                const normalized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
-                if (!normalized.base64 || normalized.base64.length * 3 / 4 > 2 * 1024 * 1024) {
-                    throw new Error('A foto processada excede 2 MiB.');
-                }
-                const webFile = Platform.OS === 'web'
-                    ? new File([await (await fetch(normalized.uri)).blob()], 'avatar.jpg', { type: 'image/jpeg' })
-                    : undefined;
-                await uploadAvatar({ uri: normalized.uri, name: 'avatar.jpg', type: 'image/jpeg', webFile });
+                const normalized = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+                await uploadAvatar(normalized.uri);
             } finally {
                 rendered.release();
                 context.release();

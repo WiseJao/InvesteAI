@@ -39,16 +39,15 @@ O Compose também aceita estas opções no mesmo arquivo:
 
 ## 2. Iniciar a API e o banco com Docker
 
-Na **raiz** do repositório, rode:
+Abra um terminal na **raiz** do repositório e rode:
 
 ```bash
 docker compose --env-file api/.env config --quiet
 docker compose --env-file api/.env up --build -d
 docker compose --env-file api/.env ps
-docker compose --env-file api/.env logs -f api
 ```
 
-Na primeira execução, o Compose baixa as imagens, compila a API a partir de `api/Dockerfile`, espera o PostgreSQL ficar saudável e inicia o Spring Boot. Aguarde a mensagem de inicialização do Spring. Use `Ctrl+C` para sair dos logs. Os contêineres continuam em execução.
+Na primeira execução, o Compose baixa as imagens, compila a API a partir de `api/Dockerfile`, espera o PostgreSQL ficar saudável e inicia o Spring Boot. Os contêineres continuam em execução em segundo plano.
 
 Em outro terminal, verifique:
 
@@ -81,7 +80,7 @@ docker compose --env-file api/.env up -d db
 docker compose --env-file api/.env ps db
 ```
 
-Instale o JDK 21. Execute o Maven Wrapper em `api/`, de onde o Spring lê `.env`.
+Instale o JDK 21. Abra um terminal na pasta `api/` e execute o Maven Wrapper, de onde o Spring lê `.env`.
 
 No macOS e Linux:
 
@@ -102,6 +101,6 @@ O Maven usa `localhost:5432` e as mesmas variáveis `POSTGRES_DB`, `POSTGRES_USE
 ## Testes e diagnóstico
 
 - A partir de `api/`, execute `./mvnw test` ou `.\mvnw.cmd test` no PowerShell. Para incluir a suíte PostgreSQL, defina `POSTGRES_TEST_URL`, `POSTGRES_TEST_USER` e `POSTGRES_TEST_PASSWORD` com os dados de um banco PostgreSQL 18 descartável. A URL tem o formato `jdbc:postgresql://localhost:5432/nome_do_banco`.
-- Se a API falhar ao iniciar, consulte `docker compose --env-file api/.env logs api db` na raiz. Cheque a porta, a senha do volume existente, a disponibilidade do banco e o comprimento de `JWT_SECRET`.
+- Se a API falhar ao iniciar, confira o estado dos contêineres com `docker compose --env-file api/.env ps` na raiz. Cheque a porta, a senha do volume existente, a disponibilidade do banco e o comprimento de `JWT_SECRET`.
 - Se o navegador acusar erro de CORS, inclua em `CORS_ORIGINS` a origem exata que aparece no endereço do navegador, com protocolo e porta, e recrie a API com `docker compose --env-file api/.env up -d api`.
 - Se só as cotações falharem, confira `BRAPI_API_KEY` e a cobertura dos símbolos. Parâmetros do app e exemplos de requisição estão na [documentação da API](API_DOCUMENTATION_PT.md).

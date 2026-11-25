@@ -41,8 +41,8 @@ O aplicativo usa React Native com Expo para Android, iOS e navegador. A versão 
 ## Executar o projeto
 
 1. Clone o repositório e entre na pasta `InvesteAI`.
-2. Copie `api/.env.example` para `api/.env`. Siga o [guia da API](api/README.md) para configurar o arquivo `.env`, iniciar o PostgreSQL e a API e verificar `/actuator/health`.
-3. Siga o [guia do aplicativo](app/README.md) para instalar as dependências em `app/`, apontar o Expo para a API e abrir o projeto na plataforma escolhida.
+2. Copie `api/.env.example` para `api/.env` e siga o [guia da API](api/README.md), que orienta abrir um terminal na raiz para iniciar o PostgreSQL e a API e verificar `/actuator/health`.
+3. Abra outro terminal na pasta `app/` e siga o [guia do aplicativo](app/README.md) para instalar as dependências, apontar o Expo para a API e iniciar o projeto na plataforma escolhida.
 
 Execute `docker compose --env-file api/.env` a partir da raiz. O Maven lê `api/.env`, e o Expo lê `app/.env`.
 

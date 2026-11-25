@@ -47,7 +47,7 @@ Mantenha senhas e chaves de serviço em `api/.env`.
 
 ## 3. Abrir na plataforma desejada
 
-Escolha um dos fluxos abaixo e mantenha o terminal do Expo aberto durante o uso.
+Abra um terminal na pasta `app/`, escolha um dos fluxos abaixo e mantenha o terminal do Expo aberto durante o uso.
 
 ### Navegador
 

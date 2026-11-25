@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { obterCarteira } from '../../services/carteira';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../shared/card';
 import Estado from '../../shared/estado';
@@ -20,7 +22,7 @@ import {
     criarObjetivo,
     excluirObjetivo,
     listarObjetivos,
-    type Objetivo,
+    type Objetivo, type ModoObjetivo,
 } from '../../services/objetivos';
 import { colors } from '../../styles/colors';
 
@@ -28,6 +30,8 @@ const tiposDeObjetivo = [
     { valor: 'Investimentos', texto: 'Investimentos' },
     { valor: 'Gastos', texto: 'Gastos' },
 ] as const;
+
+const statusDaMeta: Record<string, string> = { UNLINKED: 'Vincule uma posição', UNAVAILABLE: 'Inclui valores pelo custo de compra', STALE: 'Inclui valores desatualizados', ESTIMATED: 'Inclui valores estimados' };
 
 function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (objetivo: Objetivo) => void }) {
     const { oculto } = usePrivacidade();
@@ -40,10 +44,11 @@ function ItemObjetivo({ objetivo, onEditar }: { objetivo: Objetivo; onEditar: (o
         >
             <Text style={styles.texto}>{objetivo.titulo}</Text>
             {!oculto && <View style={styles.trilho}>
-                <View style={[styles.preenchimento, { width: `${objetivo.progresso}%` }]} />
+                <LinearGradient colors={['#16804c', '#56e495']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.preenchimento, { width: `${objetivo.progresso}%` }]} />
             </View>}
             <Text style={styles.apoio}>
                 {oculto ? 'Valores ocultos' : `${formatarReais(objetivo.valorAtual)} / ${formatarReais(objetivo.valorAlvo)} (${Math.round(objetivo.progresso)}%)`}
+                {!oculto && objetivo.valuationStatus && statusDaMeta[objetivo.valuationStatus] ? ' · ' + statusDaMeta[objetivo.valuationStatus] : ''}
                 {objetivo.prazo ? ` · até ${isoParaBr(objetivo.prazo)}` : ''}
             </Text>
         </TouchableOpacity>
@@ -60,6 +65,11 @@ export default function Objetivos() {
     const [tipo, setTipo] = useState<string>('Investimentos');
     const [alvo, setAlvo] = useState('');
     const [atual, setAtual] = useState('');
+    const [mode, setMode] = useState<ModoObjetivo>('MANUAL');
+    const [selected, setSelected] = useState<string[]>([]);
+    const linking = criando && tipo === 'Investimentos' && mode === 'PORTFOLIO';
+    const holdings = useCarregar(async () => linking ? (await obterCarteira()).ativos : [], [linking]);
+    const { oculto } = usePrivacidade();
     const [prazo, setPrazo] = useState('');
     const [salvando, setSalvando] = useState(false);
     const [erroForm, setErroForm] = useState<string | null>(null);
@@ -80,6 +90,8 @@ export default function Objetivos() {
         setTipo('Investimentos');
         setAlvo('');
         setAtual('');
+        setMode('MANUAL');
+        setSelected([]);
         setPrazo('');
         setErroForm(null);
         setEditando(null);
@@ -91,7 +103,9 @@ export default function Objetivos() {
         setTitulo(objetivo.titulo);
         setTipo(objetivo.categoria);
         setAlvo(decimalParaCampo(objetivo.valorAlvoExato));
-        setAtual(decimalParaCampo(objetivo.valorAtualExato));
+        setAtual(objetivo.progressMode === 'MANUAL' ? decimalParaCampo(objetivo.valorAtualExato) : '');
+        setMode(objetivo.progressMode);
+        setSelected(objetivo.holdingIds);
         setPrazo(objetivo.prazo ? isoParaBr(objetivo.prazo) : '');
         setErroForm(null);
         setCriando(true);
@@ -114,7 +128,9 @@ export default function Objetivos() {
 
     async function salvar() {
         const valorAlvo = lerDecimal(alvo, 17, 2);
-        const valorAtual = atual.trim() ? lerDecimal(atual, 17, 2) : '0';
+        const progressMode = linking ? 'PORTFOLIO' as const : 'MANUAL' as const;
+        if (linking && !selected.length && editando?.valuationStatus !== 'UNLINKED') return setErroForm('Selecione pelo menos uma posição.');
+        const valorAtual = !linking && atual.trim() ? lerDecimal(atual, 17, 2) : '0';
         const prazoIso = prazo.trim() ? brParaIso(prazo) : null;
 
         if (!titulo.trim()) return setErroForm('Dê um nome ao objetivo.');
@@ -131,6 +147,8 @@ export default function Objetivos() {
                 categoria: tipo,
                 valorAlvo,
                 valorAtual,
+                progressMode,
+                holdingIds: linking ? selected.length ? selected : undefined : [],
                 prazo: prazoIso,
             };
             if (editando) await atualizarObjetivo(editando.id, dadosDoObjetivo, {
@@ -190,7 +208,19 @@ export default function Objetivos() {
                         <Opcoes rotulo="Tipo" opcoes={opcoesDeTipo} selecionado={tipo} onSelecionar={setTipo} />
                         <Field label="Nome" placeholder="Ex.: Reserva de emergência" value={titulo} onChangeText={setTitulo} />
                         <Field financeiro label="Valor alvo (R$)" placeholder="0,00" keyboardType="decimal-pad" value={alvo} onChangeText={setAlvo} />
-                        <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} />
+                        {tipo === 'Investimentos' && <Opcoes rotulo="Progresso" opcoes={[{ valor: 'MANUAL', texto: 'Manual' }, { valor: 'PORTFOLIO', texto: 'Vincular posições' }]} selecionado={mode} onSelecionar={setMode} />}
+                        {!linking ? <Field financeiro label="Valor atual informado manualmente (R$)" placeholder="0,00" keyboardType="decimal-pad" value={atual} onChangeText={setAtual} /> :
+                            <Estado carregando={holdings.carregando} erro={holdings.erro} temDados={Boolean(holdings.dados?.length)}
+                                onTentarNovamente={holdings.recarregar}>
+                                {holdings.dados?.length ? holdings.dados.map(holding => {
+                                    const checked = selected.includes(holding.id);
+                                    return <TouchableOpacity key={holding.id} accessibilityRole="checkbox" accessibilityState={{ checked }}
+                                        style={styles.posicao} onPress={() => setSelected(ids => checked ? ids.filter(id => id !== holding.id) : [...ids, holding.id])}>
+                                        <Ionicons name={checked ? 'checkbox' : 'square-outline'} color={colors.primary} size={20} />
+                                        <Text style={styles.texto}>{holding.nome}{oculto ? '' : ' · ' + formatarReais(holding.valorAtual)}</Text>
+                                    </TouchableOpacity>;
+                                }) : <Text style={styles.apoio}>Adicione uma posição na carteira para vinculá-la.</Text>}
+                            </Estado>}
                         <CampoData
                             label="Prazo (opcional)"
                             value={prazo}
@@ -259,10 +289,10 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginTop: 8,
     },
+    posicao: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
     preenchimento: {
         height: 6,
         borderRadius: 3,
-        backgroundColor: colors.primary,
     },
     cancelar: {
         alignItems: 'center',

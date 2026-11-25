@@ -2,6 +2,8 @@ package com.InvesteAI.backend.dto.goal.request;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Request payload for creating a new financial goal.
@@ -29,8 +31,17 @@ public record CreateGoalRequest(
         BigDecimal targetValue,
         LocalDate startDate,
         LocalDate deadline,
-        LocalDate endDate // Alias for deadline
+        LocalDate endDate,
+        String progressMode,
+        Set<UUID> holdingIds
 ) {
+    public CreateGoalRequest(String title, String name, String category, String description, BigDecimal currentAmount,
+                             BigDecimal currentValue, BigDecimal targetAmount, BigDecimal targetValue, LocalDate startDate,
+                             LocalDate deadline, LocalDate endDate) {
+        this(title, name, category, description, currentAmount, currentValue, targetAmount, targetValue,
+                startDate, deadline, endDate, null, null);
+    }
+
     /**
      * Resolves the goal name from name or title field.
      *

@@ -9,6 +9,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 /**
  * Entity representing a financial or investment goal.
@@ -72,6 +74,14 @@ public class Goal {
      */
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @Column(nullable = false, length = 12)
+    private String progressMode = "MANUAL";
+
+    @ElementCollection
+    @CollectionTable(name = "goal_holding", joinColumns = @JoinColumn(name = "goal_id"))
+    @Column(name = "investment_id", nullable = false)
+    private Set<UUID> holdingIds = new LinkedHashSet<>();
 
     /**
      * Pre-persists default UUID, current date, and zero baseline if omitted.

@@ -13,6 +13,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import com.InvesteAI.backend.interfaces.InvestmentInterface;
+import com.InvesteAI.backend.dto.investment.response.HoldingResponse;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -28,6 +36,8 @@ import java.util.UUID;
 public class GoalService {
 
     private final GoalInterface goalRepository;
+    private final InvestmentInterface investmentRepository;
+    private final InvestmentService investments;
 
     /**
      * Creates a new financial goal for a user.
@@ -52,8 +62,9 @@ public class GoalService {
         PersistedFields.money(goal.getTargetValue(), true, "valor alvo");
         PersistedFields.dates(goal.getStartDate(), goal.getEndDate());
 
+        applyProgress(goal, request.progressMode(), request.holdingIds());
         Goal saved = goalRepository.save(goal);
-        return GoalResponse.from(saved);
+        return responses(userId, List.of(saved)).getFirst();
     }
 
     /**
@@ -64,10 +75,7 @@ public class GoalService {
      */
     @Transactional(readOnly = true)
     public List<GoalResponse> list(UUID userId) {
-        return goalRepository.findAllByUserIdOrderByStartDateDesc(userId)
-                .stream()
-                .map(GoalResponse::from)
-                .toList();
+        return responses(userId, goalRepository.findAllByUserIdOrderByStartDateDesc(userId));
     }
 
     /**
@@ -82,7 +90,7 @@ public class GoalService {
     public GoalResponse getById(UUID userId, UUID id) {
         Goal goal = goalRepository.findByGoalIdAndUserId(id, userId)
                 .orElseThrow(() -> new NoSuchElementException("Objetivo financeiro não encontrado"));
-        return GoalResponse.from(goal);
+        return responses(userId, List.of(goal)).getFirst();
     }
 
     /**
@@ -131,8 +139,50 @@ public class GoalService {
             PersistedFields.dates(goal.getStartDate(), goal.getEndDate());
         }
 
+        applyProgress(goal, request.progressMode(), request.holdingIds());
         Goal saved = goalRepository.save(goal);
-        return GoalResponse.from(saved);
+        return responses(userId, List.of(saved)).getFirst();
+    }
+
+    private void applyProgress(Goal goal, String requestedMode, Set<UUID> requestedIds) {
+        String mode = requestedMode == null ? goal.getProgressMode() : requestedMode;
+        if (!Set.of("MANUAL", "PORTFOLIO").contains(mode)) throw PersistedFields.invalid("modo de progresso");
+        if ("MANUAL".equals(mode)) {
+            if (requestedIds != null && !requestedIds.isEmpty()) throw PersistedFields.invalid("posições da meta");
+            goal.getHoldingIds().clear();
+        } else {
+            if (!"Investimentos".equals(goal.getDescription())) throw PersistedFields.invalid("categoria da meta");
+            if (requestedIds != null) {
+                if (requestedIds.isEmpty() || requestedIds.stream().anyMatch(Objects::isNull) ||
+                        investmentRepository.findAllById(requestedIds).stream()
+                                .filter(holding -> goal.getUserId().equals(holding.getUserId())).count() != requestedIds.size()) {
+                    throw PersistedFields.invalid("posições da meta");
+                }
+                goal.getHoldingIds().clear();
+                goal.getHoldingIds().addAll(requestedIds);
+            } else if (!"PORTFOLIO".equals(goal.getProgressMode())) {
+                throw PersistedFields.invalid("posições da meta");
+            }
+        }
+        goal.setProgressMode(mode);
+    }
+
+    private List<GoalResponse> responses(UUID user, List<Goal> goals) {
+        Set<UUID> ids = goals.stream().flatMap(goal -> goal.getHoldingIds().stream()).collect(Collectors.toSet());
+        Map<UUID, HoldingResponse> holdings = ids.isEmpty() ? Map.of()
+                : investments.listHoldings(user, ids).stream().collect(Collectors.toMap(HoldingResponse::id, Function.identity()));
+        return goals.stream().map(goal -> response(goal, holdings)).toList();
+    }
+
+    private GoalResponse response(Goal goal, Map<UUID, HoldingResponse> holdings) {
+        if (!"PORTFOLIO".equals(goal.getProgressMode())) return GoalResponse.from(goal);
+        var linked = goal.getHoldingIds().stream().map(holdings::get).filter(Objects::nonNull).toList();
+        if (linked.isEmpty()) return GoalResponse.from(goal, BigDecimal.ZERO, "UNLINKED");
+        String status = List.of("UNAVAILABLE", "STALE", "ESTIMATED").stream()
+                .filter(candidate -> linked.stream().anyMatch(holding -> candidate.equals(holding.priceStatus())))
+                .findFirst().orElse("MARKET");
+        BigDecimal value = linked.stream().map(HoldingResponse::currentTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return GoalResponse.from(goal, value, status);
     }
 
     /**

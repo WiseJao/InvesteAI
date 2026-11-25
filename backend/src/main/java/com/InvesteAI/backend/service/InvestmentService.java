@@ -215,6 +215,12 @@ public class InvestmentService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<HoldingResponse> listHoldings(UUID userId, Set<UUID> ids) {
+        return valueHoldings(investmentRepository.findAllById(ids).stream()
+                .filter(holding -> userId.equals(holding.getUserId())).toList());
+    }
+
     private List<HoldingResponse> valueHoldings(List<Investment> holdings) {
         List<String> tickers = holdings.stream()
                 .filter(holding -> holding.getInvestmentType() == InvestmentType.VARIABLE_INCOME)

@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.Set;
 
 /**
  * Response payload representing a financial goal with computed progress and backwards-compatible aliases.
@@ -39,7 +40,10 @@ public record GoalResponse(
         Double progressPercentage,
         LocalDate startDate,
         LocalDate endDate,
-        LocalDate deadline
+        LocalDate deadline,
+        String progressMode,
+        Set<UUID> holdingIds,
+        String valuationStatus
 ) {
     /**
      * Converts a {@link Goal} entity into a {@link GoalResponse} with computed progress percentage.
@@ -48,12 +52,16 @@ public record GoalResponse(
      * @return initialized {@link GoalResponse}
      */
     public static GoalResponse from(Goal entity) {
+        return from(entity, entity.getCurrentValue(), null);
+    }
+
+    public static GoalResponse from(Goal entity, BigDecimal amount, String valuationStatus) {
         Double progress = null;
         if (entity.getTargetValue() != null && entity.getTargetValue().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal current = entity.getCurrentValue() != null ? entity.getCurrentValue() : BigDecimal.ZERO;
-            progress = current.divide(entity.getTargetValue(), 4, RoundingMode.HALF_UP)
+            BigDecimal current = amount == null ? BigDecimal.ZERO : amount;
+            progress = Math.min(100.0, current.divide(entity.getTargetValue(), 4, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100))
-                    .doubleValue();
+                    .doubleValue());
         }
 
         return new GoalResponse(
@@ -63,14 +71,17 @@ public record GoalResponse(
                 entity.getName(),
                 entity.getDescription(),
                 entity.getDescription(),
-                entity.getCurrentValue(),
-                entity.getCurrentValue(),
+                amount,
+                amount,
                 entity.getTargetValue(),
                 entity.getTargetValue(),
                 progress,
                 entity.getStartDate(),
                 entity.getEndDate(),
-                entity.getEndDate()
+                entity.getEndDate(),
+                entity.getProgressMode(),
+                Set.copyOf(entity.getHoldingIds()),
+                valuationStatus
         );
     }
 }

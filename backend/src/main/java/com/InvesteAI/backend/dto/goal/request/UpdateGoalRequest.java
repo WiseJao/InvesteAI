@@ -2,6 +2,8 @@ package com.InvesteAI.backend.dto.goal.request;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Request payload for updating an existing financial goal.
@@ -31,14 +33,23 @@ public record UpdateGoalRequest(
         LocalDate startDate,
         LocalDate deadline,
         LocalDate endDate,
-        Boolean clearEndDate
+        Boolean clearEndDate,
+        String progressMode,
+        Set<UUID> holdingIds
 ) {
     public UpdateGoalRequest(String title, String name, String category, String description,
                              BigDecimal currentAmount, BigDecimal currentValue, BigDecimal targetAmount,
                              BigDecimal targetValue, LocalDate startDate, LocalDate deadline, LocalDate endDate) {
         this(title, name, category, description, currentAmount, currentValue, targetAmount, targetValue,
-                startDate, deadline, endDate, null);
+                startDate, deadline, endDate, null, null, null);
     }
+    public UpdateGoalRequest(String title, String name, String category, String description, BigDecimal currentAmount,
+                             BigDecimal currentValue, BigDecimal targetAmount, BigDecimal targetValue, LocalDate startDate,
+                             LocalDate deadline, LocalDate endDate, Boolean clearEndDate) {
+        this(title, name, category, description, currentAmount, currentValue, targetAmount, targetValue,
+                startDate, deadline, endDate, clearEndDate, null, null);
+    }
+
     /**
      * Resolves the updated name if provided.
      *

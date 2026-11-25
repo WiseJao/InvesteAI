@@ -1,5 +1,7 @@
 import { apiRequest } from './api';
 
+export type ModoObjetivo = 'MANUAL' | 'PORTFOLIO';
+
 export type Objetivo = {
     id: string;
     titulo: string;
@@ -8,6 +10,9 @@ export type Objetivo = {
     valorAlvo: number;
     valorAtualExato: string;
     valorAlvoExato: string;
+    progressMode: ModoObjetivo;
+    holdingIds: string[];
+    valuationStatus: string | null;
     progresso: number; // 0 a 100
     prazo: string | null; // AAAA-MM-DD
 };
@@ -20,6 +25,9 @@ type ObjetivoApi = {
     targetAmount: string;
     progressPercentage: string | null;
     deadline: string | null;
+    progressMode?: ModoObjetivo;
+    holdingIds?: string[];
+    valuationStatus?: string | null;
 };
 
 function converter(item: ObjetivoApi): Objetivo {
@@ -37,6 +45,9 @@ function converter(item: ObjetivoApi): Objetivo {
         valorAlvoExato: item.targetAmount,
         progresso: Math.max(0, Math.min(100, Number(progresso))),
         prazo: item.deadline,
+        progressMode: item.progressMode ?? 'MANUAL',
+        holdingIds: item.holdingIds ?? [],
+        valuationStatus: item.valuationStatus ?? null,
     };
 }
 
@@ -50,6 +61,8 @@ export type NovoObjetivo = {
     categoria: string;
     valorAlvo: string;
     valorAtual: string;
+    progressMode: ModoObjetivo;
+    holdingIds?: string[];
     prazo: string | null; // AAAA-MM-DD
 };
 
@@ -60,7 +73,9 @@ export async function criarObjetivo(novo: NovoObjetivo): Promise<Objetivo> {
             title: novo.titulo,
             category: novo.categoria,
             targetAmount: novo.valorAlvo,
-            currentAmount: novo.valorAtual,
+            progressMode: novo.progressMode,
+            holdingIds: novo.holdingIds,
+            ...(novo.progressMode === 'MANUAL' ? { currentAmount: novo.valorAtual } : {}),
             ...(novo.prazo ? { deadline: novo.prazo } : {}),
         }),
     }, true);
@@ -74,7 +89,9 @@ export async function atualizarObjetivo(id: string, dados: NovoObjetivo, inalter
             name: dados.titulo,
             ...(dados.categoria ? { category: dados.categoria } : {}),
             ...(inalterados.alvo ? {} : { targetAmount: dados.valorAlvo }),
-            ...(inalterados.atual ? {} : { currentAmount: dados.valorAtual }),
+            progressMode: dados.progressMode,
+            holdingIds: dados.holdingIds,
+            ...(inalterados.atual || dados.progressMode === 'PORTFOLIO' ? {} : { currentAmount: dados.valorAtual }),
             ...(dados.prazo ? { deadline: dados.prazo } : { clearEndDate: true }),
         }),
     }, true);

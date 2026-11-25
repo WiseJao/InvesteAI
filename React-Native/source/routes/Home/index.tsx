@@ -1,4 +1,5 @@
-import { Text, ScrollView, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Text, ScrollView, TouchableOpacity, StyleSheet, View, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -27,6 +28,7 @@ type Item = {
     valor: string;
     detalhe: string;
     positivo?: boolean;
+    participacao: number;
 };
 
 const atalhos: Atalho[] = [
@@ -68,38 +70,45 @@ function Resumo({ titulo, total, itens, vazio }: ResumoProps) {
                 <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : `R$ ${total}`}</Text>
             </View>
 
-            <View style={styles.resumoCorpo}>
-                <View style={styles.grafico} />
-                <View style={styles.lista}>
-                    {itens.length === 0 ? <Text style={styles.linhaNome}>{vazio}</Text> : null}
-                    {itens.map((item) => (
-                        <View key={item.nome} style={styles.linha}>
+            <View>
+                {itens.length === 0 ? <Text style={styles.linhaNome}>{vazio}</Text> : null}
+                {itens.map((item) => (
+                    <View key={item.nome} style={styles.grupoLinha}>
+                        <View style={styles.linha}>
                             <Text style={styles.linhaNome}>{item.nome}</Text>
                             <Text style={styles.linhaValor}>{oculto ? '••••' : item.valor}</Text>
                             <Text style={[styles.linhaDetalhe, { color: oculto ? colors.textMuted : corDoDetalhe(item) }]}>
                                 {oculto ? '••••' : item.detalhe}
                             </Text>
                         </View>
-                    ))}
-                </View>
+                        {!oculto && <View style={styles.trilho} accessible accessibilityLabel={`${Math.round(item.participacao)}% do total`}>
+                            <View style={[styles.barra, { width: `${Math.max(0, Math.min(item.participacao, 100))}%` }]} />
+                        </View>}
+                    </View>
+                ))}
             </View>
         </View>
     );
 }
 
-async function carregarHome() {
+async function carregarHome(periodo: { mes: number; ano: number }) {
     const [gastos, carteira, objetivos] = await Promise.all([
-        obterResumoGastos(),
+        obterResumoGastos(periodo),
         obterCarteira(),
         listarObjetivos(),
     ]);
-    return { gastos, carteira, objetivos };
+    return { gastos, carteira, objetivos, periodo };
 }
 
 export default function Home() {
     const { oculto } = usePrivacidade();
     const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
-    const { dados, carregando, erro, recarregar } = useCarregar(carregarHome);
+    const [mesesAtras, setMesesAtras] = useState(0);
+    const agora = new Date();
+    const data = new Date(agora.getFullYear(), agora.getMonth() - mesesAtras, 1);
+    const mes = data.getMonth() + 1;
+    const ano = data.getFullYear();
+    const { dados, carregando, erro, recarregar } = useCarregar(() => carregarHome({ mes, ano }), [mes, ano]);
 
     function abrir(destino: Atalho['destino']) {
         if (destino === 'NovoGasto') {
@@ -114,7 +123,7 @@ export default function Home() {
         }
     }
 
-    const gastos = dados?.gastos;
+    const gastos = dados?.periodo.mes === mes && dados.periodo.ano === ano ? dados.gastos : undefined;
     const carteira = dados?.carteira;
     const objetivos = dados?.objetivos ?? [];
     const objetivoPrincipal = objetivos[0];
@@ -132,22 +141,33 @@ export default function Home() {
             valor: numeroBr(ativo.valorAtual),
             detalhe: percentualComSinal(ativo.lucroPercentual),
             positivo: ativo.lucroPercentual >= 0,
+            participacao: carteira && carteira.valorAtual > 0 ? ativo.valorAtual / carteira.valorAtual * 100 : 0,
         }));
 
     const itensGasto: Item[] = (gastos?.categorias ?? []).slice(0, 5).map((categoria, indice) => ({
         nome: `${indice + 1}. ${categoria.nome}`,
         valor: numeroBr(categoria.gasto),
         detalhe: `${Math.round(categoria.percentual)}%`,
+        participacao: categoria.percentual,
     }));
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <Header />
-            <ScrollView>
+            <ScrollView refreshControl={<RefreshControl refreshing={carregando} onRefresh={recarregar} tintColor={colors.primary} />}>
+                <View style={styles.periodo}>
+                    <TouchableOpacity style={styles.botaoPeriodo} accessibilityRole="button" accessibilityLabel="Mês anterior" onPress={() => setMesesAtras((valor) => valor + 1)}>
+                        <Ionicons name="chevron-back" color={colors.primary} size={22} />
+                    </TouchableOpacity>
+                    <Text style={styles.resumoTitulo}>Gastos de {data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
+                    <TouchableOpacity style={styles.botaoPeriodo} accessibilityRole="button" accessibilityLabel="Mês seguinte" disabled={mesesAtras === 0} onPress={() => setMesesAtras((valor) => Math.max(0, valor - 1))}>
+                        <Ionicons name="chevron-forward" color={mesesAtras === 0 ? colors.textMuted : colors.primary} size={22} />
+                    </TouchableOpacity>
+                </View>
                 <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                     <BalanceDivider
-                        saldo={oculto ? 'Valores ocultos' : formatarReais(gastos?.saldo ?? 0)}
-                        saldoDestaque={oculto ? 'Percentual oculto' : `${percentualUsado}% do orçamento usado`}
+                        saldo={oculto ? 'Valores ocultos' : gastos ? formatarReais(gastos.saldo) : '—'}
+                        saldoDestaque={oculto ? 'Percentual oculto' : gastos ? `${percentualUsado}% do orçamento usado` : 'Orçamento indisponível'}
                         objetivo={objetivoPrincipal ? objetivoPrincipal.titulo : 'Nenhum objetivo'}
                         objetivoDestaque={
                             objetivoPrincipal ? (oculto ? 'Percentual oculto' : `${Math.round(objetivoPrincipal.progresso)}% concluído`) : 'Crie um objetivo'
@@ -160,6 +180,7 @@ export default function Home() {
                                 key={atalho.label}
                                 style={styles.atalho}
                                 onPress={() => abrir(atalho.destino)}
+                                accessibilityRole="button"
                             >
                                 <View style={styles.atalhoIcone}>
                                     <Ionicons name={atalho.icone} size={22} color={colors.primary} />
@@ -203,17 +224,17 @@ export default function Home() {
                     </View>
 
                     <Resumo
-                        titulo="Investimentos"
+                        titulo={carteira?.ativos.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
                         total={numeroBr(carteira?.valorAtual ?? 0)}
                         itens={itensInvestimento}
                         vazio="Você ainda não tem investimentos."
                     />
-                    <Resumo
+                    {gastos ? <Resumo
                         titulo="Gastos"
-                        total={numeroBr(gastos?.totalGasto ?? 0)}
+                        total={numeroBr(gastos.totalGasto)}
                         itens={itensGasto}
                         vazio="Nenhum gasto registrado neste mês."
-                    />
+                    /> : null}
                 </Estado>
             </ScrollView>
         </SafeAreaView>
@@ -303,21 +324,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: colors.text,
     },
-    resumoCorpo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    grafico: {
-        width: 84,
-        height: 84,
-        borderRadius: 42,
-        borderWidth: 14,
-        borderColor: colors.primary,
-        marginRight: 16,
-    },
-    lista: {
-        flex: 1,
-    },
+    periodo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16 },
+    botaoPeriodo: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    grupoLinha: { marginBottom: 8 },
+    trilho: { height: 5, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' },
+    barra: { height: 5, backgroundColor: colors.primary, borderRadius: 3 },
     linha: {
         flexDirection: 'row',
         alignItems: 'center',

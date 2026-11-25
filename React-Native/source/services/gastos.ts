@@ -67,8 +67,9 @@ export async function listarMovimentacoes(tipo?: 'EXPENSE_FIXED' | 'EXPENSE_VARI
         .sort((a, b) => b.data.localeCompare(a.data));
 }
 
-export async function obterResumoGastos(): Promise<ResumoGastos> {
-    const resumo = await apiRequest<ResumoApi>('/cashflow/summary');
+export async function obterResumoGastos(periodo?: { mes: number; ano: number }): Promise<ResumoGastos> {
+    const consulta = periodo ? `?month=${periodo.mes}&year=${periodo.ano}` : '';
+    const resumo = await apiRequest<ResumoApi>(`/cashflow/summary${consulta}`);
     return {
         orcamentoMensal: Number(resumo.monthlyBudget ?? 0),
         totalGasto: Number(resumo.totalSpent ?? 0),

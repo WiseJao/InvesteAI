@@ -13,6 +13,7 @@ import com.InvesteAI.backend.model.User;
 import com.InvesteAI.backend.service.UserService;
 
 import java.util.UUID;
+import tools.jackson.databind.JsonNode;
 import java.io.IOException;
 
 /**
@@ -80,4 +81,8 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(user));
     }
 
+    @PatchMapping("/me")
+    public UserResponse updateMe(@CurrentUser UUID userID, @RequestBody JsonNode changes) {
+        return UserResponse.from(userservice.updateProfile(userID, changes));
+    }
 }

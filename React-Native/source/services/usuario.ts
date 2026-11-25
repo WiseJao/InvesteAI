@@ -55,3 +55,8 @@ export function nomeParaExibir(usuario: Usuario): string {
     const nome = usuario.apelido?.trim() || usuario.nome.trim().split(' ')[0];
     return nome || 'Usuário';
 }
+
+export async function atualizarUsuario(changes: { name: string; nickname: string | null; occupation: string | null; salary: string | null }) {
+    await apiRequest('/user/me', { method: 'PATCH', body: JSON.stringify(changes) });
+    limparUsuario();
+}

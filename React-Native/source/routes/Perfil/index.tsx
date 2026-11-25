@@ -20,7 +20,7 @@ import ItemLista from './components/itemLista';
 
 type Item = {
     rotulo: string;
-    rota?: 'Seguranca' | 'Configuracoes' | 'FAQ';
+    rota?: 'EditarPerfil' | 'Seguranca' | 'Configuracoes' | 'FAQ';
     sair?: boolean;
 };
 
@@ -36,6 +36,7 @@ function montarItens(usuario: Usuario | null): Item[] {
         { rotulo: `Nome: ${usuario?.nome || '—'}` },
         { rotulo: `Email: ${usuario?.email ?? '—'}` },
         { rotulo: `CPF: ${usuario ? formatarCpf(usuario.cpf) : '—'}` },
+        { rotulo: 'Editar perfil e renda mensal', rota: 'EditarPerfil' },
         { rotulo: 'Central de segurança', rota: 'Seguranca' },
         { rotulo: 'Central de configurações', rota: 'Configuracoes' },
         { rotulo: 'FAQ', rota: 'FAQ' },

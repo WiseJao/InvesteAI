@@ -1,3 +1,4 @@
+import EditarPerfil from '../Perfil/editar';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Home from './index';
 import Perfil from '../Perfil';
@@ -23,6 +24,7 @@ export default function HomeStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="Perfil" component={PerfilProtegido} />
+            <Stack.Screen name="EditarPerfil" component={EditarPerfil} />
             <Stack.Screen name="Seguranca" component={Seguranca} />
             <Stack.Screen name="Configuracoes" component={Configuracoes} />
             <Stack.Screen name="FAQ" component={FAQ} />

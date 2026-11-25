@@ -202,6 +202,7 @@ public class CashFlowService {
 
         BigDecimal totalSpent = BigDecimal.ZERO;
         BigDecimal totalIncome = BigDecimal.ZERO;
+        boolean hasRecordedSalary = false;
         Map<String, BigDecimal> categorySpendMap = new HashMap<>();
 
         for (CashFlow entry : entries) {
@@ -211,11 +212,14 @@ public class CashFlowService {
                 categorySpendMap.put(cat, categorySpendMap.getOrDefault(cat, BigDecimal.ZERO).add(entry.getAmount()));
             } else if ("IN".equalsIgnoreCase(entry.getDirection())) {
                 totalIncome = totalIncome.add(entry.getAmount());
+                hasRecordedSalary |= "Salário".equalsIgnoreCase(entry.getCategory())
+                        || ("Renda".equalsIgnoreCase(entry.getCategory())
+                        && ("Salário".equalsIgnoreCase(entry.getDescription()) || "Salario".equalsIgnoreCase(entry.getDescription())));
             }
         }
 
         BigDecimal monthlyBudget = totalIncome;
-        Optional<User> userOpt = userRepository.findById(userId);
+        Optional<User> userOpt = hasRecordedSalary ? Optional.empty() : userRepository.findById(userId);
         if (userOpt.isPresent() && userOpt.get().getProfile() != null && userOpt.get().getProfile().getSalary() != null) {
             monthlyBudget = monthlyBudget.add(userOpt.get().getProfile().getSalary());
         }

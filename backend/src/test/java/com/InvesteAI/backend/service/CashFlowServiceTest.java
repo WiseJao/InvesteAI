@@ -153,6 +153,16 @@ class CashFlowServiceTest {
         assertEquals(new BigDecimal("1200.00"), summary.monthlyBudget());
         assertEquals(new BigDecimal("900.00"), summary.remainingBudget());
 
+        CashFlow salary = new CashFlow();
+        salary.setDirection("IN");
+        salary.setCategory("Salário");
+        salary.setAmount(new BigDecimal("1100.00"));
+        when(cashFlowRepository.findAllByUserIdAndDateRange(userId, LocalDate.of(2025, 9, 1), LocalDate.of(2025, 9, 30)))
+                .thenReturn(List.of(income, salary, expense), List.of(income, expense));
+        summary = cashFlowService.getSummary(userId, 9, 2025);
+        assertEquals(new BigDecimal("1300.00"), summary.monthlyBudget());
+        assertEquals(new BigDecimal("1300.00"), summary.totalIncome());
+
         profile.setSalary(null);
         summary = cashFlowService.getSummary(userId, 9, 2025);
         assertEquals(new BigDecimal("-100.00"), summary.remainingBudget());

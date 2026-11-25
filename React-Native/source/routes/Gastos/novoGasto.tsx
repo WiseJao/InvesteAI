@@ -21,6 +21,8 @@ import { colors } from '../../styles/colors';
 import { categoriasDeGasto } from './dados';
 import type { GastosStackParamList } from './types';
 
+const categoriasDeReceita = ['Renda', 'Salário'];
+
 const tipos: readonly { valor: TipoMovimentacao; texto: string }[] = [
     { valor: 'EXPENSE_VARIABLE', texto: 'Gasto variável' },
     { valor: 'EXPENSE_FIXED', texto: 'Gasto fixo' },
@@ -40,6 +42,7 @@ export default function NovoGasto() {
     const [categoria, setCategoria] = useState<string>(
         gastoEditado && !gastoEditado.entrada ? gastoEditado.categoria : categoriasDeGasto[0],
     );
+    const [categoriaReceita, setCategoriaReceita] = useState(gastoEditado?.entrada ? gastoEditado.categoria : 'Renda');
     const [data, setData] = useState(isoParaBr(gastoEditado?.data ?? hojeIso()));
     const [salvando, setSalvando] = useState(false);
     const [excluindo, setExcluindo] = useState(false);
@@ -67,7 +70,7 @@ export default function NovoGasto() {
                 nome: nome.trim(),
                 valor: valorNumerico,
                 tipo,
-                categoria: ehReceita ? 'Renda' : categoria,
+                categoria: ehReceita ? categoriaReceita : categoria,
                 data: dataIso,
             };
             if (gastoEditado) await atualizarMovimentacao(gastoEditado.id, dados, valor === decimalParaCampo(gastoEditado.valorExato));
@@ -101,7 +104,7 @@ export default function NovoGasto() {
             voltar
         >
             <Opcoes rotulo="Tipo" opcoes={tipos} selecionado={tipo} onSelecionar={setTipo} />
-            {ehReceita ? <Text style={styles.aviso}>O salário informado no perfil já compõe o orçamento. Lançá-lo também como receita fará com que seja contado duas vezes.</Text> : null}
+            {ehReceita ? <Text style={styles.aviso}>A categoria Salário substitui a previsão do perfil no orçamento do mês.</Text> : null}
             <Field label="Descrição" placeholder="Ex.: Supermercado" value={nome} onChangeText={setNome} />
             <Field
                 label="Valor (R$)"
@@ -111,7 +114,14 @@ export default function NovoGasto() {
                 value={valor}
                 onChangeText={setValor}
             />
-            {ehReceita ? null : (
+            {ehReceita ? (
+                <Opcoes
+                    rotulo="Categoria"
+                    opcoes={[...new Set([...categoriasDeReceita, categoriaReceita])].map((item) => ({ valor: item, texto: item }))}
+                    selecionado={categoriaReceita}
+                    onSelecionar={setCategoriaReceita}
+                />
+            ) : (
                 <Opcoes
                     rotulo="Categoria"
                     opcoes={opcoesDeCategoria}

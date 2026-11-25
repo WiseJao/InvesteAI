@@ -65,28 +65,13 @@ Authentication uses stateless JSON Web Tokens (JWT):
 
 ## Rate Limiting
 
-The API implements token bucket rate limiting (via Bucket4j) with the following default quotas:
-- **General Endpoints**: 1,000 requests per minute per IP address.
-- **Authentication Endpoints**: Rate-limited to prevent brute-force attacks.
-- **Rate Limit Headers**:
-  - `X-RateLimit-Remaining`: Number of requests remaining in the current window.
-  - If exceeded, the server responds with HTTP `429 Too Many Requests`.
+The default per-IP quota is 60 requests per minute for general routes and 10 for authentication and credential changes. Requests above the quota receive HTTP 429.
 
 ---
 
 ## Standard Error Responses
 
-When an error occurs, the server responds with a structured JSON payload:
-
-```json
-{
-  "timestamp": "2026-11-19T06:22:00.000Z",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Validation error or specific reason",
-  "path": "/auth/register"
-}
-```
+Use the HTTP status to handle failures. The response body depends on the endpoint and may be empty.
 
 ### Common HTTP Status Codes
 | Status Code | Meaning | Description |
@@ -211,7 +196,7 @@ Issues a new access and refresh token pair using an unexpired refresh token.
 #### 1.4 User Logout
 `POST /auth/logout` (Public)
 
-Stateless token invalidation confirmation for client session cleanup.
+The client clears its session. Issued tokens remain valid until expiration.
 
 - **Request Body**: None (empty body).
 - **Response (`200 OK`)**:
@@ -223,54 +208,11 @@ Stateless token invalidation confirmation for client session cleanup.
 
 ---
 
-#### 1.5 Forgot Password
-`POST /auth/forgot-password` (Public)
+#### 1.5 Password recovery and reset
 
-Initiates password recovery by issuing a 6-digit verification code.
+`POST /auth/forgot-password` · `POST /auth/reset-password`
 
-- **Request Body** (`ForgotPasswordRequest`):
-```json
-{
-  "identifier": "jane.doe@example.com"
-}
-```
-
-- **Response (`200 OK`)**:
-```json
-{
-  "message": "Código de recuperação enviado com sucesso",
-  "code": "849201"
-}
-```
-
-- **Error Responses**:
-  - `400 Bad Request`: User not found with specified identifier.
-
----
-
-#### 1.6 Reset Password
-`POST /auth/reset-password` (Public)
-
-Verifies the recovery code and updates the user's password.
-
-- **Request Body** (`ResetPasswordRequest`):
-```json
-{
-  "identifier": "jane.doe@example.com",
-  "code": "849201",
-  "newPassword": "NewSecurePassword456!"
-}
-```
-
-- **Response (`200 OK`)**:
-```json
-{
-  "message": "Senha redefinida com sucesso"
-}
-```
-
-- **Error Responses**:
-  - `400 Bad Request`: Invalid verification code or user not found.
+Both return HTTP 503. Password recovery requires a verified delivery channel.
 
 ---
 
@@ -302,66 +244,11 @@ Returns the authenticated user's profile and account attributes.
 
 ---
 
-#### 2.2 Update Current User Profile
-`PATCH /user` (Protected - Bearer Token)
+#### 2.2 Change password
 
-Performs a partial update on the user account or linked profile attributes.
+`PUT /users/me/password`
 
-- **Headers**: `Authorization: Bearer <token>`
-- **Request Body**:
-```json
-{
-  "email": "jane.updated@example.com",
-  "profile": {
-    "name": "Jane Silva Doe",
-    "nickname": "Jany",
-    "occupation": "Tech Lead",
-    "salary": 12000.00,
-    "salaryDate": "2026-11-05"
-  }
-}
-```
-
-- **Response (`200 OK`)**:
-```json
-{
-  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "profile": {
-    "profileId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-    "name": "Jane Silva Doe",
-    "nickname": "Jany",
-    "occupation": "Tech Lead",
-    "salary": 12000.00,
-    "salaryDate": "2026-11-05",
-    "profileImages": null
-  },
-  "email": "jane.updated@example.com",
-  "cpf": "12345678900"
-}
-```
-
----
-
-#### 2.3 Get User by ID
-`GET /user/{id}` (Protected - Admin/Internal)
-
-- **Path Parameter**: `id` (`UUID`) - Target user identifier.
-- **Response (`200 OK`)**: User entity model JSON.
-
----
-
-#### 2.4 Get All Users
-`GET /user/all` (Protected - Admin/Internal)
-
-- **Response (`200 OK`)**: Array of User entity objects.
-
----
-
-#### 2.5 Delete User
-`DELETE /user` (Protected - Admin/Internal)
-
-- **Request Body**: UUID string (e.g. `"3fa85f64-5717-4562-b3fc-2c963f66afa6"`).
-- **Response (`200 OK`)**: Empty body.
+Requires an access token and a JSON body with `currentPassword` and `newPassword`. Returns HTTP 204 on success.
 
 ---
 
@@ -462,7 +349,7 @@ Creates a new financial transaction (income or expense).
 #### 3.3 Get Cash Flow Summary & Budget Breakdown
 `GET /cashflow/summary` (Protected - Bearer Token)
 
-Computes the aggregated monthly budget, total expenses, total income, remaining balance, and category percentage breakdown.
+Computes the monthly budget, total expenses, total income, remaining balance, and category shares. Income in the `Salário` category replaces the profile salary forecast for that month.
 
 - **Query Parameters**:
   - `month` (optional, integer): `1` to `12` (defaults to current month).
@@ -627,10 +514,10 @@ Updates current balance, target value, or deadline of an existing goal.
 
 ### 5. Market Data BRAPI Proxy (`/investments`)
 
-The backend delegates market data fetching directly to BRAPI while preserving exact response schemas. Upstream responses are cached in-memory for 60 seconds to protect upstream quotas and ensure low latency.
+The backend fetches market data from BRAPI and returns flattened quote fields. Successful quotes are cached for 60 seconds. The response includes unavailable tickers in `unavailableSymbols`.
 
 #### 5.1 Get Multi-Ticker Quotes
-`GET /investments/quotes` (Public / Protected)
+`GET /investments/quotes` (Public)
 
 Proxies real-time and delayed Brazilian asset quotes (Stocks, FIIs, BDRs, Indices).
 
@@ -661,7 +548,8 @@ Proxies real-time and delayed Brazilian asset quotes (Stocks, FIIs, BDRs, Indice
       "regularMarketChangePercent": -0.80,
       "logourl": "https://s3-symbol-logo.tradingview.com/vale--big.svg"
     }
-  ]
+  ],
+  "unavailableSymbols": ["ITUB4"]
 }
 ```
 
@@ -674,6 +562,12 @@ Proxies real-time and delayed Brazilian asset quotes (Stocks, FIIs, BDRs, Indice
 Returns `tradingDate` (trading session date), `price` (decimal string), and `raw` (whether the unadjusted close was used). It searches the requested date and the preceding 14 days. The price is a reference for recording the purchase and may include historical adjustments.
 
 Returns 400 for invalid parameters or future dates, 404 when the response contains no usable close in the window, and 502 when the BRAPI request fails.
+
+#### Price history
+
+`GET /investments/history?symbol=PETR4&range=1mo`
+
+Accepts `1d`, `5d`, `1mo`, or `3mo`. Daily data points are returned in `results`.
 
 #### 5.2 Search Market Assets
 `GET /investments/market/search` (Public / Protected)
@@ -752,6 +646,8 @@ Calculates user portfolio metrics: total invested balance, current asset value, 
 ```
 
 ---
+
+Each holding includes `priceStatus` (`MARKET`, `ESTIMATED`, `STALE`, or `UNAVAILABLE`) and `quotedAt` when BRAPI provides a valid timestamp. Quotes older than 24 hours are `STALE`. If a quote is unavailable, the total uses that holding’s purchase cost.
 
 #### 6.2 List Portfolio Holdings
 `GET /portfolio/holdings` (Protected - Bearer Token)

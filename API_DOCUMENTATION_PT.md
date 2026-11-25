@@ -65,28 +65,13 @@ O InvesteAI adota autenticação stateless baseada em tokens JWT:
 
 ## Políticas de Rate Limiting
 
-A API possui controle de vazão por IP utilizando Bucket4j:
-- **Endpoints Gerais**: Cota padrão de 1.000 requisições por minuto por IP.
-- **Endpoints de Autenticação**: Proteção estrita contra ataques de força bruta.
-- **Cabeçalho de Controle**:
-  - `X-RateLimit-Remaining`: Quantidade restante de requisições no intervalo atual.
-  - Em caso de excedência, o servidor retorna status HTTP `429 Too Many Requests`.
+O limite por IP é de 60 requisições por minuto para rotas gerais e 10 para rotas de autenticação e alteração de credenciais. Ao exceder a cota, a API responde com HTTP 429.
 
 ---
 
 ## Padrão de Respostas de Erro
 
-Em caso de falha ou erro de validação, a API retorna uma estrutura JSON padronizada:
-
-```json
-{
-  "timestamp": "2026-11-19T06:22:00.000Z",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Mensagem detalhada ou motivo do erro de validação",
-  "path": "/auth/register"
-}
-```
+Use o status HTTP para tratar falhas. O corpo depende do endpoint e pode estar vazio.
 
 ### Códigos de Status HTTP Frequentes
 | Código | Significado | Descrição |
@@ -211,7 +196,7 @@ Gera um novo par de tokens a partir de um refresh token válido.
 #### 1.4 Logout
 `POST /auth/logout` (Público)
 
-Sinalização para encerramento de sessão e descarte de tokens no cliente.
+O cliente encerra a sessão. Os tokens emitidos continuam válidos até expirar.
 
 - **Corpo da Requisição**: Nenhum (vazio).
 - **Resposta (`200 OK`)**:
@@ -223,54 +208,11 @@ Sinalização para encerramento de sessão e descarte de tokens no cliente.
 
 ---
 
-#### 1.5 Solicitar Recuperação de Senha (Esqueci a Senha)
-`POST /auth/forgot-password` (Público)
+#### 1.5 Recuperação e redefinição de senha
 
-Inicia o fluxo de recuperação gerando um código de 6 dígitos.
+`POST /auth/forgot-password` · `POST /auth/reset-password`
 
-- **Corpo da Requisição** (`ForgotPasswordRequest`):
-```json
-{
-  "identifier": "jane.doe@example.com"
-}
-```
-
-- **Resposta (`200 OK`)**:
-```json
-{
-  "message": "Código de recuperação enviado com sucesso",
-  "code": "849201"
-}
-```
-
-- **Respostas de Erro**:
-  - `400 Bad Request`: Usuário não encontrado para o identificador fornecido.
-
----
-
-#### 1.6 Redefinir Senha
-`POST /auth/reset-password` (Público)
-
-Valida o código de segurança recebido e atualiza a senha do usuário.
-
-- **Corpo da Requisição** (`ResetPasswordRequest`):
-```json
-{
-  "identifier": "jane.doe@example.com",
-  "code": "849201",
-  "newPassword": "NewSecurePassword456!"
-}
-```
-
-- **Resposta (`200 OK`)**:
-```json
-{
-  "message": "Senha redefinida com sucesso"
-}
-```
-
-- **Respostas de Erro**:
-  - `400 Bad Request`: Código de recuperação incorreto ou expirado.
+Ambos retornam HTTP 503. A recuperação aguarda um canal verificado de entrega.
 
 ---
 
@@ -302,50 +244,11 @@ Retorna os atributos pessoais, profissionais e financeiros do usuário logado.
 
 ---
 
-#### 2.2 Atualizar Dados do Perfil
-`PATCH /user` (Protegido - Bearer Token)
+#### 2.2 Alterar senha
 
-Permite atualização granular de dados cadastrais e do perfil financeiro.
+`PUT /users/me/password`
 
-- **Cabeçalho**: `Authorization: Bearer <token>`
-- **Corpo da Requisição**:
-```json
-{
-  "email": "jane.updated@example.com",
-  "profile": {
-    "name": "Jane Silva Doe",
-    "nickname": "Jany",
-    "occupation": "Tech Lead",
-    "salary": 12000.00,
-    "salaryDate": "2026-11-05"
-  }
-}
-```
-
-- **Resposta (`200 OK`)**: Retorna o objeto `UserResponse` atualizado.
-
----
-
-#### 2.3 Buscar Usuário por ID
-`GET /user/{id}` (Protegido - Admin/Interno)
-
-- **Parâmetro de Caminho**: `id` (`UUID`) - Identificador único do usuário.
-- **Resposta (`200 OK`)**: JSON da entidade `User`.
-
----
-
-#### 2.4 Listar Todos os Usuários
-`GET /user/all` (Protegido - Admin/Interno)
-
-- **Resposta (`200 OK`)**: Lista contendo todas as entidades de usuários cadastrados.
-
----
-
-#### 2.5 Excluir Usuário
-`DELETE /user` (Protegido - Admin/Interno)
-
-- **Corpo da Requisição**: String do UUID a ser excluído (ex: `"3fa85f64-5717-4562-b3fc-2c963f66afa6"`).
-- **Resposta (`200 OK`)**: Corpo vazio.
+Requer token de acesso e corpo JSON com `currentPassword` e `newPassword`. Responde HTTP 204 em caso de sucesso.
 
 ---
 
@@ -446,7 +349,7 @@ Registra uma nova receita ou despesa.
 #### 3.3 Obter Resumo Financeiro & Orçamento Mensal
 `GET /cashflow/summary` (Protegido - Bearer Token)
 
-Calcula automaticamente o orçamento mensal com base no salário, total de gastos, total de receitas, saldo restante e a distribuição percentual por categoria.
+Calcula o orçamento mensal, o total de gastos, o total de receitas, o saldo restante e a distribuição por categoria. Receitas na categoria `Salário` substituem a previsão salarial do perfil naquele mês.
 
 - **Parâmetros de Consulta**:
   - `month` (opcional, inteiro): `1` a `12` (padrão: mês corrente).
@@ -605,7 +508,7 @@ Retorna todas as metas cadastradas com cálculo dinâmico da porcentagem de prog
 
 ### 5. Proxy de Dados de Mercado BRAPI (`/investments`)
 
-O backend intermedia as consultas de mercado à BRAPI de forma transparente, mantendo a estrutura exata do JSON retornado pela BRAPI. Para assegurar alta performance e proteger limites de cota da chave de API, as respostas possuem cache em memória com TTL de 60 segundos.
+O backend consulta a BRAPI e devolve os campos da cotação no primeiro nível de cada resultado. Cotações válidas ficam em cache por 60 segundos. A resposta lista os símbolos sem cotação em `unavailableSymbols`.
 
 #### 5.1 Consultar Cotações de Ativos (Multi-Ticker)
 `GET /investments/quotes` (Público / Protegido)
@@ -639,7 +542,8 @@ Retorna cotações de ações, fundos imobiliários, BDRs e índices da B3.
       "regularMarketChangePercent": -0.80,
       "logourl": "https://s3-symbol-logo.tradingview.com/vale--big.svg"
     }
-  ]
+  ],
+  "unavailableSymbols": ["ITUB4"]
 }
 ```
 
@@ -652,6 +556,12 @@ Retorna cotações de ações, fundos imobiliários, BDRs e índices da B3.
 Retorna `tradingDate` (data do pregão), `price` (decimal como texto) e `raw` (indica uso de fechamento sem ajuste). A consulta procura o fechamento na data solicitada ou nos 14 dias anteriores. O preço serve como referência para o cadastro e pode incluir ajustes históricos.
 
 Retorna 400 para parâmetros inválidos ou data futura, 404 quando a resposta não contém um fechamento utilizável no período e 502 se a consulta à BRAPI falhar.
+
+#### Histórico de cotações
+
+`GET /investments/history?symbol=PETR4&range=1mo`
+
+Aceita `1d`, `5d`, `1mo` ou `3mo`. Os pontos diários são devolvidos em `results`.
 
 #### 5.2 Pesquisar Ativos de Mercado
 `GET /investments/market/search` (Público / Protegido)
@@ -730,6 +640,8 @@ Calcula as métricas da carteira do usuário: total investido, valor atualizado 
 ```
 
 ---
+
+Cada posição inclui `priceStatus` (`MARKET`, `ESTIMATED`, `STALE` ou `UNAVAILABLE`) e `quotedAt`, quando a BRAPI informa um horário válido. Cotações com mais de 24 horas recebem `STALE`. Se a cotação estiver indisponível, o total usa o custo de compra daquela posição.
 
 #### 6.2 Listar Ativos em Custódia
 `GET /portfolio/holdings` (Protegido - Bearer Token)

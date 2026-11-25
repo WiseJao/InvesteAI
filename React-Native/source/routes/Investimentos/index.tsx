@@ -1,3 +1,5 @@
+import MarcadorCor from '../../shared/marcadorCor';
+import { corDaConta } from '../../styles/coresDaConta';
 import ImagemAtivo from './components/ImagemAtivo';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -197,14 +199,17 @@ export default function Investimentos() {
                             <Pressable
                                 key={ativo.id}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Editar investimento ${ativo.simbolo}`}
+                                accessibilityLabel={`Editar investimento ${ativo.nome}`}
                                 style={styles.linhaCarteira}
                                 onPress={() => setAtivoEditando(ativo)}
                             >
                                 <ImagemAtivo uri={ativo.logoUrl} fixed={ativo.investmentType === 'FIXED_INCOME'} />
                                 <View style={styles.linhaCarteiraNome}>
-                                    <Text style={styles.title}>{ativo.investmentType === 'FIXED_INCOME' ? ativo.nome : ativo.simbolo}</Text>
-                                    <Text style={styles.subtitle}>{oculto ? 'Quantidade oculta' : ativo.fixedIncome?.product ? ({ CDB: 'CDB', CAIXINHA: 'Caixinha', OTHER: 'Outro' } as const)[ativo.fixedIncome.product] : `${ativo.quantidade} un.`}</Text>
+                                    <View style={styles.nomeCarteira}>
+                                        <MarcadorCor cor={corDaConta(ativo.id)} />
+                                        <Text style={[styles.title, { flexShrink: 1 }]}>{ativo.investmentType === 'FIXED_INCOME' ? ativo.nome : ativo.simbolo}</Text>
+                                    </View>
+                                    <Text style={styles.subtitle}>{ativo.fixedIncome?.product ? ({ CDB: 'CDB', CAIXINHA: 'Caixinha', OTHER: 'Outro' } as const)[ativo.fixedIncome.product] : oculto ? 'Quantidade oculta' : `${ativo.quantidade} un.`}</Text>
                                     <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.fixedIncome?.cdiPercentage ? (oculto ? ' · Taxa oculta' : ' · ' + ativo.fixedIncome.cdiPercentage + '% do CDI') : ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
                                 </View>
                                 <View style={styles.linhaCarteiraValor}>
@@ -218,7 +223,7 @@ export default function Investimentos() {
                                             { color: oculto ? colors.textMuted : ativo.lucro >= 0 ? colors.positive : colors.negative },
                                         ]}
                                     >
-                                        {oculto ? 'Percentual oculto' : `${ativo.lucro >= 0 ? '+' : ''}${ativo.lucroPercentual.toFixed(2)}%`}
+                                        {oculto ? '••••' : `${ativo.lucro >= 0 ? '+' : ''}${ativo.lucroPercentual.toFixed(2)}%`}
                                     </Text>
                                 </View>
                             </Pressable>
@@ -378,16 +383,22 @@ const styles = StyleSheet.create({
     },
     linhaCarteira: {
         flexDirection: 'row',
+        columnGap: 8,
+        minHeight: 56,
         justifyContent: 'space-between',
         paddingVertical: 8,
         borderTopWidth: 1,
         borderTopColor: colors.border,
         marginTop: 8,
     },
+    nomeCarteira: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     linhaCarteiraNome: {
+        flex: 1,
+        minWidth: 0,
         gap: 2,
     },
     linhaCarteiraValor: {
+        maxWidth: '42%',
         alignItems: 'flex-end',
         gap: 2,
     },

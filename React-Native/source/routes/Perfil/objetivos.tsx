@@ -1,3 +1,5 @@
+import MarcadorCor from '../../shared/marcadorCor';
+import { corDaConta } from '../../styles/coresDaConta';
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -217,6 +219,7 @@ export default function Objetivos() {
                                     return <TouchableOpacity key={holding.id} accessibilityRole="checkbox" accessibilityState={{ checked }}
                                         style={styles.posicao} onPress={() => setSelected(ids => checked ? ids.filter(id => id !== holding.id) : [...ids, holding.id])}>
                                         <Ionicons name={checked ? 'checkbox' : 'square-outline'} color={colors.primary} size={20} />
+                                        <MarcadorCor cor={corDaConta(holding.id)} />
                                         <Text style={styles.texto}>{holding.nome}{oculto ? '' : ' · ' + formatarReais(holding.valorAtual)}</Text>
                                     </TouchableOpacity>;
                                 }) : <Text style={styles.apoio}>Adicione uma posição na carteira para vinculá-la.</Text>}

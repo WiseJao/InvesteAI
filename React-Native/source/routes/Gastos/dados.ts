@@ -5,6 +5,7 @@ export type Gasto = {
     id: string;
     nome: string;
     detalhe: string;
+    categoria?: string;
     valor: number;
     entrada?: boolean;
 };
@@ -23,7 +24,8 @@ export function paraLinhaPorCategoria(item: Movimentacao): Gasto {
     return {
         id: item.id,
         nome: item.nome,
-        detalhe: `${item.categoria} · ${isoParaDiaMes(item.data)}`,
+        detalhe: isoParaDiaMes(item.data),
+        categoria: item.categoria,
         valor: item.valor,
         entrada: item.entrada,
     };
@@ -36,6 +38,7 @@ export function paraLinhaDeHistorico(item: Movimentacao): Gasto {
         id: item.id,
         nome: item.nome,
         detalhe: `${isoParaDiaMes(item.data)} · ${tipo}`,
+        categoria: item.categoria,
         valor: item.valor,
         entrada: item.entrada,
     };

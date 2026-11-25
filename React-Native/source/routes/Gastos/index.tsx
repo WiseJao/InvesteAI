@@ -1,3 +1,5 @@
+import MarcadorCor from '../../shared/marcadorCor';
+import { corDaCategoria } from '../../styles/coresDaConta';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -60,7 +62,8 @@ export default function Gastos() {
                         categorias.map((categoria) => (
                             <View key={categoria.nome} style={styles.categoria}>
                                 <View style={styles.categoriaTopo}>
-                                    <Text style={styles.categoriaNome}>{categoria.nome}</Text>
+                                    <MarcadorCor cor={corDaCategoria(categoria.nome)} />
+                                    <Text style={[styles.categoriaNome, { flex: 1 }]}>{categoria.nome}</Text>
                                     <Text style={styles.categoriaNome}>
                                         {oculto ? 'Valores ocultos' : `${formatarReais(categoria.gasto)} · ${Math.round(categoria.percentual)}%`}
                                     </Text>
@@ -69,7 +72,7 @@ export default function Gastos() {
                                     <View
                                         style={[
                                             styles.preenchimento,
-                                            { width: `${Math.min(categoria.percentual, 100)}%` },
+                                            { backgroundColor: corDaCategoria(categoria.nome), width: `${Math.min(categoria.percentual, 100)}%` },
                                         ]}
                                     />
                                 </View>}
@@ -134,6 +137,8 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     categoriaTopo: {
+        columnGap: 8,
+        alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 6,

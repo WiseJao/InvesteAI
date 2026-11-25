@@ -1,3 +1,5 @@
+import MarcadorCor from '../../shared/marcadorCor';
+import { corDaConta, corDaCategoria } from '../../styles/coresDaConta';
 import { useState } from 'react';
 import { Text, ScrollView, TouchableOpacity, StyleSheet, View, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +26,8 @@ type Atalho = {
 };
 
 type Item = {
+    id: string;
+    cor: string;
     nome: string;
     valor: string;
     detalhe: string;
@@ -38,11 +42,6 @@ const atalhos: Atalho[] = [
     { label: 'Perfil', icone: 'person-outline', destino: 'Perfil' },
     { label: 'Ajuda', icone: 'help-circle-outline', destino: 'FAQ' },
 ];
-
-// Valor sem o prefixo "R$ " (a coluna já tem o título "R$" no total).
-function numeroBr(valor: number): string {
-    return formatarReais(valor).replace('R$ ', '');
-}
 
 function percentualComSinal(valor: number): string {
     const arredondado = Math.round(valor * 10) / 10;
@@ -68,15 +67,16 @@ function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
         <View style={styles.secao}>
             <View style={styles.resumoTopo}>
                 <Text style={styles.resumoTitulo}>{titulo}</Text>
-                <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : `R$ ${total}`}</Text>
+                <Text style={styles.resumoTotal}>{oculto ? 'Valores ocultos' : total}</Text>
             </View>
 
             {subtitulo && <Text style={styles.resumoApoio}>{subtitulo}</Text>}
             <View>
                 {itens.length === 0 ? <Text style={styles.linhaNome}>{vazio}</Text> : null}
                 {itens.map((item) => (
-                    <View key={item.nome} style={styles.grupoLinha}>
+                    <View key={item.id} style={styles.grupoLinha}>
                         <View style={styles.linha}>
+                            <MarcadorCor cor={item.cor} />
                             <Text style={styles.linhaNome}>{item.nome}</Text>
                             <Text style={styles.linhaValor}>{oculto ? '••••' : item.valor}</Text>
                             <Text style={[styles.linhaDetalhe, { color: oculto ? colors.textMuted : corDoDetalhe(item) }]}>
@@ -84,7 +84,7 @@ function Resumo({ titulo, subtitulo, total, itens, vazio }: ResumoProps) {
                             </Text>
                         </View>
                         {!oculto && <View style={styles.trilho} accessible accessibilityLabel={`${Math.round(item.participacao)}% do total`}>
-                            <View style={[styles.barra, { width: `${Math.max(0, Math.min(item.participacao, 100))}%` }]} />
+                            <View style={[styles.barra, { backgroundColor: item.cor, width: `${Math.max(0, Math.min(item.participacao, 100))}%` }]} />
                         </View>}
                     </View>
                 ))}
@@ -141,17 +141,21 @@ export default function Home() {
     const itensInvestimento: Item[] = [...posicoes]
         .sort((a, b) => b.valorAtual - a.valorAtual)
         .slice(0, 5)
-        .map((ativo, indice) => ({
-            nome: `${indice + 1}. ${ativo.simbolo}`,
-            valor: numeroBr(ativo.valorAtual),
+        .map(ativo => ({
+            id: ativo.id,
+            cor: corDaConta(ativo.id),
+            nome: ativo.investmentType === 'FIXED_INCOME' ? ativo.nome : ativo.simbolo,
+            valor: formatarReais(ativo.valorAtual),
             detalhe: percentualComSinal(ativo.lucroPercentual),
             positivo: ativo.lucroPercentual >= 0,
             participacao: totalDaCarteira > 0 ? ativo.valorAtual / totalDaCarteira * 100 : 0,
         }));
 
-    const itensGasto: Item[] = (gastos?.categorias ?? []).slice(0, 5).map((categoria, indice) => ({
-        nome: `${indice + 1}. ${categoria.nome}`,
-        valor: numeroBr(categoria.gasto),
+    const itensGasto: Item[] = (gastos?.categorias ?? []).slice(0, 5).map(categoria => ({
+        id: categoria.nome,
+        cor: corDaCategoria(categoria.nome),
+        nome: categoria.nome,
+        valor: formatarReais(categoria.gasto),
         detalhe: `${Math.round(categoria.percentual)}%`,
         participacao: categoria.percentual,
     }));
@@ -202,7 +206,7 @@ export default function Home() {
                                 <Text style={styles.objetivoTitulo}>Investimentos</Text>
                                 {objetivoInvestimento ? (
                                     <>
-                                        <Text style={styles.objetivoTexto}>1. {objetivoInvestimento.titulo}</Text>
+                                        <Text style={styles.objetivoTexto}>{objetivoInvestimento.titulo}</Text>
                                         <Text style={styles.objetivoApoio}>
                                             {oculto ? 'Valores ocultos' : `${formatarReais(objetivoInvestimento.valorAtual)} / ${formatarReais(objetivoInvestimento.valorAlvo)}`}
                                         </Text>
@@ -216,7 +220,7 @@ export default function Home() {
                                 <Text style={styles.objetivoTitulo}>Gastos</Text>
                                 {objetivoGasto ? (
                                     <>
-                                        <Text style={styles.objetivoTexto}>1. {objetivoGasto.titulo}</Text>
+                                        <Text style={styles.objetivoTexto}>{objetivoGasto.titulo}</Text>
                                         <Text style={styles.objetivoApoio}>
                                             {oculto ? 'Valores ocultos' : `${formatarReais(objetivoGasto.valorAtual)} / ${formatarReais(objetivoGasto.valorAlvo)}`}
                                         </Text>
@@ -231,13 +235,13 @@ export default function Home() {
                     <Resumo
                         titulo={posicoes.some((ativo) => ativo.priceStatus !== 'MARKET') ? 'Investimentos · valor de referência' : 'Investimentos'}
                         subtitulo={mesesAtras > 0 ? 'Posições registradas até o fim do mês · valores atuais' : undefined}
-                        total={numeroBr(totalDaCarteira)}
+                        total={formatarReais(totalDaCarteira)}
                         itens={itensInvestimento}
                         vazio={mesesAtras > 0 ? 'Nenhuma posição registrada até este mês.' : 'Você ainda não tem investimentos.'}
                     />
                     {gastos ? <Resumo
                         titulo="Gastos"
-                        total={numeroBr(gastos.totalGasto)}
+                        total={formatarReais(gastos.totalGasto)}
                         itens={itensGasto}
                         vazio="Nenhum gasto registrado neste mês."
                     /> : null}
@@ -317,6 +321,9 @@ const styles = StyleSheet.create({
     },
     resumoTopo: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        columnGap: 8,
+        rowGap: 4,
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 12,
@@ -339,17 +346,18 @@ const styles = StyleSheet.create({
     linha: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 3,
+        paddingVertical: 5,
+        gap: 8,
     },
     linhaNome: {
         flex: 1,
+        minWidth: 0,
         fontSize: 12,
         color: colors.text,
     },
     linhaValor: {
         fontSize: 12,
         color: colors.textMuted,
-        marginRight: 8,
     },
     linhaDetalhe: {
         fontSize: 12,

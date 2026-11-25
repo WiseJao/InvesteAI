@@ -1,4 +1,6 @@
-import { Text, Pressable } from 'react-native';
+import MarcadorCor from '../../shared/marcadorCor';
+import { corDaConta } from '../../styles/coresDaConta';
+import { Text, Pressable, View } from 'react-native';
 import BotaoPrimario from '../../shared/botaoPrimario';
 import { colors } from '../../styles/colors';
 import { formatarReais } from '../../shared/currency';
@@ -28,8 +30,12 @@ export default function GastosFixos() {
             <Estado carregando={carregando} erro={erro} temDados={dados !== null} onTentarNovamente={recarregar}>
                 <BotaoPrimario titulo="Novo gasto fixo" onPress={() => navigation.navigate('NovoGasto', { novoFixo: true })} />
                 {dados?.regras.map(regra => <Pressable key={regra.id} accessibilityRole="button" disabled={regra.ended} onPress={() => navigation.navigate('NovoGasto', { regra })} style={{ minHeight: 48, justifyContent: 'center' }}>
-                    <Text style={{ color: colors.text }}>{regra.description}{oculto ? '' : ' · ' + formatarReais(Number(regra.amount))}</Text>
-                    <Text style={{ color: colors.textMuted }}>{regra.ended ? 'Encerrada' : 'Mensal'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <MarcadorCor cor={corDaConta(regra.id)} />
+                        <Text style={{ color: colors.text, flex: 1 }}>{regra.description}</Text>
+                        {!oculto && <Text style={{ color: colors.text }}>{formatarReais(Number(regra.amount))}</Text>}
+                    </View>
+                    <Text style={{ color: colors.textMuted, marginLeft: 16 }}>{regra.ended ? 'Encerrada' : 'Mensal'}</Text>
                 </Pressable>)}
                 <ListaGastos
                     onSelecionar={(id) => {

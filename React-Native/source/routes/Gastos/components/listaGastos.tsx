@@ -1,3 +1,5 @@
+import MarcadorCor from '../../../shared/marcadorCor';
+import { corDaConta, corDaCategoria } from '../../../styles/coresDaConta';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Card from '../../../shared/card';
 import { formatarReais } from '../../../shared/currency';
@@ -32,9 +34,10 @@ export default function ListaGastos({ itens, vazio = 'Nenhum lançamento por aqu
                     accessibilityRole="button"
                     accessibilityLabel={`Editar ${item.nome}`}
                 >
+                    <MarcadorCor cor={corDaConta(item.id)} />
                     <View style={styles.textos}>
                         <Text style={styles.nome}>{item.nome}</Text>
-                        <Text style={styles.detalhe}>{item.detalhe}</Text>
+                        <Text style={styles.detalhe}>{item.categoria ? <Text style={{ color: corDaCategoria(item.categoria) }}>{item.categoria} · </Text> : null}{item.detalhe}</Text>
                     </View>
                     <Text style={[styles.valor, item.entrada && styles.entrada]}>
                         {oculto ? 'Valores ocultos' : `${item.entrada ? '+ ' : ''}${formatarReais(item.valor)}`}
@@ -51,6 +54,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: 10,
+        minHeight: 52,
+        columnGap: 10,
     },
     separador: {
         borderTopWidth: 1,
@@ -58,7 +63,7 @@ const styles = StyleSheet.create({
     },
     textos: {
         flex: 1,
-        paddingRight: 12,
+        minWidth: 0,
     },
     nome: {
         fontSize: 14,

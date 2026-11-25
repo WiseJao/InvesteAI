@@ -17,7 +17,8 @@
       ],
       "expo-status-bar",
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-secure-store"
     ],
     "ios": {
       "supportsTablet": true

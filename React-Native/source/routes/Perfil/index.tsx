@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { CommonActions, useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,7 +8,7 @@ import Layout from '../../shared/layout';
 import Estado from '../../shared/estado';
 import BotaoExcluir from '../../shared/botaoExcluir';
 import { useCarregar } from '../../shared/useCarregar';
-import { clearAuthTokens, deleteAvatar, getAvatar, logout, uploadAvatar } from '../../services/api';
+import { deleteAvatar, getAvatar, logout, uploadAvatar } from '../../services/api';
 import { limparUsuario, obterUsuario, type Usuario } from '../../services/usuario';
 import { obterCarteira } from '../../services/carteira';
 import { listarObjetivos } from '../../services/objetivos';
@@ -125,9 +125,7 @@ export default function Perfil() {
 
     async function sair() {
         await logout();
-        clearAuthTokens();
         limparUsuario();
-        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
     }
 
     const filtrados = montarItens(usuario).filter((item) =>

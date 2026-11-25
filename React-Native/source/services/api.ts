@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { lerDecimal } from '../shared/currency';
 
 export const API_BASE_URL = (
@@ -7,14 +9,43 @@ export const API_BASE_URL = (
 let authToken: string | null = null;
 let refreshToken: string | null = null;
 
-export function setAuthTokens(tokens: { accessToken?: string; refreshToken?: string }) {
-    if (tokens.accessToken) authToken = tokens.accessToken;
-    if (tokens.refreshToken) refreshToken = tokens.refreshToken;
+const KEY = 'investeai.refresh';
+let version = 0;
+let storage = Promise.resolve();
+const sessionListeners = new Set<() => void>();
+
+export function onSessionEnded(listener: () => void) {
+    sessionListeners.add(listener);
+    return () => { sessionListeners.delete(listener); };
 }
 
-export function clearAuthTokens() {
+function saveRefresh(token: string | null) {
+    if (Platform.OS === 'web') return Promise.resolve();
+    const pending = storage.then(() => token ? SecureStore.setItemAsync(KEY, token) : SecureStore.deleteItemAsync(KEY));
+    storage = pending.catch(() => {});
+    return pending;
+}
+
+async function setAuthTokens(tokens: AuthTokens, started = version) {
+    if (started !== version) return false;
+    if (!tokens.accessToken || !tokens.refreshToken) throw new Error('Sessão inválida.');
+    await saveRefresh(tokens.refreshToken);
+    if (started !== version) return false;
+    authToken = tokens.accessToken;
+    refreshToken = tokens.refreshToken;
+    return true;
+}
+
+async function clearAuthTokens() {
+    version++;
     authToken = null;
     refreshToken = null;
+    renovando = null;
+    try {
+        await saveRefresh(null);
+    } finally {
+        sessionListeners.forEach(listener => listener());
+    }
 }
 
 export function getAuthToken() {
@@ -22,37 +53,50 @@ export function getAuthToken() {
 }
 
 export type AuthTokens = { accessToken: string; refreshToken: string };
+type Session = 'active' | 'signed-out' | 'retry';
+let renovando: Promise<Session> | null = null;
 
-let renovando: Promise<boolean> | null = null;
-
-// Troca o refresh token por um novo par de tokens. Várias chamadas simultâneas
-// compartilham a mesma renovação para não gastar o mesmo refresh token duas vezes.
-async function renovarTokens(): Promise<boolean> {
-    if (!refreshToken) return false;
-
-    if (!renovando) {
-        renovando = (async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ refreshToken }),
-                });
-                if (!response.ok) {
-                    clearAuthTokens();
-                    return false;
-                }
-                setAuthTokens(await response.json());
-                return true;
-            } catch {
-                return false;
-            } finally {
-                renovando = null;
+async function renovarTokens(): Promise<Session> {
+    if (!refreshToken) return 'signed-out';
+    if (renovando) return renovando;
+    const started = version;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const pending = (async (): Promise<Session> => {
+        try {
+            const response = await fetch(API_BASE_URL + '/auth/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+                signal: controller.signal,
+            });
+            if (started !== version) return 'signed-out';
+            if ([400, 401, 403].includes(response.status)) {
+                await clearAuthTokens();
+                return 'signed-out';
             }
-        })();
-    }
+            if (!response.ok) return 'retry';
+            return await setAuthTokens(await response.json(), started) ? 'active' : 'signed-out';
+        } catch {
+            return 'retry';
+        } finally {
+            clearTimeout(timeout);
+        }
+    })();
+    renovando = pending;
+    const result = await pending;
+    if (renovando === pending) renovando = null;
+    return result;
+}
 
-    return renovando;
+export async function restoreSession(): Promise<Session> {
+    if (Platform.OS === 'web') return 'signed-out';
+    try {
+        refreshToken = await SecureStore.getItemAsync(KEY);
+        return renovarTokens();
+    } catch {
+        return 'retry';
+    }
 }
 
 // Envia a requisição com o token atual; se a API responder 401, renova o token
@@ -70,8 +114,11 @@ async function authFetch(
         return fetch(url, { ...init, headers });
     };
 
+    const started = version;
+    const sentToken = authToken;
     let response = await enviar();
-    if (response.status === 401 && renovar && (await renovarTokens())) {
+    if (response.status === 401 && renovar && started === version
+        && ((authToken && authToken !== sentToken) || await renovarTokens() === 'active') && started === version) {
         response = await enviar();
     }
     return response;
@@ -162,17 +209,13 @@ export async function login(identifier: string, password: string) {
         method: 'POST',
         body: JSON.stringify({ identifier, password }),
     });
-    setAuthTokens(result);
+    await setAuthTokens(result);
     return result;
 }
 
 export async function logout() {
-    try {
-        await apiRequest('/auth/logout', { method: 'POST' });
-    } catch {
-        // O logout é só um aviso à API; os tokens locais são descartados de qualquer forma.
-    }
-    clearAuthTokens();
+    void apiRequest('/auth/logout', { method: 'POST' }).catch(() => {});
+    await clearAuthTokens();
 }
 
 export type UnifiedRegisterData = {
@@ -221,7 +264,7 @@ export async function registerUnified(data: UnifiedRegisterData) {
     });
 
     if (result.accessToken) {
-        setAuthTokens(result);
+        await setAuthTokens(result);
     }
 
     return result;

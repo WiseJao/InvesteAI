@@ -1,6 +1,7 @@
 package com.InvesteAI.backend.service;
 
 import com.InvesteAI.backend.dto.investment.request.CreateHoldingRequest;
+import com.InvesteAI.backend.dto.investment.request.FixedIncomeTerms;
 import com.InvesteAI.backend.dto.investment.request.UpdateHoldingRequest;
 import com.InvesteAI.backend.dto.investment.response.HoldingResponse;
 import com.InvesteAI.backend.dto.investment.response.PortfolioSummaryResponse;
@@ -34,6 +35,7 @@ public class InvestmentService {
 
     private final InvestmentInterface investmentRepository;
     private final BrapiService brapiService;
+    private final CdiService cdiService;
 
     /**
      * Adds a new investment holding to a user's portfolio.
@@ -55,6 +57,7 @@ public class InvestmentService {
         investment.setPurchaseDate(request.resolvedPurchaseDate());
         investment.setInvestmentType(request.investmentType() == null ? InvestmentType.LEGACY : request.investmentType());
         investment.setAnnualRate(request.annualRate());
+        if (request.fixedIncome() != null) setFixedIncome(investment, request.fixedIncome());
         validate(investment);
 
         Investment saved = investmentRepository.save(investment);
@@ -121,7 +124,14 @@ public class InvestmentService {
         }
         if (request.investmentType() != null) {
             investment.setInvestmentType(request.investmentType());
-            if (request.investmentType() != InvestmentType.FIXED_INCOME) investment.setAnnualRate(null);
+            if (request.investmentType() != InvestmentType.FIXED_INCOME) {
+                investment.setAnnualRate(null);
+                setFixedIncome(investment, new FixedIncomeTerms(null, null, null, null));
+            }
+        }
+        if (request.fixedIncome() != null) {
+            setFixedIncome(investment, request.fixedIncome());
+            if (request.fixedIncome().cdiPercentage() != null) investment.setAnnualRate(null);
         }
         if (request.annualRate() != null) investment.setAnnualRate(request.annualRate());
         validate(investment);
@@ -220,7 +230,16 @@ public class InvestmentService {
         LocalDate valuationDate = now.atZone(ZoneId.of("America/Sao_Paulo")).toLocalDate();
         return holdings.stream().map(holding -> HoldingResponse.from(holding, valuationDate,
                 holding.getInvestmentType() == InvestmentType.VARIABLE_INCOME
-                        ? quotes.get(holding.getSymbol().toUpperCase(Locale.ROOT)) : null, now)).toList();
+                        ? quotes.get(holding.getSymbol().toUpperCase(Locale.ROOT)) : null, now,
+                holding.getCdiPercentage() == null ? null : cdiService.estimate(holding.getPurchaseDate(),
+                        HoldingResponse.effectiveValuationDate(holding, valuationDate), holding.getCdiPercentage()))).toList();
+    }
+
+    private void setFixedIncome(Investment investment, FixedIncomeTerms terms) {
+        investment.setFixedProduct(terms.product());
+        investment.setInstitution(terms.institution() == null ? null : terms.institution().strip());
+        investment.setCdiPercentage(terms.cdiPercentage());
+        investment.setMaturityDate(terms.maturityDate());
     }
 
     private void validate(Investment inv) {
@@ -238,12 +257,21 @@ public class InvestmentService {
         if (inv.getRemainingQuantity().compareTo(inv.getOriginalQuantity()) > 0) {
             throw badRequest("Quantidade restante excede a quantidade original");
         }
-        BigDecimal rate = inv.getAnnualRate();
+        BigDecimal annual = inv.getAnnualRate();
+        BigDecimal cdi = inv.getCdiPercentage();
         if (inv.getInvestmentType() == InvestmentType.FIXED_INCOME) {
-            if (rate == null || rate.signum() < 0 || rate.compareTo(new BigDecimal("1000")) > 0
-                    || rate.stripTrailingZeros().scale() > 4) throw badRequest("Taxa anual inválida");
-        } else if (rate != null) {
-            throw badRequest("Taxa anual permitida apenas para renda fixa");
+            if ((annual == null) == (cdi == null)) throw badRequest("Informe uma modalidade de rentabilidade.");
+            BigDecimal rate = annual == null ? cdi : annual;
+            if (rate.signum() < (annual == null ? 1 : 0) || rate.compareTo(new BigDecimal("1000")) > 0
+                    || rate.stripTrailingZeros().scale() > 4) throw badRequest("Taxa inválida");
+            if (inv.getFixedProduct() != null && !Set.of("CDB", "CAIXINHA", "OTHER").contains(inv.getFixedProduct())) {
+                throw badRequest("Produto de renda fixa inválido.");
+            }
+            PersistedFields.optionalText(inv.getInstitution(), 100, "instituição");
+            PersistedFields.dates(inv.getPurchaseDate(), inv.getMaturityDate());
+        } else if (annual != null || cdi != null || inv.getFixedProduct() != null
+                || inv.getInstitution() != null || inv.getMaturityDate() != null) {
+            throw badRequest("Condições permitidas apenas para renda fixa");
         }
     }
 

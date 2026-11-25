@@ -22,6 +22,14 @@ export async function buscarAtivos(query: string): Promise<ResultadoBusca[]> {
     }).slice(0, 20);
 }
 
+export type ProdutoRendaFixa = 'CDB' | 'CAIXINHA' | 'OTHER';
+export type CondicoesRendaFixa = {
+    product: ProdutoRendaFixa | null;
+    institution: string | null;
+    cdiPercentage: string | null;
+    maturityDate: string | null;
+};
+
 export type Ativo = {
     id: string;
     simbolo: string;
@@ -43,6 +51,8 @@ export type Ativo = {
     annualRate: number | null;
     priceStatus: string | null;
     quotedAt?: string | null;
+    fixedIncome?: CondicoesRendaFixa | null;
+    valuationThrough?: string | null;
 };
 
 export type Carteira = {
@@ -70,6 +80,8 @@ type AtivoApi = {
     annualRate?: string | null;
     priceStatus?: string | null;
     quotedAt?: string | null;
+    fixedIncome?: CondicoesRendaFixa | null;
+    valuationThrough?: string | null;
 };
 
 type CarteiraApi = {
@@ -108,6 +120,8 @@ export async function obterCarteira(): Promise<Carteira> {
             annualRate: ativo.annualRate == null ? null : Number(ativo.annualRate),
             priceStatus: ativo.priceStatus ?? null,
             quotedAt: ativo.quotedAt ?? null,
+            fixedIncome: ativo.fixedIncome ?? null,
+            valuationThrough: ativo.valuationThrough ?? null,
         })),
     };
 }
@@ -120,6 +134,7 @@ export type NovoAtivo = {
     data: string | null; // AAAA-MM-DD
     investmentType: TipoInvestimento;
     annualRate: string | null;
+    fixedIncome?: CondicoesRendaFixa;
 };
 
 export async function adicionarAtivo(novo: NovoAtivo): Promise<void> {
@@ -133,6 +148,7 @@ export async function adicionarAtivo(novo: NovoAtivo): Promise<void> {
             purchaseDate: novo.data,
             investmentType: novo.investmentType,
             annualRate: novo.annualRate,
+            fixedIncome: novo.fixedIncome,
         }),
     });
 }
@@ -147,6 +163,7 @@ export async function atualizarAtivo(id: string, dados: NovoAtivo, inalterados: 
             ...(inalterados.precoCompra ? {} : { purchaseUnitPrice: dados.precoCompra }),
             purchaseDate: dados.data,
             investmentType: dados.investmentType,
+            fixedIncome: dados.fixedIncome,
             ...(inalterados.annualRate ? {} : { annualRate: dados.annualRate }),
         }),
     });

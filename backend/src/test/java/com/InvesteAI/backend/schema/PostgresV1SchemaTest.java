@@ -304,6 +304,25 @@ class PostgresV1SchemaTest {
                 com.InvesteAI.backend.service.CashFlowRecurrenceService.dueDate(java.time.YearMonth.of(2024, 3), 31));
     }
 
+    @Test
+    void compoundsStoredDailyCdiAndStopsAtRequestedEnd() {
+        var source = new org.springframework.jdbc.datasource.DriverManagerDataSource(
+                jdbcUrl + (jdbcUrl.contains("?") ? "&" : "?") + "currentSchema=" + schemaName, username, password);
+        var jdbc = org.springframework.jdbc.core.simple.JdbcClient.create(source);
+        jdbc.sql("INSERT INTO cdi_coverage VALUES (2024, DATE '2024-01-10')").update();
+        jdbc.sql("""
+                INSERT INTO cdi_daily_rate VALUES
+                (DATE '2024-01-01', 0.05), (DATE '2024-01-02', 0.05),
+                (DATE '2024-01-03', 0.04), (DATE '2024-01-04', 0.10)
+                """).update();
+        var service = new com.InvesteAI.backend.service.CdiService(jdbc,
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(source));
+        var valuation = service.estimate(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 3), new BigDecimal("110"));
+        assertEquals(0, new BigDecimal("1.000990242").compareTo(valuation.factor()));
+        assertEquals(LocalDate.of(2024, 1, 3), valuation.through());
+        assertEquals(false, valuation.stale());
+    }
+
     private static Connection connection() throws SQLException {
         return DriverManager.getConnection(schemaScopedJdbcUrl(), username, password);
     }

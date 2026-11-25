@@ -1,6 +1,8 @@
 package com.InvesteAI.backend.dto.investment.response;
 
 import com.InvesteAI.backend.model.Investment;
+import com.InvesteAI.backend.dto.investment.request.FixedIncomeTerms;
+import com.InvesteAI.backend.service.CdiService.Estimate;
 import com.InvesteAI.backend.model.InvestmentType;
 
 import java.math.BigDecimal;
@@ -47,7 +49,9 @@ public record HoldingResponse(
         InvestmentType investmentType,
         BigDecimal annualRate,
         String priceStatus,
-        Instant quotedAt
+        Instant quotedAt,
+        FixedIncomeTerms fixedIncome,
+        LocalDate valuationThrough
 ) {
     /**
      * Converts an {@link Investment} entity to a {@link HoldingResponse} calculating valuations and profit.
@@ -64,6 +68,10 @@ public record HoldingResponse(
     }
 
     public static HoldingResponse from(Investment entity, LocalDate valuationDate, MarketPrice quote, Instant now) {
+        return from(entity, valuationDate, quote, now, null);
+    }
+
+    public static HoldingResponse from(Investment entity, LocalDate valuationDate, MarketPrice quote, Instant now, Estimate estimate) {
         BigDecimal qty = entity.getRemainingQuantity() != null ? entity.getRemainingQuantity() : entity.getOriginalQuantity();
         BigDecimal buyPrice = entity.getPurchaseUnitPrice();
         BigDecimal currPrice = quote == null ? entity.getCurrentPrice() : quote.price();
@@ -72,8 +80,16 @@ public record HoldingResponse(
         BigDecimal totalInvested = buyPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
         BigDecimal currentTotal;
         String priceStatus;
-        if (entity.getInvestmentType() == InvestmentType.FIXED_INCOME) {
-            long days = ChronoUnit.DAYS.between(entity.getPurchaseDate(), valuationDate);
+        LocalDate valuationThrough = null;
+        boolean fixed = entity.getInvestmentType() == InvestmentType.FIXED_INCOME;
+        if (fixed && entity.getCdiPercentage() != null) {
+            currentTotal = estimate == null ? totalInvested : buyPrice.multiply(qty).multiply(estimate.factor()).setScale(2, RoundingMode.HALF_UP);
+            currPrice = estimate == null || qty.signum() == 0 ? null : currentTotal.divide(qty, 10, RoundingMode.HALF_UP);
+            valuationThrough = estimate == null ? null : estimate.through();
+            priceStatus = estimate == null ? "UNAVAILABLE" : estimate.stale() ? "STALE" : "ESTIMATED";
+        } else if (fixed) {
+            valuationThrough = effectiveValuationDate(entity, valuationDate);
+            long days = Math.max(0, ChronoUnit.DAYS.between(entity.getPurchaseDate(), valuationThrough));
             BigDecimal base = BigDecimal.ONE.add(entity.getAnnualRate().movePointLeft(2));
             currentTotal = compoundValue(buyPrice.multiply(qty), base, days);
             currPrice = qty.signum() == 0 ? buyPrice : currentTotal.divide(qty, 10, RoundingMode.HALF_UP);
@@ -115,8 +131,14 @@ public record HoldingResponse(
                 entity.getInvestmentType(),
                 entity.getAnnualRate(),
                 priceStatus,
-                quotedAt
+                quotedAt,
+                fixed ? new FixedIncomeTerms(entity.getFixedProduct(), entity.getInstitution(), entity.getCdiPercentage(), entity.getMaturityDate()) : null,
+                valuationThrough
         );
+    }
+
+    public static LocalDate effectiveValuationDate(Investment entity, LocalDate date) {
+        return entity.getMaturityDate() != null && entity.getMaturityDate().isBefore(date) ? entity.getMaturityDate() : date;
     }
 
     private static BigDecimal compoundValue(BigDecimal principal, BigDecimal base, long days) {

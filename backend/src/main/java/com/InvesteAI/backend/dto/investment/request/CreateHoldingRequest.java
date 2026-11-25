@@ -32,11 +32,12 @@ public record CreateHoldingRequest(
         LocalDate purchaseDate,
         BigDecimal currentPrice,
         InvestmentType investmentType,
-        BigDecimal annualRate
+        BigDecimal annualRate,
+        FixedIncomeTerms fixedIncome
 ) {
     public CreateHoldingRequest(String symbol, String name, BigDecimal quantity, BigDecimal originalQuantity,
                                 BigDecimal purchaseUnitPrice, BigDecimal price, LocalDate purchaseDate, BigDecimal currentPrice) {
-        this(symbol, name, quantity, originalQuantity, purchaseUnitPrice, price, purchaseDate, currentPrice, null, null);
+        this(symbol, name, quantity, originalQuantity, purchaseUnitPrice, price, purchaseDate, currentPrice, null, null, null);
     }
     /**
      * Resolves the quantity purchased.

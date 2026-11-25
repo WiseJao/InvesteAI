@@ -202,11 +202,11 @@ export default function Investimentos() {
                                 <View style={styles.linhaCarteiraNome}>
                                     <Text style={styles.title}>{ativo.simbolo}</Text>
                                     <Text style={styles.subtitle}>{oculto ? 'Quantidade oculta' : `${ativo.quantidade} un.`}</Text>
-                                    <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
+                                    <Text style={styles.subtitle}>{ativo.investmentType === 'LEGACY' ? 'Legado' : ativo.investmentType === 'FIXED_INCOME' ? `Renda fixa${ativo.fixedIncome?.cdiPercentage ? (oculto ? ' · Taxa oculta' : ' · ' + ativo.fixedIncome.cdiPercentage + '% do CDI') : ativo.annualRate == null ? '' : oculto ? ' · Taxa oculta' : ` · ${ativo.annualRate}% a.a.`}` : 'Renda variável'}</Text>
                                 </View>
                                 <View style={styles.linhaCarteiraValor}>
                                     <Text style={styles.title}>{oculto ? 'Valores ocultos' : formatarReais(ativo.valorAtual)}</Text>
-                                    {ativo.investmentType === 'FIXED_INCOME' ? <Text style={styles.subtitle}>Valor estimado</Text> : null}
+                                    {ativo.investmentType === 'FIXED_INCOME' && ativo.priceStatus !== 'UNAVAILABLE' ? <Text style={styles.subtitle}>Estimativa bruta{ativo.valuationThrough ? ' · ' + ativo.valuationThrough.split('-').reverse().join('/') : ''}</Text> : null}
                                     {ativo.priceStatus === 'UNAVAILABLE' ? <Text style={styles.subtitle}>Cotação indisponível · valor pelo custo de compra</Text> : ativo.priceStatus === 'STALE' ? <Text style={styles.subtitle}>Cotação possivelmente desatualizada</Text> : null}
                                     {ativo.quotedAt ? <Text style={styles.subtitle}>Cotação de {formatarDataCotacao(ativo.quotedAt)}</Text> : null}
                                     <Text

@@ -27,11 +27,12 @@ public record UpdateHoldingRequest(
         LocalDate purchaseDate,
         BigDecimal currentPrice,
         InvestmentType investmentType,
-        BigDecimal annualRate
+        BigDecimal annualRate,
+        FixedIncomeTerms fixedIncome
 ) {
     public UpdateHoldingRequest(String symbol, String name, BigDecimal remainingQuantity, BigDecimal quantity,
                                 BigDecimal purchaseUnitPrice, BigDecimal price, LocalDate purchaseDate, BigDecimal currentPrice) {
-        this(symbol, name, remainingQuantity, quantity, purchaseUnitPrice, price, purchaseDate, currentPrice, null, null);
+        this(symbol, name, remainingQuantity, quantity, purchaseUnitPrice, price, purchaseDate, currentPrice, null, null, null);
     }
     /**
      * Resolves the quantity value if provided.

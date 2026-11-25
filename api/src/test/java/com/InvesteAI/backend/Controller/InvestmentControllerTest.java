@@ -1,6 +1,7 @@
 package com.InvesteAI.backend.Controller;
 
 import com.InvesteAI.backend.service.BrapiService;
+import com.InvesteAI.backend.service.InvestmentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,12 +15,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class InvestmentControllerTest {
@@ -31,6 +39,23 @@ class InvestmentControllerTest {
     private InvestmentController investmentController;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void rejectsLegacyForNewAndExistingHoldings() throws Exception {
+        InvestmentService service = mock(InvestmentService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new PortfolioController(service)).build();
+        var payload = """
+                {"symbol":"PETR4","name":"Petrobras","quantity":1,"purchaseUnitPrice":30,
+                 "purchaseDate":"2025-01-10","investmentType":"LEGACY"}
+                """;
+
+        mvc.perform(post("/portfolio/holdings").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest());
+        mvc.perform(patch("/portfolio/holdings/fe91b784-48f5-45c5-8283-0fe24d676616")
+                        .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
+    }
 
     @Test
     void preservesBrapiQuotesResultsContract() throws Exception {

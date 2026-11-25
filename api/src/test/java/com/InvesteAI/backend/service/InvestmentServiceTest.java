@@ -1,10 +1,13 @@
 package com.InvesteAI.backend.service;
 
 import com.InvesteAI.backend.dto.investment.request.CreateHoldingRequest;
+import com.InvesteAI.backend.dto.investment.request.FixedIncomeTerms;
+import com.InvesteAI.backend.dto.investment.request.UpdateHoldingRequest;
 import com.InvesteAI.backend.dto.investment.response.HoldingResponse;
 import com.InvesteAI.backend.dto.investment.response.PortfolioSummaryResponse;
 import com.InvesteAI.backend.interfaces.InvestmentInterface;
 import com.InvesteAI.backend.model.Investment;
+import com.InvesteAI.backend.model.InvestmentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,6 +19,7 @@ import java.time.LocalDate;
 import java.time.Instant;
 import tools.jackson.databind.json.JsonMapper;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,7 +63,7 @@ class InvestmentServiceTest {
 
         assertNotNull(response.id());
         assertEquals("PETR4", response.symbol());
-        assertEquals(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME, response.investmentType());
+        assertEquals(InvestmentType.VARIABLE_INCOME, response.investmentType());
         assertEquals(new BigDecimal("3500.00"), response.totalInvested());
         assertEquals(new BigDecimal("3850.00"), response.currentTotalValue());
         assertEquals(new BigDecimal("350.00"), response.profit());
@@ -67,11 +71,37 @@ class InvestmentServiceTest {
     }
 
     @Test
+    void reclassifiesAnExistingPositionWithoutChangingPurchaseEconomics() {
+        UUID userId = UUID.randomUUID();
+        UUID id = UUID.randomUUID();
+        Investment holding = new Investment();
+        holding.setInvestmentId(id);
+        holding.setSymbol("APLICACAO");
+        holding.setName("Aplicação");
+        holding.setPurchaseDate(LocalDate.now().minusDays(10));
+        holding.setOriginalQuantity(new BigDecimal("4"));
+        holding.setRemainingQuantity(new BigDecimal("3"));
+        holding.setPurchaseUnitPrice(new BigDecimal("12.30"));
+        when(investmentRepository.findByInvestmentIdAndUserId(id, userId)).thenReturn(Optional.of(holding));
+        when(investmentRepository.save(holding)).thenReturn(holding);
+
+        HoldingResponse updated = investmentService.updateHolding(userId, id, new UpdateHoldingRequest(
+                null, null, null, null, null, null, null, null,
+                InvestmentType.FIXED_INCOME, new BigDecimal("10"), new FixedIncomeTerms("CDB", null, null, null)));
+
+        assertEquals(id, updated.id());
+        assertEquals(InvestmentType.FIXED_INCOME, updated.investmentType());
+        assertEquals(new BigDecimal("4"), updated.originalQuantity());
+        assertEquals(new BigDecimal("3"), updated.remainingQuantity());
+        assertEquals(new BigDecimal("12.30"), updated.purchaseUnitPrice());
+    }
+
+    @Test
     void valuesVariableIncomeFromMarketQuote() {
         UUID userId = UUID.randomUUID();
         Investment holding = new Investment();
         holding.setSymbol("PETR4");
-        holding.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME);
+        holding.setInvestmentType(InvestmentType.VARIABLE_INCOME);
         holding.setOriginalQuantity(BigDecimal.TEN);
         holding.setPurchaseUnitPrice(new BigDecimal("30"));
         Instant now = Instant.now().minusSeconds(60);
@@ -94,7 +124,7 @@ class InvestmentServiceTest {
 
         Investment stock = new Investment();
         stock.setSymbol("VALE3");
-        stock.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.VARIABLE_INCOME);
+        stock.setInvestmentType(InvestmentType.VARIABLE_INCOME);
         stock.setName("Vale ON");
         stock.setOriginalQuantity(new BigDecimal("10"));
         stock.setRemainingQuantity(new BigDecimal("10"));
@@ -104,7 +134,7 @@ class InvestmentServiceTest {
 
         Investment fii = new Investment();
         fii.setSymbol("CDB");
-        fii.setInvestmentType(com.InvesteAI.backend.model.InvestmentType.FIXED_INCOME);
+        fii.setInvestmentType(InvestmentType.FIXED_INCOME);
         fii.setAnnualRate(BigDecimal.ZERO);
         fii.setName("CDB");
         fii.setOriginalQuantity(new BigDecimal("10"));

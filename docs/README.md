@@ -27,5 +27,3 @@
 - [Links do projeto](InvesteAI_Links.docx)
 
 O protótipo Figma, o Canvas de Modelo de Negócio e a primeira entrega registram as respectivas etapas do projeto. Consulte os requisitos e o fluxo vigente para o comportamento atual.
-
-O PDF de fluxo de usuários usa Git LFS. Para baixar o arquivo após clonar o repositório, instale o [Git LFS](https://git-lfs.com/) e execute `git lfs install` e `git lfs pull` na raiz.
